@@ -23,7 +23,7 @@
 		<!-- Brand -->
 		<div class="flex items-center gap-2.5 mb-8">
 			<div class="w-8 h-8 shrink-0" style="color: var(--color-primary)">
-				<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
 					<rect x="2" y="21" width="7" height="9" rx="2" fill="currentColor" opacity="0.4"/>
 					<rect x="12" y="14" width="7" height="16" rx="2" fill="currentColor" opacity="0.7"/>
 					<rect x="22" y="5" width="7" height="25" rx="2" fill="currentColor"/>
@@ -58,18 +58,23 @@
 		>
 			<div class="space-y-4">
 				<div class="relative">
+					<label for="login-password" class="sr-only">Password</label>
 					<input
+						id="login-password"
 						name="password"
 						type={showPass ? 'text' : 'password'}
 						placeholder="Password"
 						autocomplete="current-password"
 						required
-						class="w-full px-3 py-2.5 pr-10 rounded-lg border text-sm outline-none focus:ring-2 transition-shadow"
+						class="w-full px-3 py-2.5 pr-16 rounded-lg border text-sm outline-none focus:ring-2 transition-shadow"
 						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 					/>
 					<button
 						type="button"
 						onclick={() => (showPass = !showPass)}
+						aria-label={showPass ? 'Hide password' : 'Show password'}
+						aria-pressed={showPass}
+						aria-controls="login-password"
 						class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium transition-opacity hover:opacity-70"
 						style="color: var(--color-muted-foreground)"
 					>

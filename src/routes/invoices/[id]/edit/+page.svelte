@@ -62,7 +62,7 @@
 	<h2 class="text-2xl font-bold mb-6" style="color: var(--color-foreground)">Edit Invoice</h2>
 
 	{#if form?.error}
-		<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">{form.error}</div>
+		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">{form.error}</div>
 	{/if}
 
 	<form method="POST"
@@ -167,6 +167,7 @@
 						<div>
 							<span class="block text-xs font-medium mb-1 sm:hidden" style="color: var(--color-muted-foreground)">Description</span>
 							<textarea bind:value={item.description} placeholder="Service description" rows="2"
+								aria-label="Item description"
 								class="w-full px-2 py-1.5 rounded border text-sm resize-y"
 								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 							></textarea>
@@ -174,13 +175,17 @@
 						<div class="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 sm:contents">
 							<div>
 								<span class="block text-xs font-medium mb-1 sm:hidden" style="color: var(--color-muted-foreground)">Qty</span>
-								<input type="number" min="0" step="0.01" bind:value={item.quantity} class="w-full px-2 py-1.5 rounded border text-sm text-right"
+								<input type="number" min="0" step="0.01" bind:value={item.quantity}
+									aria-label="Quantity"
+									class="w-full px-2 py-1.5 rounded border text-sm text-right"
 									style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 								/>
 							</div>
 							<div>
 								<span class="block text-xs font-medium mb-1 sm:hidden" style="color: var(--color-muted-foreground)">Unit Price</span>
-								<input type="number" min="0" step="0.01" bind:value={item.unit_price} class="w-full px-2 py-1.5 rounded border text-sm text-right"
+								<input type="number" min="0" step="0.01" bind:value={item.unit_price}
+									aria-label="Unit price"
+									class="w-full px-2 py-1.5 rounded border text-sm text-right"
 									style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 								/>
 							</div>
@@ -189,8 +194,10 @@
 								<span class="py-1.5 text-sm font-mono text-right sm:pt-2" style="color: var(--color-foreground)">{fmt(item.quantity * item.unit_price)}</span>
 							</div>
 							<div class="flex items-end sm:items-start sm:pt-1 justify-center">
-								<button type="button" onclick={() => removeItem(item.id)} disabled={items.length === 1} class="p-1 rounded-lg text-red-600 hover:opacity-70 disabled:opacity-30 transition-opacity">
-									<Trash2 size={14} />
+								<button type="button" onclick={() => removeItem(item.id)} disabled={items.length === 1}
+									aria-label="Remove item"
+									class="p-1 rounded-lg text-red-600 hover:opacity-70 disabled:opacity-30 transition-opacity">
+									<Trash2 size={14} aria-hidden="true" />
 								</button>
 							</div>
 						</div>

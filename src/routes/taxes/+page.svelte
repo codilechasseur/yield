@@ -94,7 +94,7 @@
 				Record a Payment
 			</h3>
 			{#if form?.createError}
-				<p class="mb-3 text-sm rounded-lg px-3 py-2 bg-red-50 text-red-700">{form.createError}</p>
+				<p role="alert" class="mb-3 text-sm rounded-lg px-3 py-2 bg-red-50 text-red-700">{form.createError}</p>
 			{/if}
 			<form method="POST" action="?/create" use:enhance class="flex flex-col gap-4">
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -260,7 +260,7 @@
 							class="text-left px-4 py-3 font-medium"
 							style="color: var(--color-muted-foreground)"
 						>Notes</th>
-						<th class="px-4 py-3"></th>
+						<th scope="col" class="px-4 py-3"></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -295,12 +295,12 @@
 										type="submit"
 										class="p-1.5 rounded-md transition-colors hover:bg-red-50 hover:text-red-600"
 										style="color: var(--color-muted-foreground)"
-										title="Delete payment"
+										aria-label="Delete payment"
 										onclick={(e) => {
 											if (!confirm('Delete this payment record?')) e.preventDefault();
 										}}
 									>
-										<Trash2 size={14} />
+										<Trash2 size={14} aria-hidden="true" />
 									</button>
 								</form>
 							</td>

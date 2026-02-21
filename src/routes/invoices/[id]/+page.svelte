@@ -136,13 +136,13 @@
 	</div>
 
 	{#if form?.error}
-		<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
+		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
 	{/if}
 	{#if form?.sendError}
-		<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.sendError}</div>
+		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.sendError}</div>
 	{/if}
 	{#if form?.sendSuccess}
-		<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Invoice emailed to {invoice.expand?.client?.email}.</div>
+		<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Invoice emailed to {invoice.expand?.client?.email}.</div>
 	{/if}
 
 	<!-- Record Payment panel -->
@@ -339,10 +339,10 @@
 		<table class="w-full min-w-100">
 			<thead>
 				<tr style="border-bottom: 1px solid var(--color-border); background: var(--color-muted)">
-					<th class="px-8 py-3 text-left text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Description</th>
-					<th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Qty</th>
-					<th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Unit Price</th>
-					<th class="px-8 py-3 text-right text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Amount</th>
+					<th scope="col" class="px-8 py-3 text-left text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Description</th>
+					<th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Qty</th>
+					<th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Unit Price</th>
+					<th scope="col" class="px-8 py-3 text-right text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Amount</th>
 				</tr>
 			</thead>
 			<tbody>

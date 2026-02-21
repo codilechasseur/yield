@@ -23,7 +23,7 @@
 	</a>
 
 	{#if form?.error}
-		<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
+		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
 	{/if}
 
 	<!-- Client Header -->
@@ -127,10 +127,10 @@
 			<table class="w-full min-w-100">
 				<thead>
 					<tr style="border-bottom: 1px solid var(--color-border)">
-						<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Number</th>
-						<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Issue Date</th>
-						<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Due Date</th>
-						<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Status</th>					<th class="px-6 py-3 text-right text-xs font-medium" style="color: var(--color-muted-foreground)">Total</th>					</tr>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Number</th>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Issue Date</th>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Due Date</th>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Status</th>					<th scope="col" class="px-6 py-3 text-right text-xs font-medium" style="color: var(--color-muted-foreground)">Total</th>					</tr>
 				</thead>
 				<tbody>
 					{#each data.invoices as inv}

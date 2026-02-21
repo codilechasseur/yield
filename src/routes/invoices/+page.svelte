@@ -54,7 +54,9 @@
 	<div class="mb-6">
 		<!-- Mobile dropdown -->
 		<div class="sm:hidden">
+			<label for="invoice-status-filter" class="sr-only">Filter by status</label>
 			<select
+				id="invoice-status-filter"
 				class="w-full px-3 py-2 rounded-lg text-sm font-medium border"
 				style="background: var(--color-card); color: var(--color-foreground); border-color: var(--color-border)"
 				onchange={(e) => { window.location.href = `/invoices${(e.target as HTMLSelectElement).value ? `?status=${(e.target as HTMLSelectElement).value}` : ''}`; }}
@@ -96,11 +98,11 @@
 		<table class="w-full min-w-175">
 				<thead>
 					<tr style="border-bottom: 1px solid var(--color-border)">
-						<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Number</th>
-						<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Client</th>
-						<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Issue Date</th>
-						<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Due Date</th>
-						<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Status</th>					<th class="px-6 py-3 text-right text-xs font-medium" style="color: var(--color-muted-foreground)">Total</th>						<th class="px-6 py-3 text-right text-xs font-medium" style="color: var(--color-muted-foreground)">PDF</th>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Number</th>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Client</th>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Issue Date</th>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Due Date</th>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Status</th>					<th scope="col" class="px-6 py-3 text-right text-xs font-medium" style="color: var(--color-muted-foreground)">Total</th>						<th scope="col" class="px-6 py-3 text-right text-xs font-medium" style="color: var(--color-muted-foreground)">PDF</th>
 					</tr>
 				</thead>
 				<tbody>

@@ -100,7 +100,7 @@
 
 	<!-- Error from form action -->
 	{#if form?.error}
-		<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
+		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
 			{form.error}
 		</div>
 	{/if}
@@ -342,9 +342,9 @@
 											type="submit"
 											class="flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors hover:bg-muted"
 											style="color: var(--color-muted-foreground)"
-											title="Restore"
-										>
-											<ArchiveRestore size={13} /> Restore
+										aria-label="Restore {client.name}"
+									>
+										<ArchiveRestore size={13} aria-hidden="true" /> Restore
 										</button>
 									</form>
 									<form method="POST" action="?/delete" use:enhance>
@@ -353,9 +353,9 @@
 											type="submit"
 											onclick={(e) => { if (!confirm(`Permanently delete ${client.name}?`)) e.preventDefault(); }}
 											class="p-1.5 rounded transition-colors text-red-500 hover:bg-red-50"
-											title="Delete permanently"
-										>
-											<Trash2 size={13} />
+										aria-label="Permanently delete {client.name}"
+									>
+										<Trash2 size={13} aria-hidden="true" />
 										</button>
 									</form>
 								{:else}
@@ -365,18 +365,18 @@
 											type="submit"
 											class="p-1.5 rounded transition-colors hover:bg-muted"
 											style="color: var(--color-muted-foreground)"
-											title="Archive"
-										>
-											<Archive size={13} />
+										aria-label="Archive {client.name}"
+									>
+										<Archive size={13} aria-hidden="true" />
 										</button>
 									</form>
 									<a
 										href="/clients/{client.id}"
 										class="p-1.5 rounded transition-colors hover:bg-muted"
 										style="color: var(--color-muted-foreground)"
-										title="Open"
+										aria-label="View {client.name}"
 									>
-										<ArrowRight size={13} />
+										<ArrowRight size={13} aria-hidden="true" />
 									</a>
 								{/if}
 							</div>

@@ -119,10 +119,10 @@
 		<table class="w-full text-sm min-w-150">
 			<thead>
 				<tr class="border-b" style="border-color: var(--color-border)">
-					<th class="px-6 py-3 text-left font-medium" style="color: var(--color-muted-foreground)">Month</th>
-					<th class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)"># Invoices</th>
-					<th class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Revenue (pre-tax)</th>
-					<th class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">GST/HST Collected</th>				<th class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Est. Income Tax</th>					<th class="px-6 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Total Invoiced</th>
+					<th scope="col" class="px-6 py-3 text-left font-medium" style="color: var(--color-muted-foreground)">Month</th>
+					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)"># Invoices</th>
+					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Revenue (pre-tax)</th>
+					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">GST/HST Collected</th>				<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Est. Income Tax</th>					<th scope="col" class="px-6 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Total Invoiced</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -185,13 +185,13 @@
 		<table class="w-full text-sm min-w-160">
 			<thead>
 				<tr class="border-b" style="border-color: var(--color-border)">
-					<th class="px-6 py-3 text-left font-medium" style="color: var(--color-muted-foreground)">Quarter</th>
-					<th class="px-4 py-3 text-left font-medium" style="color: var(--color-muted-foreground)">Months</th>
-					<th class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)"># Invoices</th>
-					<th class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Revenue (pre-tax)</th>
-					<th class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">GST/HST Collected</th>
-					<th class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Est. Income Tax</th>
-					<th class="px-6 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Total Invoiced</th>
+					<th scope="col" class="px-6 py-3 text-left font-medium" style="color: var(--color-muted-foreground)">Quarter</th>
+					<th scope="col" class="px-4 py-3 text-left font-medium" style="color: var(--color-muted-foreground)">Months</th>
+					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)"># Invoices</th>
+					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Revenue (pre-tax)</th>
+					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">GST/HST Collected</th>
+					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Est. Income Tax</th>
+					<th scope="col" class="px-6 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Total Invoiced</th>
 				</tr>
 			</thead>
 			<tbody>

@@ -129,7 +129,9 @@
 
 	<!-- Tab nav — dropdown on mobile, tab bar on sm+ -->
 	<div class="mb-6 sm:hidden">
+		<label for="settings-tab-select" class="sr-only">Settings section</label>
 		<select
+			id="settings-tab-select"
 			value={activeTab}
 			onchange={(e) => activeTab = (e.currentTarget as HTMLSelectElement).value as typeof activeTab}
 			class="w-full rounded-lg border px-3 py-2 text-sm font-medium"
@@ -169,12 +171,13 @@
 					{@const Icon = opt.icon}
 					<button
 						onclick={() => setTheme(opt.value)}
+						aria-pressed={active}
 						class="flex flex-col items-center gap-3 rounded-xl border p-5 text-sm font-medium transition-all"
 						style={active
 							? 'border-color: var(--color-primary); background-color: var(--color-accent); color: var(--color-primary)'
 							: 'border-color: var(--color-border); background-color: var(--color-background); color: var(--color-muted-foreground)'}
 					>
-						<Icon size={22} />
+						<Icon size={22} aria-hidden="true" />
 						<span>{opt.label}</span>
 					</button>
 				{/each}
@@ -198,12 +201,13 @@
 					{@const active = Math.abs(hue - p.hue) < 8}
 					<button
 						onclick={() => setHue(p.hue)}
-						title={p.label}
+						aria-label={p.label}
+						aria-pressed={active}
 						class="relative w-9 h-9 rounded-full transition-transform hover:scale-110 focus-visible:outline-none"
 						style="background: oklch(0.55 0.24 {p.hue}); box-shadow: {active ? `0 0 0 3px var(--color-card), 0 0 0 5px oklch(0.55 0.24 ${p.hue})` : 'none'}"
 					>
 						{#if active}
-							<Check size={13} class="absolute inset-0 m-auto text-white" strokeWidth={3} />
+							<Check size={13} class="absolute inset-0 m-auto text-white" strokeWidth={3} aria-hidden="true" />
 						{/if}
 					</button>
 				{/each}
@@ -258,10 +262,10 @@
 			</p>
 
 			{#if form?.clientDefaultsSuccess}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Client defaults saved.</div>
+				<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Client defaults saved.</div>
 			{/if}
 			{#if form?.clientDefaultsError}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.clientDefaultsError}</div>
+				<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.clientDefaultsError}</div>
 			{/if}
 
 			<form
@@ -309,10 +313,10 @@
 			</p>
 
 			{#if form?.taxSuccess}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Tax rate saved.</div>
+				<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Tax rate saved.</div>
 			{/if}
 			{#if form?.taxError}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.taxError}</div>
+				<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.taxError}</div>
 			{/if}
 
 			<form
@@ -360,10 +364,10 @@
 			</p>
 
 			{#if form?.incomeTaxRateSuccess}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Income tax rate saved.</div>
+				<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Income tax rate saved.</div>
 			{/if}
 			{#if form?.incomeTaxRateError}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.incomeTaxRateError}</div>
+				<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.incomeTaxRateError}</div>
 			{/if}
 
 			<form
@@ -409,10 +413,10 @@
 			<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Default notes pre-filled on new invoices, and a footer block printed on every PDF (contact info, bank details, payment terms, etc.).</p>
 
 			{#if form?.invoiceDefaultsSuccess}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Saved.</div>
+				<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Saved.</div>
 			{/if}
 			{#if form?.invoiceDefaultsError}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.invoiceDefaultsError}</div>
+				<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.invoiceDefaultsError}</div>
 			{/if}
 
 			<form
@@ -500,10 +504,10 @@
 			</p>
 
 			{#if form?.invoiceNumberingSuccess}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Saved.</div>
+				<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Saved.</div>
 			{/if}
 			{#if form?.invoiceNumberingError}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.invoiceNumberingError}</div>
+				<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.invoiceNumberingError}</div>
 			{/if}
 
 			<form
@@ -581,10 +585,10 @@
 			</p>
 
 			{#if form?.emailTemplateSuccess}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Email template saved.</div>
+				<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Email template saved.</div>
 			{/if}
 			{#if form?.emailTemplateError}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.emailTemplateError}</div>
+				<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.emailTemplateError}</div>
 			{/if}
 
 			<form
@@ -643,10 +647,10 @@
 			<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Configure a third-party SMTP service to send invoices directly to clients.</p>
 
 			{#if form?.success}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Settings saved.</div>
+				<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Settings saved.</div>
 			{/if}
 			{#if form?.error}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
+				<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
 			{/if}
 
 			<form
@@ -850,13 +854,13 @@
 			</p>
 
 			{#if form?.passwordSuccess}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Password saved.</div>
+				<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Password saved.</div>
 			{/if}
 			{#if form?.passwordRemoved}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Password protection removed.</div>
+				<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Password protection removed.</div>
 			{/if}
 			{#if form?.passwordError}
-				<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.passwordError}</div>
+				<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.passwordError}</div>
 			{/if}
 
 			<form

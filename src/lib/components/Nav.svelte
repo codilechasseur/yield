@@ -20,6 +20,7 @@
 
 <!-- ── Desktop sidebar ─────────────────────────────────────────── -->
 <aside
+	aria-label="Application sidebar"
 	class="hidden md:flex fixed left-0 top-0 h-screen w-56 flex-col"
 	style="background-color: var(--color-card); border-right: 1px solid var(--color-border)"
 >
@@ -27,7 +28,7 @@
 	<div class="px-6 py-5 border-b" style="border-color: var(--color-border)">
 		<a href="/" class="flex items-center gap-2.5 no-underline hover:opacity-80 transition-opacity">
 			<div class="w-8 h-8 shrink-0" style="color: var(--color-primary)">
-				<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
 					<polyline points="2.7 22.7 11.3 14 18 20.7 29.3 9.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 					<polyline points="21.3 9.3 29.3 9.3 29.3 17.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 				</svg>
@@ -40,20 +41,21 @@
 	</div>
 
 	<!-- Nav links -->
-	<nav class="flex-1 px-2 py-4 space-y-0.5">
+	<nav aria-label="Main" class="flex-1 px-2 py-4 space-y-0.5">
 		{#each links as link}
 			{@const active = $page.url.pathname === link.href || ($page.url.pathname.startsWith(link.href) && link.href !== '/')}
 			<a
 				href={link.href}
+				aria-current={active ? 'page' : undefined}
 				class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative"
 				style={active
 					? 'background-color: var(--color-accent); color: var(--color-primary); font-weight: 600'
 					: 'color: var(--color-muted-foreground)'}
 			>
 				{#if active}
-					<span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full" style="background-color: var(--color-primary)"></span>
+					<span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full" aria-hidden="true" style="background-color: var(--color-primary)"></span>
 				{/if}
-				<link.icon size={17} />
+				<link.icon size={17} aria-hidden="true" />
 				{link.label}
 			</a>
 		{/each}
@@ -96,13 +98,15 @@
 		class="p-1.5 rounded-lg -ml-1"
 		style="color: var(--color-foreground)"
 		aria-label="Open menu"
+		aria-expanded={drawerOpen}
+		aria-controls="mobile-nav-drawer"
 	>
-		<Menu size={22} />
+		<Menu size={22} aria-hidden="true" />
 	</button>
 
 	<a href="/" class="flex items-center gap-2 flex-1 no-underline hover:opacity-80 transition-opacity">
 		<div class="w-6 h-6 shrink-0" style="color: var(--color-primary)">
-			<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+			<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
 				<polyline points="2.7 22.7 11.3 14 18 20.7 29.3 9.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 				<polyline points="21.3 9.3 29.3 9.3 29.3 17.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 			</svg>
@@ -114,16 +118,19 @@
 <!-- ── Mobile drawer ───────────────────────────────────────────── -->
 {#if drawerOpen}
 	<!-- Backdrop -->
-	<button
-		type="button"
+	<div
 		class="md:hidden fixed inset-0 z-50"
 		style="background: rgba(0,0,0,0.4)"
 		onclick={close}
-		aria-label="Close menu"
-	></button>
+		aria-hidden="true"
+	></div>
 
 	<!-- Panel -->
 	<div
+		id="mobile-nav-drawer"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Navigation menu"
 		class="md:hidden fixed top-0 left-0 h-full w-72 z-50 flex flex-col"
 		style="background-color: var(--color-card); border-right: 1px solid var(--color-border)"
 	>
@@ -131,7 +138,7 @@
 		<div class="flex items-center justify-between px-5 py-4 border-b" style="border-color: var(--color-border)">
 			<a href="/" onclick={close} class="flex items-center gap-2.5 no-underline hover:opacity-80 transition-opacity">
 				<div class="w-7 h-7 shrink-0" style="color: var(--color-primary)">
-					<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
 						<polyline points="2.7 22.7 11.3 14 18 20.7 29.3 9.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 						<polyline points="21.3 9.3 29.3 9.3 29.3 17.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 					</svg>
@@ -141,27 +148,28 @@
 					<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Invoice Manager</p>
 				</div>
 			</a>
-			<button type="button" onclick={close} class="p-1.5 rounded-lg" style="color: var(--color-muted-foreground)" aria-label="Close menu">
-				<X size={18} />
+			<button type="button" onclick={close} class="p-1.5 rounded-lg" style="color: var(--color-muted-foreground)" aria-label="Close navigation menu">
+				<X size={18} aria-hidden="true" />
 			</button>
 		</div>
 
 		<!-- Links -->
-		<nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+		<nav aria-label="Main" class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
 			{#each links as link}
 				{@const active = $page.url.pathname === link.href || ($page.url.pathname.startsWith(link.href) && link.href !== '/')}
 				<a
 					href={link.href}
 					onclick={close}
+					aria-current={active ? 'page' : undefined}
 					class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors relative"
 					style={active
 						? 'background-color: var(--color-accent); color: var(--color-primary); font-weight: 600'
 						: 'color: var(--color-muted-foreground)'}
 				>
 					{#if active}
-						<span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full" style="background-color: var(--color-primary)"></span>
+						<span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full" aria-hidden="true" style="background-color: var(--color-primary)"></span>
 					{/if}
-					<link.icon size={18} />
+					<link.icon size={18} aria-hidden="true" />
 					{link.label}
 				</a>
 			{/each}
@@ -194,72 +202,3 @@
 		</div>
 	</div>
 {/if}
-
-
-<aside
-	class="hidden md:flex fixed left-0 top-0 h-screen w-56 flex-col"
-	style="background-color: var(--color-card); border-right: 1px solid var(--color-border)"
->
-	<!-- Brand -->
-	<div class="px-6 py-5 border-b" style="border-color: var(--color-border)">
-		<a href="/" class="flex items-center gap-2.5 no-underline hover:opacity-80 transition-opacity">
-			<div class="w-8 h-8 shrink-0" style="color: var(--color-primary)">
-				<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-					<polyline points="2.7 22.7 11.3 14 18 20.7 29.3 9.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-					<polyline points="21.3 9.3 29.3 9.3 29.3 17.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-				</svg>
-			</div>
-			<div>
-				<h1 class="text-xl font-bold tracking-tight leading-none" style="color: var(--color-primary)">Yield</h1>
-				<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Invoice Manager</p>
-			</div>
-		</a>
-	</div>
-
-	<!-- Nav links -->
-	<nav class="flex-1 px-2 py-4 space-y-0.5">
-		{#each links as link}
-			{@const active = $page.url.pathname === link.href || ($page.url.pathname.startsWith(link.href) && link.href !== '/')}
-			<a
-				href={link.href}
-				class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative"
-				style={active
-					? 'background-color: var(--color-accent); color: var(--color-primary); font-weight: 600'
-					: 'color: var(--color-muted-foreground)'}
-			>
-				{#if active}
-					<span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full" style="background-color: var(--color-primary)"></span>
-				{/if}
-				<link.icon size={17} />
-				{link.label}
-			</a>
-		{/each}
-	</nav>
-
-	<!-- Quick action -->
-	<div class="px-3 py-4 border-t" style="border-color: var(--color-border)">
-		<a
-			href="/invoices/new"
-			class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-			style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
-		>
-			<PlusCircle size={16} />
-			New Invoice
-		</a>
-
-		{#if authEnabled}
-			<form method="POST" action="/login?/logout" class="mt-2">
-				<button
-					type="submit"
-					class="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
-					style="color: var(--color-muted-foreground)"
-				>
-					<LogOut size={13} />
-					Sign out
-				</button>
-			</form>
-		{/if}
-	</div>
-</aside>
-
-

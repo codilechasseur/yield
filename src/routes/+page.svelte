@@ -214,6 +214,8 @@
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<svg
 					viewBox="0 0 {W} {H}"
+					role="img"
+					aria-label="Revenue chart showing invoiced vs paid amounts by {viewMode === 'year' ? 'year' : `month in ${monthViewYear}`}"
 					class="w-full block"
 					style="aspect-ratio: {W} / {H}; max-height: 260px;"
 					onmouseleave={() => { hoverIdx = null; }}
@@ -351,11 +353,11 @@
 		<table class="w-full min-w-150">
 			<thead>
 				<tr style="border-bottom: 1px solid var(--color-border)">
-					<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Invoice</th>
-					<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Client</th>
-					<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Due Date</th>
-					<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Days Overdue</th>
-					<th class="px-6 py-3 text-right text-xs font-medium" style="color: var(--color-muted-foreground)">Total</th>
+					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Invoice</th>
+					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Client</th>
+					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Due Date</th>
+					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Days Overdue</th>
+					<th scope="col" class="px-6 py-3 text-right text-xs font-medium" style="color: var(--color-muted-foreground)">Total</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -414,11 +416,11 @@
 		<table class="w-full min-w-150">
 			<thead>
 				<tr style="border-bottom: 1px solid var(--color-border)">
-					<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Invoice</th>
-					<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Client</th>
-					<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Due Date</th>
-					<th class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Status</th>
-					<th class="px-6 py-3 text-right text-xs font-medium" style="color: var(--color-muted-foreground)">Total</th>
+					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Invoice</th>
+					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Client</th>
+					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Due Date</th>
+					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Status</th>
+					<th scope="col" class="px-6 py-3 text-right text-xs font-medium" style="color: var(--color-muted-foreground)">Total</th>
 					</tr>
 				</thead>
 				<tbody>
