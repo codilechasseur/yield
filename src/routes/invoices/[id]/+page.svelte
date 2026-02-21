@@ -132,14 +132,12 @@
 					<DollarSign size={15} /> Record Payment
 				</button>
 			{/if}
-			<span
-				class="relative"
-				onmouseenter={() => (showSendTip = true)}
-				onmouseleave={() => (showSendTip = false)}
-			>
+			<span class="relative">
 				<button
 					onclick={sendDisabledReason ? undefined : openSend}
 					disabled={!!sendDisabledReason}
+					onmouseenter={() => (showSendTip = true)}
+					onmouseleave={() => (showSendTip = false)}
 					class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-opacity"
 					style={sendDisabledReason
 						? 'background: var(--color-muted); color: var(--color-muted-foreground); border: 1px solid var(--color-border); cursor: not-allowed; opacity: 0.7;'
