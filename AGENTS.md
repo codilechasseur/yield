@@ -44,6 +44,16 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) runs automatically on e
 
 **A PR is not complete until all three pass in CI.**
 
+## Accessibility (a11y)
+
+- Use semantic HTML elements (`<button>`, `<nav>`, `<main>`, `<section>`, `<header>`, etc.) rather than generic `<div>`/`<span>` elements with click handlers
+- Every `<img>` must have a meaningful `alt` attribute; decorative images use `alt=""`
+- All form inputs must have an associated `<label>` (via `for`/`id` or wrapping)
+- Interactive elements must be keyboard-navigable and focusable; never remove `:focus` styles without a visible replacement
+- Use ARIA attributes (`aria-label`, `aria-describedby`, `role`, etc.) only when semantic HTML alone is insufficient
+- Colour contrast must meet WCAG AA (4.5:1 for normal text, 3:1 for large text)
+- Avoid conveying information through colour alone — pair colour with text or icons
+
 ## Code conventions
 - All PocketBase calls are server-side only — never import `pocketbase` in client-side code or `.svelte` script blocks
 - Use `$lib/types.ts` for shared TypeScript interfaces; never inline ad-hoc types for domain objects
