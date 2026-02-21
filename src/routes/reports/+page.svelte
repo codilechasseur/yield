@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { BarChart2, FileText, TrendingUp, Wallet, Receipt, Calculator } from 'lucide-svelte';
+	import { BarChart2, TrendingUp, Wallet, Receipt, Calculator } from 'lucide-svelte';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
@@ -82,9 +82,8 @@
 	</form>
 
 	<!-- Annual Summary Cards -->
-	<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+	<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
 		{#each [
-			{ label: 'Invoices', value: String(data.totals.invoiceCount), icon: FileText },
 			{ label: 'Revenue (pre-tax)', value: fmt(data.totals.subtotal), icon: TrendingUp },
 			{ label: 'GST/HST Collected', value: fmt(data.totals.gstCollected), icon: Receipt },
 			{ label: 'Total Invoiced', value: fmt(data.totals.total), icon: Wallet },
