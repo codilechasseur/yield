@@ -1,0 +1,785 @@
+[
+  {
+    "id": "_pb_clients_",
+    "name": "clients",
+    "type": "base",
+    "system": false,
+    "fields": [
+      {
+        "hidden": false,
+        "id": "fld_cli_name",
+        "max": 0,
+        "min": 1,
+        "name": "name",
+        "pattern": "",
+        "presentable": true,
+        "primaryKey": false,
+        "required": true,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "exceptDomains": [],
+        "hidden": false,
+        "id": "fld_cli_email",
+        "name": "email",
+        "onlyDomains": [],
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "email"
+      },
+      {
+        "hidden": false,
+        "id": "fld_cli_addr",
+        "max": 0,
+        "min": 0,
+        "name": "address",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_cli_curr",
+        "max": 10,
+        "min": 0,
+        "name": "currency",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_cli_hvid",
+        "max": 0,
+        "min": 0,
+        "name": "harvest_id",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_cli_arch",
+        "name": "archived",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "bool"
+      },
+      {
+        "hidden": false,
+        "id": "autodate2990389176",
+        "name": "created",
+        "onCreate": true,
+        "onUpdate": false,
+        "presentable": false,
+        "system": false,
+        "type": "autodate"
+      },
+      {
+        "hidden": false,
+        "id": "autodate3332085495",
+        "name": "updated",
+        "onCreate": true,
+        "onUpdate": true,
+        "presentable": false,
+        "system": false,
+        "type": "autodate"
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_harvest_id ON clients (harvest_id) WHERE harvest_id != \"\""
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": ""
+  },
+  {
+    "id": "_pb_invoices_",
+    "name": "invoices",
+    "type": "base",
+    "system": false,
+    "fields": [
+      {
+        "cascadeDelete": false,
+        "collectionId": "_pb_clients_",
+        "hidden": false,
+        "id": "fld_inv_cli",
+        "maxSelect": 1,
+        "minSelect": 0,
+        "name": "client",
+        "presentable": false,
+        "required": true,
+        "system": false,
+        "type": "relation"
+      },
+      {
+        "hidden": false,
+        "id": "fld_inv_num",
+        "max": 0,
+        "min": 1,
+        "name": "number",
+        "pattern": "",
+        "presentable": true,
+        "primaryKey": false,
+        "required": true,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_inv_iss",
+        "max": null,
+        "min": null,
+        "name": "issue_date",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "date"
+      },
+      {
+        "hidden": false,
+        "id": "fld_inv_due",
+        "max": null,
+        "min": null,
+        "name": "due_date",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "date"
+      },
+      {
+        "hidden": false,
+        "id": "fld_inv_pts",
+        "maxSelect": 1,
+        "name": "payment_terms",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "select",
+        "values": [
+          "upon_receipt",
+          "net_15",
+          "net_30",
+          "net_45",
+          "net_60",
+          "custom"
+        ]
+      },
+      {
+        "hidden": false,
+        "id": "fld_inv_sta",
+        "maxSelect": 1,
+        "name": "status",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "select",
+        "values": [
+          "draft",
+          "sent",
+          "paid",
+          "overdue",
+          "written_off"
+        ]
+      },
+      {
+        "hidden": false,
+        "id": "fld_inv_tax",
+        "max": 100,
+        "min": 0,
+        "name": "tax_percent",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "fld_inv_pad",
+        "max": null,
+        "min": 0,
+        "name": "paid_amount",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "fld_inv_nts",
+        "max": 0,
+        "min": 0,
+        "name": "notes",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "autodate2990389176",
+        "name": "created",
+        "onCreate": true,
+        "onUpdate": false,
+        "presentable": false,
+        "system": false,
+        "type": "autodate"
+      },
+      {
+        "hidden": false,
+        "id": "autodate3332085495",
+        "name": "updated",
+        "onCreate": true,
+        "onUpdate": true,
+        "presentable": false,
+        "system": false,
+        "type": "autodate"
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_invoice_number ON invoices (number)"
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": ""
+  },
+  {
+    "id": "_pb_invoice_items_",
+    "name": "invoice_items",
+    "type": "base",
+    "system": false,
+    "fields": [
+      {
+        "cascadeDelete": true,
+        "collectionId": "_pb_invoices_",
+        "hidden": false,
+        "id": "fld_itm_inv",
+        "maxSelect": 1,
+        "minSelect": 0,
+        "name": "invoice",
+        "presentable": false,
+        "required": true,
+        "system": false,
+        "type": "relation"
+      },
+      {
+        "hidden": false,
+        "id": "fld_itm_dsc",
+        "max": 0,
+        "min": 0,
+        "name": "description",
+        "pattern": "",
+        "presentable": true,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_itm_qty",
+        "max": null,
+        "min": 0,
+        "name": "quantity",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "fld_itm_prc",
+        "max": null,
+        "min": 0,
+        "name": "unit_price",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "autodate2990389176",
+        "name": "created",
+        "onCreate": true,
+        "onUpdate": false,
+        "presentable": false,
+        "system": false,
+        "type": "autodate"
+      },
+      {
+        "hidden": false,
+        "id": "autodate3332085495",
+        "name": "updated",
+        "onCreate": true,
+        "onUpdate": true,
+        "presentable": false,
+        "system": false,
+        "type": "autodate"
+      }
+    ],
+    "indexes": [],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": ""
+  },
+  {
+    "id": "yieldsetts01",
+    "name": "settings",
+    "type": "base",
+    "system": false,
+    "fields": [
+      {
+        "hidden": false,
+        "id": "fld_set_sho",
+        "max": 0,
+        "min": 0,
+        "name": "smtp_host",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_spo",
+        "max": 65535,
+        "min": 1,
+        "name": "smtp_port",
+        "onlyInt": true,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_sus",
+        "max": 0,
+        "min": 0,
+        "name": "smtp_user",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_spa",
+        "max": 0,
+        "min": 0,
+        "name": "smtp_pass",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_sfn",
+        "max": 0,
+        "min": 0,
+        "name": "smtp_from_name",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_sfe",
+        "max": 0,
+        "min": 0,
+        "name": "smtp_from_email",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_ssl",
+        "name": "smtp_secure",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "bool"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_dtx",
+        "max": 100,
+        "min": 0,
+        "name": "default_tax_percent",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_idn",
+        "max": 0,
+        "min": 0,
+        "name": "invoice_default_notes",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_ifo",
+        "max": 0,
+        "min": 0,
+        "name": "invoice_footer",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_cna",
+        "max": 0,
+        "min": 0,
+        "name": "company_name",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_cad",
+        "max": 0,
+        "min": 0,
+        "name": "company_address",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_bhu",
+        "max": 360,
+        "min": 0,
+        "name": "brand_hue",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_itr",
+        "max": 100,
+        "min": 0,
+        "name": "income_tax_rate",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_cur",
+        "max": null,
+        "min": null,
+        "name": "default_currency",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_esu",
+        "max": 0,
+        "min": 0,
+        "name": "email_subject",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_ebo",
+        "max": 0,
+        "min": 0,
+        "name": "email_body",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "text_app_password_hash",
+        "name": "app_password_hash",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_inf",
+        "max": 0,
+        "min": 0,
+        "name": "invoice_number_format",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_inn",
+        "max": 9999999,
+        "min": 1,
+        "name": "invoice_next_number",
+        "onlyInt": true,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "autodate2990389176",
+        "name": "created",
+        "onCreate": true,
+        "onUpdate": false,
+        "presentable": false,
+        "system": false,
+        "type": "autodate"
+      },
+      {
+        "hidden": false,
+        "id": "autodate3332085495",
+        "name": "updated",
+        "onCreate": true,
+        "onUpdate": true,
+        "presentable": false,
+        "system": false,
+        "type": "autodate"
+      }
+    ],
+    "indexes": [],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": ""
+  },
+  {
+    "id": "invoicelogs001",
+    "name": "invoice_logs",
+    "type": "base",
+    "system": false,
+    "fields": [
+      {
+        "cascadeDelete": true,
+        "collectionId": "_pb_invoices_",
+        "hidden": false,
+        "id": "fld_log_inv",
+        "maxSelect": 1,
+        "minSelect": 0,
+        "name": "invoice",
+        "presentable": false,
+        "required": true,
+        "system": false,
+        "type": "relation"
+      },
+      {
+        "hidden": false,
+        "id": "fld_log_act",
+        "maxSelect": 1,
+        "name": "action",
+        "presentable": false,
+        "required": true,
+        "system": false,
+        "type": "select",
+        "values": [
+          "status_changed",
+          "note",
+          "edited",
+          "email_sent",
+          "invoice_created",
+          "payment_recorded"
+        ]
+      },
+      {
+        "hidden": false,
+        "id": "fld_log_dtl",
+        "max": 0,
+        "min": 0,
+        "name": "detail",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_log_occ",
+        "name": "occurred_at",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "date"
+      },
+      {
+        "hidden": false,
+        "id": "autodate2990389176",
+        "name": "created",
+        "onCreate": true,
+        "onUpdate": false,
+        "presentable": false,
+        "system": false,
+        "type": "autodate"
+      }
+    ],
+    "indexes": [
+      "CREATE INDEX idx_log_invoice ON invoice_logs (invoice)"
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": null,
+    "deleteRule": ""
+  },
+  {
+    "id": "taxpayments001",
+    "name": "tax_payments",
+    "type": "base",
+    "fields": [
+      {
+        "hidden": false,
+        "id": "fld_txp_type",
+        "name": "type",
+        "presentable": true,
+        "required": true,
+        "system": false,
+        "type": "select",
+        "values": [
+          "income_tax",
+          "gst"
+        ]
+      },
+      {
+        "hidden": false,
+        "id": "fld_txp_amt",
+        "name": "amount",
+        "min": 0,
+        "required": true,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "fld_txp_date",
+        "name": "payment_date",
+        "presentable": false,
+        "required": true,
+        "system": false,
+        "type": "date"
+      },
+      {
+        "hidden": false,
+        "id": "fld_txp_notes",
+        "name": "notes",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "fld_txp_created",
+        "name": "created",
+        "onCreate": true,
+        "onUpdate": false,
+        "presentable": false,
+        "system": false,
+        "type": "autodate"
+      },
+      {
+        "hidden": false,
+        "id": "fld_txp_updated",
+        "name": "updated",
+        "onCreate": true,
+        "onUpdate": true,
+        "presentable": false,
+        "system": false,
+        "type": "autodate"
+      }
+    ],
+    "indexes": [
+      "CREATE INDEX idx_txp_date ON tax_payments (payment_date)"
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": null,
+    "deleteRule": ""
+  }
+]

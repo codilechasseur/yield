@@ -1,0 +1,40 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# PocketBase binary, data, and auto-generated migrations
+/pocketbase
+/pb_data
+/pb_migrations
+
+# Caddy TLS state (if Caddy is run outside Docker)
+/.caddy
+
+# Zip downloads
+*.zip
+
+# AI agent context file (personal dev notes — not for public repos)
+AGENTS.md
+
+# Harvest export CSVs (may contain personal/client data — do not commit)
+harvest_invoice_report_*.csv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*

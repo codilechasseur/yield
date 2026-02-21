@@ -1,0 +1,78 @@
+# Copy .env.example → .env and set your values before running.
+
+services:
+  # ─── Caddy (TLS termination + reverse proxy) ──────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN}
+    depends_on:
+      - app
+    networks:
+      - yield_net
+
+  # ─── PocketBase ───────────────────────────────────────────────────────────────
+  pocketbase:
+    build:
+      context: .
+      dockerfile: Dockerfile.pocketbase
+    restart: unless-stopped
+    # Port exposed on loopback so migrate.js / pb_setup.js can be run from the host if needed.
+    # Safe to remove after first-run setup.
+    ports:
+      - "127.0.0.1:8090:8090"
+    environment:
+      # Used by entrypoint.sh to create the initial superuser on first boot.
+      - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL}
+      - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD}
+    volumes:
+      - pb_data:/pb/pb_data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8090/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - yield_net
+
+  # ─── SvelteKit App ────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - PB_URL=http://pocketbase:8090
+      # ORIGIN must match the public URL — required by SvelteKit for CSRF protection
+      - ORIGIN=https://${DOMAIN}
+      # APP_PASSWORD protects the UI with a login screen.
+      # Set this before first boot — it is written to the DB automatically.
+      # Clear it from the env after first boot (the DB value persists).
+      - APP_PASSWORD=${APP_PASSWORD}
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=3000
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    networks:
+      - yield_net
+
+volumes:
+  pb_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  yield_net:
+    driver: bridge

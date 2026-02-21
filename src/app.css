@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+@theme {
+	--font-sans: "Inter", system-ui, sans-serif;
+
+	/* Tailwind utility defaults — real values set below via :root */
+	--color-primary:            oklch(0.52 0.24 250);
+	--color-primary-foreground: oklch(0.98 0.01 250);
+	--color-background:         oklch(0.985 0.004 250);
+	--color-foreground:         oklch(0.13 0.012 250);
+	--color-card:               oklch(1 0 0);
+	--color-card-foreground:    oklch(0.13 0.012 250);
+	--color-border:             oklch(0.905 0.008 250);
+	--color-muted:              oklch(0.955 0.004 250);
+	--color-muted-foreground:   oklch(0.52 0.012 250);
+	--color-accent:             oklch(0.935 0.028 250);
+	--color-accent-foreground:  oklch(0.25 0.06 250);
+	--color-destructive:        oklch(0.55 0.22 20);
+	--color-success:            oklch(0.58 0.17 145);
+	--color-warning:            oklch(0.72 0.17 65);
+	--color-info:               oklch(0.58 0.17 250);
+	--radius: 0.5rem;
+}
+
+/* ─── Dynamic hue system ─────────────────────────────────────────── */
+/* JS sets --hue on <html> via inline style; fallback is 250 (blue)  */
+
+:root { --hue: 250; }
+
+/* Light */
+:root,
+:root[data-theme='light'] {
+	--color-primary:            oklch(0.52 0.24 var(--hue));
+	--color-primary-hover:      oklch(0.47 0.24 var(--hue));
+	--color-primary-foreground: oklch(0.98 0.01 var(--hue));
+	--color-background:         oklch(0.985 0.004 var(--hue));
+	--color-foreground:         oklch(0.13 0.012 var(--hue));
+	--color-card:               oklch(1 0 0);
+	--color-card-foreground:    oklch(0.13 0.012 var(--hue));
+	--color-border:             oklch(0.905 0.008 var(--hue));
+	--color-muted:              oklch(0.955 0.004 var(--hue));
+	--color-muted-foreground:   oklch(0.52 0.012 var(--hue));
+	--color-accent:             oklch(0.935 0.028 var(--hue));
+	--color-accent-foreground:  oklch(0.25 0.06 var(--hue));
+	--color-destructive:        oklch(0.55 0.22 20);
+	--color-success:            oklch(0.58 0.17 145);
+	--color-warning:            oklch(0.72 0.17 65);
+	--color-info:               oklch(0.58 0.17 var(--hue));
+}
+
+/* Dark — OS preference (when data-theme is absent or 'system') */
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']):not([data-theme='dark']) {
+		--color-primary:            oklch(0.63 0.21 var(--hue));
+		--color-primary-hover:      oklch(0.68 0.21 var(--hue));
+		--color-primary-foreground: oklch(0.10 0.015 var(--hue));
+		--color-background:         oklch(0.115 0.012 var(--hue));
+		--color-foreground:         oklch(0.93 0.01 var(--hue));
+		--color-card:               oklch(0.16 0.014 var(--hue));
+		--color-card-foreground:    oklch(0.93 0.01 var(--hue));
+		--color-border:             oklch(0.26 0.014 var(--hue));
+		--color-muted:              oklch(0.19 0.01 var(--hue));
+		--color-muted-foreground:   oklch(0.56 0.012 var(--hue));
+		--color-accent:             oklch(0.22 0.03 var(--hue));
+		--color-accent-foreground:  oklch(0.84 0.06 var(--hue));
+		--color-destructive:        oklch(0.63 0.22 20);
+		--color-success:            oklch(0.65 0.17 145);
+		--color-warning:            oklch(0.78 0.17 65);
+		--color-info:               oklch(0.63 0.17 var(--hue));
+	}
+}
+
+/* Dark — explicit data-theme */
+:root[data-theme='dark'] {
+	--color-primary:            oklch(0.63 0.21 var(--hue));
+	--color-primary-hover:      oklch(0.68 0.21 var(--hue));
+	--color-primary-foreground: oklch(0.10 0.015 var(--hue));
+	--color-background:         oklch(0.115 0.012 var(--hue));
+	--color-foreground:         oklch(0.93 0.01 var(--hue));
+	--color-card:               oklch(0.16 0.014 var(--hue));
+	--color-card-foreground:    oklch(0.93 0.01 var(--hue));
+	--color-border:             oklch(0.26 0.014 var(--hue));
+	--color-muted:              oklch(0.19 0.01 var(--hue));
+	--color-muted-foreground:   oklch(0.56 0.012 var(--hue));
+	--color-accent:             oklch(0.22 0.03 var(--hue));
+	--color-accent-foreground:  oklch(0.84 0.06 var(--hue));
+	--color-destructive:        oklch(0.63 0.22 20);
+	--color-success:            oklch(0.65 0.17 145);
+	--color-warning:            oklch(0.78 0.17 65);
+	--color-info:               oklch(0.63 0.17 var(--hue));
+}
+
+/* ─── Base ────────────────────────────────────────────────────────── */
+
+html {
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeLegibility;
+}
+
+body {
+	background-color: var(--color-background);
+	color: var(--color-foreground);
+	font-family: var(--font-sans);
+	line-height: 1.5;
+}
+
+input, textarea, select { font-family: inherit; }
+
+/* Professional table header styling */
+thead th {
+	font-size: 0.675rem !important;
+	font-weight: 600 !important;
+	letter-spacing: 0.07em !important;
+	text-transform: uppercase !important;
+}
+
+/* ─── Status badges ───────────────────────────────────────────────── */
+
+.status-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.2rem 0.6rem;
+	border-radius: 9999px;
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: capitalize;
+}
+
+.status-draft      { background: oklch(0.92 0.006 var(--hue)); color: oklch(0.40 0.015 var(--hue)); }
+.status-sent       { background: oklch(0.90 0.06 var(--hue));  color: oklch(0.36 0.18 var(--hue));  }
+.status-paid       { background: oklch(0.91 0.08 145);         color: oklch(0.34 0.16 145);          }
+.status-overdue    { background: oklch(0.93 0.07 20);          color: oklch(0.42 0.19 20);           }
+.status-written-off { background: oklch(0.90 0.008 280);       color: oklch(0.40 0.020 280);          }
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']):not([data-theme='dark']) {
+		.status-draft      { background: oklch(0.24 0.012 var(--hue)); color: oklch(0.72 0.015 var(--hue)); }
+		.status-sent       { background: oklch(0.23 0.05 var(--hue));  color: oklch(0.72 0.14 var(--hue));  }
+		.status-paid       { background: oklch(0.23 0.07 145);         color: oklch(0.72 0.14 145);          }
+		.status-overdue    { background: oklch(0.24 0.07 20);          color: oklch(0.72 0.17 20);           }
+		.status-written-off { background: oklch(0.24 0.008 280);       color: oklch(0.72 0.020 280);          }
+	}
+}
+:root[data-theme='dark'] {
+	.status-draft      { background: oklch(0.24 0.012 var(--hue)); color: oklch(0.72 0.015 var(--hue)); }
+	.status-sent       { background: oklch(0.23 0.05 var(--hue));  color: oklch(0.72 0.14 var(--hue));  }
+	.status-paid       { background: oklch(0.23 0.07 145);         color: oklch(0.72 0.14 145);          }
+	.status-overdue    { background: oklch(0.24 0.07 20);          color: oklch(0.72 0.17 20);           }
+	.status-written-off { background: oklch(0.24 0.008 280);       color: oklch(0.72 0.020 280);          }
+}
+
+/* ─── Hue slider ──────────────────────────────────────────────────── */
+
+/* ─── Base interactivity ─────────────────────────────────────────── */
+button         { cursor: pointer; }
+button:disabled { cursor: default; }
+
+.hue-slider {
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent;
+	cursor: pointer;
+	width: 100%;
+}
+.hue-slider::-webkit-slider-runnable-track {
+	background: transparent;
+	height: 12px;
+	border-radius: 9999px;
+}
+.hue-slider::-moz-range-track {
+	background: transparent;
+	height: 12px;
+	border-radius: 9999px;
+}
+.hue-slider::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	border: 2.5px solid white;
+	box-shadow: 0 0 0 1px rgba(0,0,0,0.15), 0 2px 5px rgba(0,0,0,0.25);
+	background: var(--_thumb, var(--color-primary));
+	cursor: grab;
+	margin-top: -4px;
+}
+.hue-slider::-moz-range-thumb {
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	border: 2.5px solid white;
+	box-shadow: 0 0 0 1px rgba(0,0,0,0.15), 0 2px 5px rgba(0,0,0,0.25);
+	background: var(--_thumb, var(--color-primary));
+	cursor: grab;
+}

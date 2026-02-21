@@ -1,0 +1,10 @@
+node_modules
+.svelte-kit
+build
+.env
+.env.local
+*.csv
+pb_data
+.git
+.gitignore
+README.md
