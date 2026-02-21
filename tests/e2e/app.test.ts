@@ -29,13 +29,14 @@ test.describe('Invoices', () => {
 
 	test('"New Invoice" link is visible', async ({ page }) => {
 		await page.goto('/invoices');
-		await expect(page.getByRole('link', { name: /New Invoice/i })).toBeVisible();
+		// Two links exist (sidebar + page header) — assert at least one is visible
+		await expect(page.getByRole('link', { name: /New Invoice/i }).first()).toBeVisible();
 	});
 
 	test('navigating to New Invoice page loads the form', async ({ page }) => {
 		await page.goto('/invoices/new');
-		// Should have a client selector and an invoice number field
-		await expect(page.getByLabel(/invoice number/i)).toBeVisible();
+		// Client selector is always visible on load (invoice number is behind "advanced" toggle)
+		await expect(page.getByLabel(/Client/i)).toBeVisible();
 	});
 });
 
