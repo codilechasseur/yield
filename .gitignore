@@ -19,9 +19,6 @@ node_modules
 # Zip downloads
 *.zip
 
-# AI agent context file (personal dev notes — not for public repos)
-AGENTS.md
-
 # Harvest export CSVs (may contain personal/client data — do not commit)
 harvest_invoice_report_*.csv
 

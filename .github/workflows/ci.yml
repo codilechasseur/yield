@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  # ─── Unit tests + type check + build ──────────────────────────────────────
+  unit:
+    name: Type check, Unit tests & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (svelte-check)
+        run: npm run check
+
+      - name: Unit tests
+        run: npm run test:unit -- --coverage
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: build/
+          retention-days: 1
+
+  # ─── E2E tests (Playwright + PocketBase) ──────────────────────────────────
+  e2e:
+    name: E2E tests
+    runs-on: ubuntu-latest
+    needs: unit
+
+    env:
+      PB_URL: http://localhost:8090
+      PB_ADMIN_EMAIL: admin@example.com
+      PB_ADMIN_PASSWORD: Test1234!
+      APP_URL: http://localhost:3000
+      ORIGIN: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Download PocketBase
+        run: |
+          curl -fsSL \
+            "https://github.com/pocketbase/pocketbase/releases/download/v0.36.4/pocketbase_0.36.4_linux_amd64.zip" \
+            -o pocketbase.zip
+          unzip pocketbase.zip -d pb_bin
+          chmod +x pb_bin/pocketbase
+
+      - name: Start PocketBase
+        run: ./pb_bin/pocketbase serve --http=0.0.0.0:8090 &
+
+      - name: Wait for PocketBase health
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8090/api/health && break
+            sleep 1
+          done
+
+      - name: Create PocketBase superuser
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8090/api/collections/_superusers/records \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$PB_ADMIN_EMAIL\",\"password\":\"$PB_ADMIN_PASSWORD\",\"passwordConfirm\":\"$PB_ADMIN_PASSWORD\"}"
+
+      - name: Apply PocketBase schema
+        run: node pb_setup.js
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build/
+
+      - name: Start SvelteKit app
+        run: PORT=3000 node build &
+
+      - name: Wait for app to be ready
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000 && break
+            sleep 1
+          done
+
+      - name: Run Playwright E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
