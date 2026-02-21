@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { Users, Plus, Trash2, Mail, MapPin, Archive, ArchiveRestore, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-svelte';
 	import { formatCurrency } from '$lib/pocketbase.js';
+	import { addToast } from '$lib/toasts.svelte.js';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -118,8 +119,8 @@
 	<!-- Bulk action bar -->
 	{#if selectedIds.size > 0}
 		<div
-			class="mb-4 rounded-lg border overflow-hidden"
-			style="background-color: var(--color-card); border-color: var(--color-primary)"
+			class="mb-4 sticky top-4 z-20 rounded-lg border overflow-hidden"
+			style="background-color: var(--color-card); border-color: var(--color-primary); box-shadow: 0 4px 20px -4px color-mix(in srgb, var(--color-primary) 30%, transparent)"
 		>
 			<div class="px-4 py-3 flex items-center justify-between gap-3">
 				<span class="text-sm font-medium" style="color: var(--color-foreground)">
@@ -146,6 +147,7 @@
 								bulkSubmitting = false;
 								clearSelection();
 								await update();
+								window.scrollTo({ top: 0, behavior: 'smooth' });
 							};
 						}}
 					>
@@ -387,7 +389,7 @@
 							<!-- Actions -->
 							<div class="flex items-center gap-0.5 shrink-0">
 								{#if data.showArchived}
-									<form method="POST" action="?/unarchive" use:enhance>
+								<form method="POST" action="?/unarchive" use:enhance={() => async ({ update, result }) => { await update(); if (result.type !== 'failure') addToast(`${client.name} restored`); }}>
 										<input type="hidden" name="id" value={client.id} />
 										<button
 											type="submit"
@@ -398,7 +400,7 @@
 										<ArchiveRestore size={13} aria-hidden="true" /> Restore
 										</button>
 									</form>
-									<form method="POST" action="?/delete" use:enhance>
+								<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { await update(); if (result.type !== 'failure') addToast(`${client.name} deleted`); }}>
 										<input type="hidden" name="id" value={client.id} />
 										<button
 											type="submit"
@@ -410,7 +412,7 @@
 										</button>
 									</form>
 								{:else}
-									<form method="POST" action="?/archive" use:enhance>
+								<form method="POST" action="?/archive" use:enhance={() => async ({ update, result }) => { await update(); if (result.type !== 'failure') addToast(`${client.name} archived`); }}>
 										<input type="hidden" name="id" value={client.id} />
 										<button
 											type="submit"

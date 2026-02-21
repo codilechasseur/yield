@@ -2,6 +2,8 @@
 	import { HelpCircle } from 'lucide-svelte';
 	let { tip }: { tip: string } = $props();
 	let show = $state(false);
+	// Stable id so aria-describedby can reference the tooltip element
+	const ttId = `tip-${Math.random().toString(36).slice(2)}`;
 </script>
 
 <!--
@@ -13,7 +15,7 @@
 	<button
 		type="button"
 		aria-label="More information"
-		aria-expanded={show}
+		aria-describedby={show ? ttId : undefined}
 		class="inline-flex items-center justify-center cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 rounded-full transition-opacity hover:opacity-70 select-none"
 		style="color: var(--color-primary); opacity: 0.6"
 		onmouseenter={() => (show = true)}
@@ -25,13 +27,15 @@
 
 	{#if show}
 		<span
+			id={ttId}
 			role="tooltip"
 			class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 z-50 w-56 rounded-xl px-3 py-2.5 text-xs leading-relaxed shadow-lg pointer-events-none whitespace-normal"
 			style="background-color: var(--color-card); color: var(--color-muted-foreground); border: 1px solid var(--color-border); box-shadow: 0 4px 16px -2px color-mix(in srgb, var(--color-foreground) 12%, transparent)"
 		>
 			{tip}
-			<!-- Arrow -->
+			<!-- Arrow (decorative) -->
 			<span
+				aria-hidden="true"
 				class="absolute top-full left-1/2 -translate-x-1/2"
 				style="
 					width: 0; height: 0;

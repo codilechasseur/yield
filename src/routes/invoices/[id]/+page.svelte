@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, Download, Pencil, Trash2, MessageSquare, Mail, ArrowRight, FileText, DollarSign, Send } from 'lucide-svelte';
 	import { STATUS_COLORS } from '$lib/pocketbase.js';
+	import { addToast } from '$lib/toasts.svelte.js';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -63,7 +64,7 @@
 		</a>
 		<div class="flex items-center gap-2 flex-wrap">
 			<!-- Status selector -->
-			<form method="POST" action="?/updateStatus" use:enhance bind:this={statusForm}>
+			<form method="POST" action="?/updateStatus" use:enhance={() => async ({ update, result }) => { await update(); if (result.type !== 'failure') addToast('Status updated'); }} bind:this={statusForm}>
 				<select name="status" onchange={() => statusForm?.requestSubmit()}
 					class="px-3 py-1.5 rounded-lg border text-sm font-medium"
 					style="background: var(--color-card); border-color: var(--color-border); color: var(--color-foreground)"
@@ -99,7 +100,7 @@
 						style="background: var(--color-card); border-color: var(--color-border)"
 					>
 						<span style="color: var(--color-foreground)">Delete this invoice?</span>
-						<form method="POST" action="?/delete" use:enhance>
+					<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { if (result.type !== 'failure') addToast('Invoice deleted'); await update(); }}>
 							<button type="submit" class="px-2.5 py-0.5 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors">
 								Yes, delete
 							</button>
@@ -138,12 +139,6 @@
 	{#if form?.error}
 		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
 	{/if}
-	{#if form?.sendError}
-		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.sendError}</div>
-	{/if}
-	{#if form?.sendSuccess}
-		<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Invoice emailed to {invoice.expand?.client?.email}.</div>
-	{/if}
 
 	<!-- Record Payment panel -->
 	{#if showPayment}
@@ -160,10 +155,15 @@
 				class="flex flex-wrap items-end gap-3"
 				use:enhance={() => {
 					paymentSubmitting = true;
-					return async ({ update }) => {
+					return async ({ update, result }) => {
 						paymentSubmitting = false;
-						showPayment = false;
 						await update();
+						if (result.type !== 'failure') {
+							showPayment = false;
+							addToast('Payment recorded');
+						} else {
+							addToast((result.data as any)?.error ?? 'Failed to record payment', 'error');
+						}
 					};
 				}}
 			>
@@ -451,10 +451,11 @@
 				class="flex-1 flex gap-2"
 				use:enhance={() => {
 					noteSubmitting = true;
-					return async ({ update }) => {
+					return async ({ update, result }) => {
 						noteSubmitting = false;
-						noteText = '';
+						if (result.type !== 'failure') noteText = '';
 						await update();
+						if (result.type !== 'failure') addToast('Note added');
 					};
 				}}
 			>

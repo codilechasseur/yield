@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { Landmark, Trash2, PlusCircle } from 'lucide-svelte';
+	import { addToast } from '$lib/toasts.svelte.js';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -39,7 +40,10 @@
 
 	// Reset form state after success
 	$effect(() => {
-		if (form?.createSuccess) showForm = false;
+		if (form?.createSuccess) {
+			showForm = false;
+			addToast('Payment recorded');
+		}
 	});
 </script>
 
@@ -289,7 +293,7 @@
 								{payment.notes || '—'}
 							</td>
 							<td class="px-4 py-3 text-right">
-								<form method="POST" action="?/delete" use:enhance>
+								<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { await update(); if (result.type !== 'failure') addToast('Payment deleted'); }}>
 									<input type="hidden" name="id" value={payment.id} />
 									<button
 										type="submit"

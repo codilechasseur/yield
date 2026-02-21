@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import { Sun, Moon, Monitor, Check, Lock, Save, Palette, Building2, FileText, Hash, Coins, Mail, Server, FileUp } from 'lucide-svelte';
 	import Tip from '$lib/components/Tip.svelte';
+	import { addToast } from '$lib/toasts.svelte.js';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -205,30 +206,15 @@
 		return async ({ update, result }) => {
 			saving = false;
 			await update({ reset: false });
-			if (result.type === 'success') markClean();
+			if (result.type === 'success') {
+				markClean();
+				addToast('Settings saved');
+			} else if (result.type === 'failure') {
+				addToast((result.data as any)?.saveAllError ?? 'Failed to save settings', 'error');
+			}
 		};
 	}}
 ></form>
-
-<!-- ── Save toast ────────────────────────────────────────────────────── -->
-{#if form?.saveAllSuccess}
-	<div
-		role="status"
-		class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-xl text-sm font-medium"
-		style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
-	>
-		Settings saved.
-	</div>
-{/if}
-{#if form?.saveAllError}
-	<div
-		role="alert"
-		class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-xl text-sm font-medium"
-		style="background-color: var(--color-destructive); color: white"
-	>
-		{form.saveAllError}
-	</div>
-{/if}
 
 <div class="max-w-5xl mx-auto">
 

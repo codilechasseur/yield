@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, Mail, MapPin, Save } from 'lucide-svelte';
 	import { STATUS_COLORS, formatCurrency } from '$lib/pocketbase.js';
+	import { addToast } from '$lib/toasts.svelte.js';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -34,7 +35,14 @@
 				action="?/update"
 				use:enhance={() => {
 					saving = true;
-					return async ({ update }) => { saving = false; editing = false; await update(); };
+					return async ({ update, result }) => {
+						saving = false;
+						await update();
+						if (result.type !== 'failure') {
+							editing = false;
+							addToast('Client saved');
+						}
+					};
 				}}
 				class="space-y-4"
 			>

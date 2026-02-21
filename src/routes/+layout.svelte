@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { page } from '$app/stores';
 	import Nav from '$lib/components/Nav.svelte';
+	import Toaster from '$lib/components/Toaster.svelte';
 	import type { LayoutData } from './$types.js';
 
 	let { children, data }: { children: any; data: LayoutData } = $props();
@@ -24,5 +25,6 @@
 		<main id="main-content" class="flex-1 md:ml-56 p-4 md:p-8 pt-18 md:pt-8 md:pb-8 overflow-x-clip" tabindex="-1">
 			{@render children()}
 		</main>
+		<Toaster />
 	</div>
 {/if}
