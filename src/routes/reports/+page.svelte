@@ -133,12 +133,10 @@
 						style="border-color: var(--color-border); {isCurrent ? 'background-color: var(--color-accent)' : ''}"
 					>
 						<td class="px-6 py-3 font-medium" style="color: var(--color-foreground)">
-							<div class="flex items-center gap-2 flex-wrap">
-								<span class="whitespace-nowrap">{m.label}</span>
-								{#if isCurrent}
-									<span class="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 whitespace-nowrap">current</span>
-								{/if}
-							</div>
+							{m.label}
+							{#if isCurrent}
+								<span class="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">current</span>
+							{/if}
 						</td>
 						<td class="px-4 py-3 text-right tabular-nums" style="color: {m.invoiceCount === 0 ? 'var(--color-muted-foreground)' : 'var(--color-foreground)'}">
 							{m.invoiceCount === 0 ? '—' : m.invoiceCount}

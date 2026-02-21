@@ -47,7 +47,7 @@ export async function load({ params }) {
 			smtp?.email_body?.trim() || DEFAULT_EMAIL_BODY, vars
 		);
 
-		return { invoice, items, logs, emailSubject, emailBody };
+		return { invoice, items, logs, emailSubject, emailBody, smtpConfigured: !!(smtp?.smtp_host && smtp?.smtp_from_email) };
 	} catch {
 		throw error(404, 'Invoice not found');
 	}

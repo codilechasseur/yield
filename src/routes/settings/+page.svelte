@@ -893,7 +893,7 @@
 								<h4 class="font-semibold" style="color: var(--color-foreground)">Data Import</h4>
 							</div>
 							<p class="text-sm mt-0.5" style="color: var(--color-muted-foreground)">
-								Import clients and invoices from a Harvest CSV export
+								Import clients and invoices directly from the Harvest API
 							</p>
 						</div>
 						<svg
@@ -908,10 +908,14 @@
 					</summary>
 
 					<div class="px-4 md:px-6 pb-4 md:pb-6 pt-5 border-t" style="border-color: var(--color-border)">
-						<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">
-							Export your invoices from Harvest (<strong>Invoices → Export → CSV</strong>) and upload the file
-							below. Clients, invoices, and line items will be created automatically. The import is idempotent
-							— existing records are skipped, so it's safe to re-run.
+<p class="text-sm mb-1" style="color: var(--color-muted-foreground)">
+						Enter your Harvest credentials below. Clients (with emails), invoices, and line items will be
+						created automatically. The import is idempotent — existing records are skipped, so it's safe
+						to re-run. Existing clients with a blank email will have their email backfilled.
+					</p>
+					<p class="text-xs mb-5" style="color: var(--color-muted-foreground)">
+						Find your Account ID and Personal Access Token at
+						<a href="https://id.getharvest.com/developers" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2" style="color: var(--color-primary)">id.getharvest.com/developers</a>.
 						</p>
 
 						{#if form?.importSuccess}
@@ -931,7 +935,7 @@
 									{#if (form.importStats?.invSkipped ?? 0) > 0}
 										<li class="pl-3 text-xs mt-1 space-y-0.5">
 											{#if form.importStats?.skipDuplicate}<div>↳ {form.importStats.skipDuplicate} already exist (duplicate)</div>{/if}
-											{#if form.importStats?.skipNoClient}<div>↳ {form.importStats.skipNoClient} client name not matched</div>{/if}
+											{#if form.importStats?.skipNoClient}<div>↳ {form.importStats.skipNoClient} no matching client found</div>{/if}
 											{#if form.importStats?.skipMissingFields}<div>↳ {form.importStats.skipMissingFields} missing ID or client name</div>{/if}
 										</li>
 									{/if}
@@ -953,41 +957,56 @@
 						<form
 							method="POST"
 							action="?/harvestImport"
-							enctype="multipart/form-data"
-							class="flex items-end gap-3"
-							use:enhance={() => {
-								importing = true;
-								return async ({ update }) => {
-									importing = false;
-									await update();
-								};
-							}}
-						>
-							<div class="flex-1 max-w-sm">
-								<label for="harvest-csv-input" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
-									Harvest CSV File
+						class="space-y-4"
+						use:enhance={() => {
+							importing = true;
+							return async ({ update }) => {
+								importing = false;
+								await update();
+							};
+						}}
+					>
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg">
+							<div>
+								<label for="harvest-account-id" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
+									Account ID
 								</label>
 								<input
-									id="harvest-csv-input"
-									name="csv"
-									type="file"
-									accept=".csv"
+									id="harvest-account-id"
+									name="harvest_account_id"
+									type="text"
+									placeholder="123456"
 									required
-									class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2 cursor-pointer"
+									class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2"
 									style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 								/>
 							</div>
-							<button
-								type="submit"
-								disabled={importing}
-								class="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-								style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
-							>
-								{importing ? 'Importing…' : 'Import'}
-							</button>
-						</form>
+							<div>
+								<label for="harvest-token" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
+									Personal Access Token
+								</label>
+								<input
+									id="harvest-token"
+									name="harvest_token"
+									type="password"
+									placeholder="your-token"
+									required
+									class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2"
+									style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+								/>
+							</div>
+						</div>
+						<button
+							type="submit"
+							disabled={importing}
+							class="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+							style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+						>
+							{importing ? 'Importing…' : 'Import from Harvest'}
+						</button>
+					</form>
 
-						<!-- Reset panel -->
+					<!-- Reset panel -->
 						{#if data.clientCount > 0}
 							<div class="mt-8 pt-6 border-t" style="border-color: var(--color-border)">
 								{#if form?.resetSuccess}

@@ -44,6 +44,14 @@
 	}
 
 	const hasSentBefore = $derived(data.logs.some((l) => l.action === 'email_sent'));
+	const sendDisabledReason = $derived(
+		!invoice.expand?.client?.email
+			? 'This client has no email address — add one on the client page'
+			: !data.smtpConfigured
+			? 'SMTP is not configured — set it up under Settings → Email'
+			: null
+	);
+	let showSendTip = $state(false);
 	let showDeleteConfirm = $state(false);
 
 	function openPaymentForm() {
@@ -124,15 +132,33 @@
 					<DollarSign size={15} /> Record Payment
 				</button>
 			{/if}
-			{#if invoice.expand?.client?.email}
+			<span
+				class="relative"
+				onmouseenter={() => (showSendTip = true)}
+				onmouseleave={() => (showSendTip = false)}
+			>
 				<button
-					onclick={openSend}
-					class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-					style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+					onclick={sendDisabledReason ? undefined : openSend}
+					disabled={!!sendDisabledReason}
+					class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-opacity"
+					style={sendDisabledReason
+						? 'background: var(--color-muted); color: var(--color-muted-foreground); border: 1px solid var(--color-border); cursor: not-allowed; opacity: 0.7;'
+						: 'background-color: var(--color-primary); color: var(--color-primary-foreground);'}
 				>
 					<Send size={15} /> {hasSentBefore ? 'Re-send Invoice' : 'Send Invoice'}
 				</button>
-			{/if}
+				{#if sendDisabledReason && showSendTip}
+					<span
+						role="tooltip"
+						class="absolute top-full right-0 mt-2.5 z-50 w-56 rounded-xl px-3 py-2.5 text-xs leading-relaxed shadow-lg pointer-events-none whitespace-normal"
+						style="background-color: var(--color-card); color: var(--color-muted-foreground); border: 1px solid var(--color-border); box-shadow: 0 4px 16px -2px color-mix(in srgb, var(--color-foreground) 12%, transparent)"
+					>{sendDisabledReason}<span
+							aria-hidden="true"
+							class="absolute bottom-full right-4"
+							style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:5px solid var(--color-border);"
+						></span></span>
+				{/if}
+			</span>
 		</div>
 	</div>
 

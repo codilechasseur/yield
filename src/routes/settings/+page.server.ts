@@ -1,7 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
-import Papa from 'papaparse';
 import { env } from '$env/dynamic/private';
+import type { InvoiceStatus } from '$lib/types.js';
 import { getSmtpSettings, sendInvoiceEmail, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY } from '$lib/mail.server.js';
 import type { SmtpSettings } from '$lib/mail.server.js';
 import { hashPassword, invalidatePasswordCache } from '$lib/auth.server.js';
@@ -311,71 +311,78 @@ export const actions = {
 	},
 
 	harvestImport: async ({ request }) => {
+		// ── Harvest API types ─────────────────────────────────────────────────────
+		interface HarvestClient { id: number; name: string; currency: string; address: string; is_active: boolean; }
+		interface HarvestContact { id: number; client: { id: number }; email: string; }
+		interface HarvestLineItem { description: string; quantity: number; unit_price: number; amount: number; }
+		interface HarvestInvoice {
+			id: number; number: string; client: { id: number }; state: string;
+			issue_date: string; due_date: string; tax: number; paid_amount: number;
+			notes: string; line_items: HarvestLineItem[];
+		}
+
 		const fd = await request.formData();
-		const file = fd.get('csv');
+		const accountId = fd.get('harvest_account_id')?.toString().trim() ?? '';
+		const token = fd.get('harvest_token')?.toString().trim() ?? '';
 
-		if (!(file instanceof File) || !file.name.endsWith('.csv')) {
-			return fail(400, { importError: 'Please select a Harvest CSV export file (.csv).' });
+		if (!accountId || !token) {
+			return fail(400, { importError: 'Please provide both your Harvest Account ID and Personal Access Token.' });
 		}
 
-		let text: string;
+		const harvestHeaders = {
+			'Authorization': `Bearer ${token}`,
+			'Harvest-Account-Id': accountId,
+			'User-Agent': 'Yield Invoicing (self-hosted)'
+		};
+
+		// ── Paginated fetch helper ────────────────────────────────────────────────
+		const harvestFetchAll = async <T>(endpoint: string): Promise<T[]> => {
+			const items: T[] = [];
+			let page = 1;
+			while (true) {
+				const res = await fetch(
+					`https://api.harvestapp.com/v2${endpoint}?per_page=100&page=${page}`,
+					{ headers: harvestHeaders }
+				);
+				if (!res.ok) {
+					const body = await res.text().catch(() => res.statusText);
+					throw new Error(`Harvest API ${res.status}: ${body}`);
+				}
+				const data: Record<string, unknown> = await res.json();
+				const key = Object.keys(data).find(k => Array.isArray(data[k]) && k !== 'links');
+				if (!key) break;
+				items.push(...(data[key] as T[]));
+				if (page >= ((data['total_pages'] as number) ?? 1)) break;
+				page++;
+			}
+			return items;
+		};
+
+		// ── Fetch from Harvest ────────────────────────────────────────────────────
+		let harvestClients: HarvestClient[];
+		let harvestContacts: HarvestContact[];
+		let harvestInvoices: HarvestInvoice[];
+
 		try {
-			text = await file.text();
-		} catch {
-			return fail(400, { importError: 'Could not read the uploaded file.' });
+			[harvestClients, harvestContacts, harvestInvoices] = await Promise.all([
+				harvestFetchAll<HarvestClient>('/clients'),
+				harvestFetchAll<HarvestContact>('/contacts'),
+				harvestFetchAll<HarvestInvoice>('/invoices'),
+			]);
+		} catch (e) {
+			return fail(400, { importError: (e as Error).message });
 		}
 
-		const parsed = Papa.parse<Record<string, string>>(text, {
-			header: true,
-			skipEmptyLines: true
-		});
-
-		const rows = parsed.data;
-		if (rows.length === 0) {
-			return fail(400, { importError: 'The CSV file is empty or could not be parsed.' });
+		// Build contact email map: harvest client id → primary email
+		const emailByClientId = new Map<number, string>();
+		for (const contact of harvestContacts) {
+			if (contact.email && contact.client?.id && !emailByClientId.has(contact.client.id)) {
+				emailByClientId.set(contact.client.id, contact.email);
+			}
 		}
-
-		const firstRow = rows[0];
-		if (!('Client' in firstRow) || !('ID' in firstRow) || !('Issue Date' in firstRow)) {
-			return fail(400, {
-				importError:
-					"This doesn't look like a Harvest invoice report. Expected columns: Client, ID, Issue Date, Subtotal, etc."
-			});
-		}
-
-		// ── Helpers (mirrored from migrate.js) ───────────────────────────────────
-		const parseNum = (val: string | undefined) =>
-			parseFloat(String(val ?? '').replace(/,/g, '')) || 0;
-
-		const parseCurrency = (val: string | undefined) => {
-			if (!val) return 'USD';
-			const m = String(val).match(/[-\u2013]\s*([A-Z]{3})\s*$/);
-			return m ? m[1] : String(val).trim().slice(0, 10);
-		};
-
-		const deriveStatus = (balance: string | undefined, issueDate: string | undefined) => {
-			if (parseNum(balance) === 0) return 'paid';
-			if (issueDate && new Date(issueDate) > new Date()) return 'draft';
-			return 'sent';
-		};
-
-		const toIso = (d: string | undefined) => {
-			if (!d) return '';
-			try { return new Date(d).toISOString().split('T')[0]; } catch { return ''; }
-		};
-
-		const addDays = (iso: string, n: number) => {
-			if (!iso) return '';
-			try {
-				const d = new Date(iso);
-				d.setUTCDate(d.getUTCDate() + n);
-				return d.toISOString().split('T')[0];
-			} catch { return ''; }
-		};
 
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 
-		// ── 0. Verify PocketBase is reachable ────────────────────────────────────
 		try {
 			await pb.health.check();
 		} catch {
@@ -385,94 +392,86 @@ export const actions = {
 			});
 		}
 
-		// ── 1. Deduplicate & upsert clients ──────────────────────────────────────
-		const clientIdMap = new Map<string, string>();
-		const uniqueClients = new Map<string, Record<string, string>>();
-		for (const row of rows) {
-			const name = (row['Client'] || '').trim();
-			if (name && !uniqueClients.has(name)) uniqueClients.set(name, row);
-		}
-
+		// ── 1. Upsert clients ─────────────────────────────────────────────────────
+		const clientIdMap = new Map<number, string>(); // harvest id → pb id
 		let clientsCreated = 0, clientsSkipped = 0;
 		const importErrors: string[] = [];
 
-		for (const [name, row] of uniqueClients) {
+		for (const hc of harvestClients) {
+			const email = emailByClientId.get(hc.id) ?? '';
 			try {
-				const existing = await pb
-					.collection('clients')
-					.getFirstListItem(`name = "${name.replace(/"/g, '\\"')}"`);
-				clientIdMap.set(name, existing.id);
+				const existing = await pb.collection('clients').getFirstListItem(`harvest_id = "${hc.id}"`);
+				clientIdMap.set(hc.id, existing.id);
+				// Backfill email if the client record has none
+				if (!existing.email && email) {
+					await pb.collection('clients').update(existing.id, { email });
+				}
 				clientsSkipped++;
-				continue;
-			} catch { /* not found → create */ }
-
-			try {
-				const record = await pb.collection('clients').create({
-					name,
-					address: (row['Client Address'] || '').trim(),
-					currency: parseCurrency(row['Currency'])
-				});
-				clientIdMap.set(name, record.id);
-				clientsCreated++;
-			} catch (e) {
-				importErrors.push(`Client "${name}": ${(e as Error).message}`);
+			} catch {
+				try {
+					const record = await pb.collection('clients').create({
+						name: hc.name,
+						email,
+						address: hc.address ?? '',
+						currency: hc.currency ?? 'USD',
+						harvest_id: String(hc.id),
+						archived: !hc.is_active
+					});
+					clientIdMap.set(hc.id, record.id);
+					clientsCreated++;
+				} catch (e) {
+					importErrors.push(`Client "${hc.name}": ${(e as Error).message}`);
+				}
 			}
 		}
 
-		// ── 2. Create invoices + line items ──────────────────────────────────────
+		// ── 2. Upsert invoices + line items ───────────────────────────────────────
 		let invCreated = 0, invFailed = 0;
 		let skipMissingFields = 0, skipNoClient = 0, skipDuplicate = 0;
 
-		for (const row of rows) {
-			const harvestId = (row['ID'] || '').trim();
-			const clientName = (row['Client'] || '').trim();
-			const subject = (row['Subject'] || '').trim();
-			const issueDate = toIso(row['Issue Date']);
-			const subtotal = parseNum(row['Subtotal']);
-			const tax = parseNum(row['Tax']);
-			const status = deriveStatus(row['Balance'], row['Issue Date']);
-			const number = harvestId;
+		const mapState = (state: string): InvoiceStatus => {
+			if (state === 'paid') return 'paid';
+			if (state === 'draft') return 'draft';
+			if (state === 'closed') return 'written_off';
+			return 'sent';
+		};
 
-			if (!harvestId || !clientName) { skipMissingFields++; continue; }
+		for (const hi of harvestInvoices) {
+			if (!hi.number || !hi.client?.id) { skipMissingFields++; continue; }
 
-			const pbClientId = clientIdMap.get(clientName);
-			if (!pbClientId) {
-				if (skipNoClient < 5) {
-					importErrors.push(`Invoice #${number}: no client found for "${clientName}"`);
-				}
-				skipNoClient++;
-				continue;
-			}
+			const pbClientId = clientIdMap.get(hi.client.id);
+			if (!pbClientId) { skipNoClient++; continue; }
 
 			try {
-				await pb.collection('invoices').getFirstListItem(`number = "${number}"`);
+				await pb.collection('invoices').getFirstListItem(`number = "${hi.number}"`);
 				skipDuplicate++;
 				continue;
 			} catch { /* not found → create */ }
 
-			const taxPercent = subtotal > 0 ? Math.round((tax / subtotal) * 10000) / 100 : 0;
-
 			try {
 				const invoice = await pb.collection('invoices').create({
 					client: pbClientId,
-					number,
-					issue_date: issueDate,
-					due_date: addDays(issueDate, 30),
-					status,
-					tax_percent: taxPercent,
-					notes: (row['PO Number'] || '').trim()
+					number: hi.number,
+					issue_date: hi.issue_date ?? '',
+					due_date: hi.due_date ?? '',
+					status: mapState(hi.state ?? ''),
+					tax_percent: hi.tax ?? 0,
+					paid_amount: hi.paid_amount ?? 0,
+					notes: hi.notes ?? ''
 				});
-				if (subtotal > 0) {
+				for (const li of (hi.line_items ?? [])) {
+					const unitPrice = li.unit_price ?? li.amount ?? 0;
+					if (!unitPrice) continue;
 					await pb.collection('invoice_items').create({
 						invoice: invoice.id,
-						description: subject || 'Services',
-						quantity: 1,
-						unit_price: subtotal
+						description: li.description || 'Services',
+						quantity: li.quantity ?? 1,
+						unit_price: unitPrice
 					});
 				}
 				invCreated++;
 			} catch (e) {
-				importErrors.push(`Invoice #${number}: ${(e as Error).message}`);
+				importErrors.push(`Invoice #${hi.number}: ${(e as Error).message}`);
 				invFailed++;
 			}
 		}
