@@ -222,6 +222,53 @@ export const actions = {
 		return {};
 	},
 
+	saveAll: async ({ request }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const fd = await request.formData();
+
+		const data = {
+			// SMTP
+			smtp_host: fd.get('smtp_host')?.toString().trim() ?? '',
+			smtp_port: parseInt(fd.get('smtp_port')?.toString() ?? '587', 10) || 587,
+			smtp_user: fd.get('smtp_user')?.toString().trim() ?? '',
+			smtp_pass: fd.get('smtp_pass')?.toString() ?? '',
+			smtp_from_name: fd.get('smtp_from_name')?.toString().trim() ?? '',
+			smtp_from_email: fd.get('smtp_from_email')?.toString().trim() ?? '',
+			smtp_secure: fd.get('smtp_secure') === 'on',
+			// Email template
+			email_subject: fd.get('email_subject')?.toString() ?? '',
+			email_body: fd.get('email_body')?.toString() ?? '',
+			// Invoice defaults
+			company_name: fd.get('company_name')?.toString() ?? '',
+			company_address: fd.get('company_address')?.toString() ?? '',
+			invoice_default_notes: fd.get('invoice_default_notes')?.toString() ?? '',
+			invoice_footer: fd.get('invoice_footer')?.toString() ?? '',
+			// Invoice numbering
+			invoice_number_format: fd.get('invoice_number_format')?.toString().trim() || 'INV-{number}',
+			invoice_next_number: parseInt(fd.get('invoice_next_number')?.toString() ?? '1', 10) || 1,
+			// Tax / rates
+			default_tax_percent: parseFloat(fd.get('default_tax_percent')?.toString() ?? '5') || 5,
+			income_tax_rate: parseFloat(fd.get('income_tax_rate')?.toString() ?? '0') || 0,
+			// Client defaults
+			default_currency: fd.get('default_currency')?.toString().trim() || 'CAD',
+			// Appearance
+			brand_hue: parseFloat(fd.get('brand_hue')?.toString() ?? '250') || 250,
+		};
+
+		try {
+			const existing = await getSmtpSettings(pb);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, data);
+			} else {
+				await pb.collection('settings').create(data);
+			}
+		} catch (e) {
+			return fail(500, { saveAllError: 'Failed to save settings: ' + (e as Error).message });
+		}
+
+		return { saveAllSuccess: true };
+	},
+
 	setPassword: async ({ request }) => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const fd = await request.formData();
