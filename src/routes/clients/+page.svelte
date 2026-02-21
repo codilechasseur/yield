@@ -11,12 +11,20 @@
 	let submitting = $state(false);
 	let selectedIds = $state(new Set<string>());
 	let bulkSubmitting = $state(false);
+	/** true = every client across ALL pages is selected (sent as bulkAll=1 to server) */
+	let selectAll = $state(false);
 
 	let allSelected = $derived(
 		data.clients.length > 0 && data.clients.every((c) => selectedIds.has(c.id))
 	);
 
+	/** Show the cross-page "select all X" prompt */
+	let showSelectAllPrompt = $derived(
+		allSelected && data.totalPages > 1 && !selectAll
+	);
+
 	function toggleSelect(id: string) {
+		selectAll = false;
 		const next = new Set(selectedIds);
 		if (next.has(id)) next.delete(id);
 		else next.add(id);
@@ -24,6 +32,7 @@
 	}
 
 	function toggleAll() {
+		selectAll = false;
 		if (allSelected) {
 			selectedIds = new Set();
 		} else {
@@ -33,6 +42,7 @@
 
 	function clearSelection() {
 		selectedIds = new Set();
+		selectAll = false;
 	}
 
 	function pageUrl(p: number) {
@@ -108,51 +118,92 @@
 	<!-- Bulk action bar -->
 	{#if selectedIds.size > 0}
 		<div
-			class="mb-4 px-4 py-3 rounded-lg border flex items-center justify-between gap-3"
+			class="mb-4 rounded-lg border overflow-hidden"
 			style="background-color: var(--color-card); border-color: var(--color-primary)"
 		>
-			<span class="text-sm font-medium" style="color: var(--color-foreground)">
-				{selectedIds.size} client{selectedIds.size !== 1 ? 's' : ''} selected
-			</span>
-			<div class="flex items-center gap-2">
-				<button
-					onclick={clearSelection}
-					class="text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-muted"
-					style="border-color: var(--color-border); color: var(--color-muted-foreground)"
-				>
-					Clear
-				</button>
-				<form
-					method="POST"
-					action={data.showArchived ? '?/bulkUnarchive' : '?/bulkArchive'}
-					use:enhance={() => {
-						bulkSubmitting = true;
-						return async ({ update }) => {
-							bulkSubmitting = false;
-							clearSelection();
-							await update();
-						};
-					}}
-				>
-					{#each [...selectedIds] as id}
-						<input type="hidden" name="ids[]" value={id} />
-					{/each}
+			<div class="px-4 py-3 flex items-center justify-between gap-3">
+				<span class="text-sm font-medium" style="color: var(--color-foreground)">
+					{#if selectAll}
+						All {data.totalItems} client{data.totalItems !== 1 ? 's' : ''} selected
+					{:else}
+						{selectedIds.size} client{selectedIds.size !== 1 ? 's' : ''} selected
+					{/if}
+				</span>
+				<div class="flex items-center gap-2">
 					<button
-						type="submit"
-						disabled={bulkSubmitting}
-						class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-opacity hover:opacity-90 disabled:opacity-60"
-						style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+						onclick={clearSelection}
+						class="text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-muted"
+						style="border-color: var(--color-border); color: var(--color-muted-foreground)"
 					>
-						{#if data.showArchived}
-							<ArchiveRestore size={13} />
-							{bulkSubmitting ? 'Restoring…' : 'Restore selected'}
-						{:else}
-							<Archive size={13} />
-							{bulkSubmitting ? 'Archiving…' : 'Archive selected'}
-						{/if}
+						Clear
 					</button>
-				</form>
+					<form
+						method="POST"
+						action={data.showArchived ? '?/bulkUnarchive' : '?/bulkArchive'}
+						use:enhance={() => {
+							bulkSubmitting = true;
+							return async ({ update }) => {
+								bulkSubmitting = false;
+								clearSelection();
+								await update();
+							};
+						}}
+					>
+						{#if selectAll}
+							<input type="hidden" name="bulkAll" value="1" />
+						{:else}
+							{#each [...selectedIds] as id}
+								<input type="hidden" name="ids[]" value={id} />
+							{/each}
+						{/if}
+						<button
+							type="submit"
+							disabled={bulkSubmitting}
+							class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-opacity hover:opacity-90 disabled:opacity-60"
+							style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+						>
+							{#if data.showArchived}
+								<ArchiveRestore size={13} />
+								{bulkSubmitting ? 'Restoring…' : 'Restore selected'}
+							{:else}
+								<Archive size={13} />
+								{bulkSubmitting ? 'Archiving…' : 'Archive selected'}
+							{/if}
+						</button>
+					</form>
+				</div>
 			</div>
+			<!-- Cross-page select-all prompt (shown when full page is checked and more pages exist) -->
+			{#if showSelectAllPrompt}
+				<div
+					class="px-4 py-2 text-xs text-center border-t"
+					style="background-color: color-mix(in srgb, var(--color-primary) 8%, transparent); border-color: var(--color-primary); color: var(--color-foreground)"
+				>
+					All {data.clients.length} clients on this page are selected.
+					<button
+						onclick={() => (selectAll = true)}
+						class="font-semibold underline ml-1 hover:no-underline"
+						style="color: var(--color-primary)"
+					>
+						Select all {data.totalItems} clients
+					</button>
+				</div>
+			{/if}
+			{#if selectAll}
+				<div
+					class="px-4 py-2 text-xs text-center border-t"
+					style="background-color: color-mix(in srgb, var(--color-primary) 8%, transparent); border-color: var(--color-primary); color: var(--color-foreground)"
+				>
+					All {data.totalItems} clients are selected.
+					<button
+						onclick={clearSelection}
+						class="font-semibold underline ml-1 hover:no-underline"
+						style="color: var(--color-primary)"
+					>
+						Clear selection
+					</button>
+				</div>
+			{/if}
 		</div>
 	{/if}
 

@@ -151,7 +151,19 @@ export const actions = {
 	bulkArchive: async ({ request }) => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const data = await request.formData();
-		const ids = data.getAll('ids[]').map((v) => v.toString()).filter(Boolean);
+		const bulkAll = data.get('bulkAll') === '1';
+		let ids: string[];
+		if (bulkAll) {
+			try {
+				const all = await pb.collection('clients').getFullList<{ id: string }>({ filter: 'archived = false || archived = null', fields: 'id' });
+				ids = all.map((c) => c.id);
+			} catch (e: unknown) {
+				const msg = e instanceof Error ? e.message : 'Failed to fetch clients';
+				return fail(500, { error: msg });
+			}
+		} else {
+			ids = data.getAll('ids[]').map((v) => v.toString()).filter(Boolean);
+		}
 		if (!ids.length) return fail(400, { error: 'No clients selected' });
 		try {
 			await Promise.all(ids.map((id) => pb.collection('clients').update(id, { archived: true })));
@@ -165,7 +177,19 @@ export const actions = {
 	bulkUnarchive: async ({ request }) => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const data = await request.formData();
-		const ids = data.getAll('ids[]').map((v) => v.toString()).filter(Boolean);
+		const bulkAll = data.get('bulkAll') === '1';
+		let ids: string[];
+		if (bulkAll) {
+			try {
+				const all = await pb.collection('clients').getFullList<{ id: string }>({ filter: 'archived = true', fields: 'id' });
+				ids = all.map((c) => c.id);
+			} catch (e: unknown) {
+				const msg = e instanceof Error ? e.message : 'Failed to fetch clients';
+				return fail(500, { error: msg });
+			}
+		} else {
+			ids = data.getAll('ids[]').map((v) => v.toString()).filter(Boolean);
+		}
 		if (!ids.length) return fail(400, { error: 'No clients selected' });
 		try {
 			await Promise.all(ids.map((id) => pb.collection('clients').update(id, { archived: false })));
