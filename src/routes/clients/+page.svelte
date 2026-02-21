@@ -9,6 +9,31 @@
 
 	let showForm = $state(false);
 	let submitting = $state(false);
+	let selectedIds = $state(new Set<string>());
+	let bulkSubmitting = $state(false);
+
+	let allSelected = $derived(
+		data.clients.length > 0 && data.clients.every((c) => selectedIds.has(c.id))
+	);
+
+	function toggleSelect(id: string) {
+		const next = new Set(selectedIds);
+		if (next.has(id)) next.delete(id);
+		else next.add(id);
+		selectedIds = next;
+	}
+
+	function toggleAll() {
+		if (allSelected) {
+			selectedIds = new Set();
+		} else {
+			selectedIds = new Set(data.clients.map((c) => c.id));
+		}
+	}
+
+	function clearSelection() {
+		selectedIds = new Set();
+	}
 
 	function pageUrl(p: number) {
 		const params = new URLSearchParams($page.url.searchParams);
@@ -36,16 +61,18 @@
 				{data.totalItems} client{data.totalItems !== 1 ? 's' : ''}
 			</p>
 		</div>
-		{#if !data.showArchived}
-			<button
-				onclick={() => (showForm = !showForm)}
-				class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-				style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
-			>
-				<Plus size={16} />
-				New Client
-			</button>
-		{/if}
+		<div class="flex items-center gap-2">
+			{#if !data.showArchived}
+				<button
+					onclick={() => (showForm = !showForm)}
+					class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+					style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+				>
+					<Plus size={16} />
+					New Client
+				</button>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Tabs -->
@@ -75,6 +102,57 @@
 	{#if form?.error}
 		<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
 			{form.error}
+		</div>
+	{/if}
+
+	<!-- Bulk action bar -->
+	{#if selectedIds.size > 0}
+		<div
+			class="mb-4 px-4 py-3 rounded-lg border flex items-center justify-between gap-3"
+			style="background-color: var(--color-card); border-color: var(--color-primary)"
+		>
+			<span class="text-sm font-medium" style="color: var(--color-foreground)">
+				{selectedIds.size} client{selectedIds.size !== 1 ? 's' : ''} selected
+			</span>
+			<div class="flex items-center gap-2">
+				<button
+					onclick={clearSelection}
+					class="text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-muted"
+					style="border-color: var(--color-border); color: var(--color-muted-foreground)"
+				>
+					Clear
+				</button>
+				<form
+					method="POST"
+					action={data.showArchived ? '?/bulkUnarchive' : '?/bulkArchive'}
+					use:enhance={() => {
+						bulkSubmitting = true;
+						return async ({ update }) => {
+							bulkSubmitting = false;
+							clearSelection();
+							await update();
+						};
+					}}
+				>
+					{#each [...selectedIds] as id}
+						<input type="hidden" name="ids[]" value={id} />
+					{/each}
+					<button
+						type="submit"
+						disabled={bulkSubmitting}
+						class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-opacity hover:opacity-90 disabled:opacity-60"
+						style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+					>
+						{#if data.showArchived}
+							<ArchiveRestore size={13} />
+							{bulkSubmitting ? 'Restoring…' : 'Restore selected'}
+						{:else}
+							<Archive size={13} />
+							{bulkSubmitting ? 'Archiving…' : 'Archive selected'}
+						{/if}
+					</button>
+				</form>
+			</div>
 		</div>
 	{/if}
 
@@ -186,7 +264,7 @@
 		</div>
 	{/if}
 
-	<!-- Clients grid -->
+<!-- Client list -->
 	{#if data.clients.length === 0}
 		<div
 			class="rounded-xl border p-16 text-center"
@@ -201,140 +279,180 @@
 			</p>
 		</div>
 	{:else}
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+		<div
+			class="rounded-xl border overflow-hidden"
+			style="background-color: var(--color-card); border-color: var(--color-border)"
+		>
+			<!-- Select-all header -->
+			<div
+				class="flex items-center gap-3 px-4 py-2 border-b"
+				style="background-color: var(--color-muted); border-color: var(--color-border)"
+			>
+				<input
+					type="checkbox"
+					checked={allSelected}
+					onchange={toggleAll}
+					class="h-3.5 w-3.5 rounded border cursor-pointer accent-primary"
+					style="border-color: var(--color-border)"
+					aria-label="Select all clients"
+				/>
+				<span class="text-xs font-medium" style="color: var(--color-muted-foreground)">Select all</span>
+			</div>
 			{#each data.clients as client}
 				{@const ct = data.clientTotals[client.id]}
+				{@const hasDetails = !!(client.email || client.address || (ct && ct.invoiceCount > 0))}
 				<div
-					class="rounded-xl border p-5 flex flex-col gap-3"
-					style="background-color: var(--color-card); border-color: var(--color-border){data.showArchived ? '; opacity: 0.8' : ''}"
+					class="flex items-start gap-3 px-4 py-3.5 border-b last:border-b-0 transition-colors"
+					style="border-color: var(--color-border){selectedIds.has(client.id) ? '; background-color: color-mix(in srgb, var(--color-primary) 5%, transparent)' : ''}{data.showArchived ? '; opacity: 0.75' : ''}"
 				>
-					<div class="flex items-start justify-between">
-						<div>
-							<p class="font-semibold" style="color: var(--color-foreground)">{client.name}</p>
-							<span
-								class="inline-block mt-1 px-2 py-0.5 rounded text-xs font-mono"
-								style="background-color: var(--color-muted); color: var(--color-muted-foreground)"
-							>
-								{client.currency}
-							</span>
-						</div>
-						<a
-							href="/clients/{client.id}"
-							class="p-1.5 rounded-lg transition-colors hover:bg-muted"
-							style="color: var(--color-muted-foreground)"
-						>
-							<ArrowRight size={15} />
-						</a>
-					</div>
-
-					{#if client.email}
-						<div class="flex items-center gap-2 text-sm" style="color: var(--color-muted-foreground)">
-							<Mail size={14} />
-							<span>{client.email}</span>
-						</div>
-					{/if}
-					{#if client.address}
-						<div class="flex items-start gap-2 text-sm" style="color: var(--color-muted-foreground)">
-							<MapPin size={14} class="mt-0.5 shrink-0" />
-							<span class="line-clamp-2">{client.address}</span>
-						</div>
-					{/if}
-
-					{#if ct && ct.invoiceCount > 0}
-						<div class="grid grid-cols-2 gap-2 rounded-lg px-3 py-2.5" style="background-color: var(--color-muted)">
-							<div>
-								<p class="text-xs mb-0.5" style="color: var(--color-muted-foreground)">Total billed</p>
-								<p class="text-sm font-semibold" style="color: var(--color-foreground)">{formatCurrency(ct.total, client.currency)}</p>
+					<!-- Checkbox -->
+					<input
+						type="checkbox"
+						checked={selectedIds.has(client.id)}
+						onchange={() => toggleSelect(client.id)}
+						class="mt-1 h-3.5 w-3.5 rounded border cursor-pointer accent-primary shrink-0"
+						style="border-color: var(--color-border)"
+						aria-label="Select {client.name}"
+					/>
+					<!-- Main content -->
+					<div class="flex-1 min-w-0">
+						<!-- Row 1: name + currency + actions -->
+						<div class="flex items-center justify-between gap-3">
+							<div class="flex items-center gap-2 min-w-0">
+								<a
+									href="/clients/{client.id}"
+									class="font-semibold text-sm hover:underline truncate"
+									style="color: var(--color-foreground)"
+								>
+									{client.name}
+								</a>
+								<span
+									class="shrink-0 px-1.5 py-0.5 rounded text-xs font-mono"
+									style="background-color: var(--color-muted); color: var(--color-muted-foreground)"
+								>
+									{client.currency}
+								</span>
 							</div>
-							<div>
-								<p class="text-xs mb-0.5" style="color: var(--color-muted-foreground)">Outstanding</p>
-								<p class="text-sm font-semibold" style="color: {ct.outstanding > 0 ? 'var(--color-primary)' : 'var(--color-muted-foreground)'}">{formatCurrency(ct.outstanding, client.currency)}</p>
+							<!-- Actions -->
+							<div class="flex items-center gap-0.5 shrink-0">
+								{#if data.showArchived}
+									<form method="POST" action="?/unarchive" use:enhance>
+										<input type="hidden" name="id" value={client.id} />
+										<button
+											type="submit"
+											class="flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors hover:bg-muted"
+											style="color: var(--color-muted-foreground)"
+											title="Restore"
+										>
+											<ArchiveRestore size={13} /> Restore
+										</button>
+									</form>
+									<form method="POST" action="?/delete" use:enhance>
+										<input type="hidden" name="id" value={client.id} />
+										<button
+											type="submit"
+											onclick={(e) => { if (!confirm(`Permanently delete ${client.name}?`)) e.preventDefault(); }}
+											class="p-1.5 rounded transition-colors text-red-500 hover:bg-red-50"
+											title="Delete permanently"
+										>
+											<Trash2 size={13} />
+										</button>
+									</form>
+								{:else}
+									<form method="POST" action="?/archive" use:enhance>
+										<input type="hidden" name="id" value={client.id} />
+										<button
+											type="submit"
+											class="p-1.5 rounded transition-colors hover:bg-muted"
+											style="color: var(--color-muted-foreground)"
+											title="Archive"
+										>
+											<Archive size={13} />
+										</button>
+									</form>
+									<a
+										href="/clients/{client.id}"
+										class="p-1.5 rounded transition-colors hover:bg-muted"
+										style="color: var(--color-muted-foreground)"
+										title="Open"
+									>
+										<ArrowRight size={13} />
+									</a>
+								{/if}
 							</div>
 						</div>
+						<!-- Row 2: secondary details -->
+						{#if hasDetails}
+							<div class="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+								{#if client.email}
+									<span class="flex items-center gap-1 text-xs" style="color: var(--color-muted-foreground)">
+										<Mail size={11} />
+										{client.email}
+									</span>
+								{/if}
+								{#if ct && ct.invoiceCount > 0}
+									<span class="flex items-center gap-1 text-xs" style="color: var(--color-muted-foreground)">
+										{ct.invoiceCount} invoice{ct.invoiceCount !== 1 ? 's' : ''}
+										&middot;
+										{formatCurrency(ct.total, client.currency)} billed
+										{#if ct.outstanding > 0}
+											&middot;
+											<span style="color: var(--color-primary)">{formatCurrency(ct.outstanding, client.currency)} outstanding</span>
+										{/if}
+									</span>
+								{/if}								{#if client.address}
+									<span class="flex items-center gap-1 text-xs" style="color: var(--color-muted-foreground)">
+										<MapPin size={11} />
+										<span class="truncate max-w-56">{client.address}</span>
+									</span>
+								{/if}							</div>
 					{/if}
-
-					<div class="mt-auto pt-2 border-t flex justify-end gap-1" style="border-color: var(--color-border)">
-						{#if data.showArchived}
-							<form method="POST" action="?/unarchive" use:enhance>
-								<input type="hidden" name="id" value={client.id} />
-								<button
-									type="submit"
-									class="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-muted"
-									style="color: var(--color-muted-foreground)"
-									title="Restore client"
-								>
-									<ArchiveRestore size={13} /> Restore
-								</button>
-							</form>
-							<form method="POST" action="?/delete" use:enhance>
-								<input type="hidden" name="id" value={client.id} />
-								<button
-									type="submit"
-									onclick={(e) => { if (!confirm(`Permanently delete ${client.name}?`)) e.preventDefault(); }}
-									class="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-								>
-									<Trash2 size={13} /> Delete
-								</button>
-							</form>
-						{:else}
-							<form method="POST" action="?/archive" use:enhance>
-								<input type="hidden" name="id" value={client.id} />
-								<button
-									type="submit"
-									class="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-muted"
-									style="color: var(--color-muted-foreground)"
-									title="Archive client"
-								>
-									<Archive size={13} /> Archive
-								</button>
-							</form>
-						{/if}
-					</div>
 				</div>
-			{/each}
-		</div>
-
-		<!-- Pagination -->
-		{#if data.totalPages > 1}
-			<div class="mt-8 flex items-center justify-center gap-2">
-				{#if data.page > 1}
-					<a
-						href={pageUrl(data.page - 1)}
-						class="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm transition-colors hover:bg-muted"
-						style="border-color: var(--color-border); color: var(--color-foreground)"
-					>
-						<ChevronLeft size={15} /> Prev
-					</a>
-				{:else}
-					<span
-						class="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm opacity-40 cursor-default"
-						style="border-color: var(--color-border); color: var(--color-foreground)"
-					>
-						<ChevronLeft size={15} /> Prev
-					</span>
-				{/if}
-
-				<span class="text-sm px-2" style="color: var(--color-muted-foreground)">
-					Page {data.page} of {data.totalPages}
-				</span>
-
-				{#if data.page < data.totalPages}
-					<a
-						href={pageUrl(data.page + 1)}
-						class="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm transition-colors hover:bg-muted"
-						style="border-color: var(--color-border); color: var(--color-foreground)"
-					>
-						Next <ChevronRight size={15} />
-					</a>
-				{:else}
-					<span
-						class="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm opacity-40 cursor-default"
-						style="border-color: var(--color-border); color: var(--color-foreground)"
-					>
-						Next <ChevronRight size={15} />
-					</span>
-				{/if}
 			</div>
+		{/each}
+	</div>
+{/if}
+
+<!-- Pagination -->
+{#if data.totalPages > 1}
+	<div class="mt-8 flex items-center justify-center gap-2">
+		{#if data.page > 1}
+			<a
+				href={pageUrl(data.page - 1)}
+				class="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm transition-colors hover:bg-muted"
+				style="border-color: var(--color-border); color: var(--color-foreground)"
+			>
+				<ChevronLeft size={15} /> Prev
+			</a>
+		{:else}
+			<span
+				class="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm opacity-40 cursor-default"
+				style="border-color: var(--color-border); color: var(--color-foreground)"
+			>
+				<ChevronLeft size={15} /> Prev
+			</span>
 		{/if}
-	{/if}
+
+		<span class="text-sm px-2" style="color: var(--color-muted-foreground)">
+			Page {data.page} of {data.totalPages}
+		</span>
+
+		{#if data.page < data.totalPages}
+			<a
+				href={pageUrl(data.page + 1)}
+				class="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm transition-colors hover:bg-muted"
+				style="border-color: var(--color-border); color: var(--color-foreground)"
+			>
+				Next <ChevronRight size={15} />
+			</a>
+		{:else}
+			<span
+				class="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm opacity-40 cursor-default"
+				style="border-color: var(--color-border); color: var(--color-foreground)"
+			>
+				Next <ChevronRight size={15} />
+			</span>
+		{/if}
+	</div>
+{/if}
 </div>

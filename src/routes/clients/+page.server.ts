@@ -146,5 +146,33 @@ export const actions = {
 		}
 
 		return { success: true };
+	},
+
+	bulkArchive: async ({ request }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const data = await request.formData();
+		const ids = data.getAll('ids[]').map((v) => v.toString()).filter(Boolean);
+		if (!ids.length) return fail(400, { error: 'No clients selected' });
+		try {
+			await Promise.all(ids.map((id) => pb.collection('clients').update(id, { archived: true })));
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : 'Failed to archive clients';
+			return fail(500, { error: msg });
+		}
+		return { success: true };
+	},
+
+	bulkUnarchive: async ({ request }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const data = await request.formData();
+		const ids = data.getAll('ids[]').map((v) => v.toString()).filter(Boolean);
+		if (!ids.length) return fail(400, { error: 'No clients selected' });
+		try {
+			await Promise.all(ids.map((id) => pb.collection('clients').update(id, { archived: false })));
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : 'Failed to restore clients';
+			return fail(500, { error: msg });
+		}
+		return { success: true };
 	}
 };

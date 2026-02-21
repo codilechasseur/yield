@@ -328,6 +328,16 @@ export const actions = {
 
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 
+		// ── 0. Verify PocketBase is reachable ────────────────────────────────────
+		try {
+			await pb.health.check();
+		} catch {
+			const pbUrl = env.PB_URL || 'http://localhost:8090';
+			return fail(503, {
+				importError: `Cannot reach PocketBase at ${pbUrl}. Make sure it is running and the schema has been imported (node pb_setup.js).`
+			});
+		}
+
 		// ── 1. Deduplicate & upsert clients ──────────────────────────────────────
 		const clientIdMap = new Map<string, string>();
 		const uniqueClients = new Map<string, Record<string, string>>();
@@ -363,7 +373,8 @@ export const actions = {
 		}
 
 		// ── 2. Create invoices + line items ──────────────────────────────────────
-		let invCreated = 0, invSkipped = 0, invFailed = 0;
+		let invCreated = 0, invFailed = 0;
+		let skipMissingFields = 0, skipNoClient = 0, skipDuplicate = 0;
 
 		for (const row of rows) {
 			const harvestId = (row['ID'] || '').trim();
@@ -375,14 +386,20 @@ export const actions = {
 			const status = deriveStatus(row['Balance'], row['Issue Date']);
 			const number = harvestId;
 
-			if (!harvestId || !clientName) { invSkipped++; continue; }
+			if (!harvestId || !clientName) { skipMissingFields++; continue; }
 
 			const pbClientId = clientIdMap.get(clientName);
-			if (!pbClientId) { invSkipped++; continue; }
+			if (!pbClientId) {
+				if (skipNoClient < 5) {
+					importErrors.push(`Invoice #${number}: no client found for "${clientName}"`);
+				}
+				skipNoClient++;
+				continue;
+			}
 
 			try {
 				await pb.collection('invoices').getFirstListItem(`number = "${number}"`);
-				invSkipped++;
+				skipDuplicate++;
 				continue;
 			} catch { /* not found → create */ }
 
@@ -419,9 +436,12 @@ export const actions = {
 				clientsCreated,
 				clientsSkipped,
 				invCreated,
-				invSkipped,
+				invSkipped: skipMissingFields + skipNoClient + skipDuplicate,
 				invFailed,
-				errors: importErrors.slice(0, 20)
+				skipMissingFields,
+				skipNoClient,
+				skipDuplicate,
+				errors: importErrors.slice(0, 50)
 			}
 		};
 	},

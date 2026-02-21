@@ -942,175 +942,168 @@
 			</summary>
 
 			<div class="px-4 md:px-6 pb-4 md:pb-6 pt-5 border-t" style="border-color: var(--color-border)">
-				{#if data.clientCount > 0}
-					<!-- Already has data — show summary + reset panel -->
-					<div class="flex items-start gap-3 p-4 rounded-lg mb-5" style="background-color: var(--color-accent)">
-						<Check size={16} class="mt-0.5 shrink-0" style="color: var(--color-primary)" />
-						<div>
-							<p class="text-sm font-medium" style="color: var(--color-foreground)">
-								Data already imported
-							</p>
-							<p class="text-sm mt-1" style="color: var(--color-muted-foreground)">
-								{data.clientCount} client{data.clientCount === 1 ? '' : 's'} found in the database.
-								Re-importing is disabled to prevent duplicates.
-							</p>
-						</div>
-					</div>
+				<!-- Upload form — always available; import is idempotent -->
+				<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">
+					Export your invoices from Harvest (<strong>Invoices → Export → CSV</strong>) and upload the file
+					below. Clients, invoices, and line items will be created automatically. The import is idempotent
+					— existing records are skipped, so it's safe to re-run.
+				</p>
 
-					{#if form?.resetSuccess}
-						<div class="p-4 rounded-lg text-sm" style="background-color: var(--color-accent); color: var(--color-foreground)">
-							All data has been deleted. Reload the page to import a fresh dataset.
-						</div>
-					{:else}
-						<!-- Reset accordion -->
-						<details class="rounded-lg border overflow-hidden" style="border-color: var(--color-destructive)" ontoggle={(e) => resetOpen = (e.target as HTMLDetailsElement).open}>
-							<summary
-								class="flex items-center justify-between px-4 py-3 cursor-pointer list-none select-none text-sm font-medium"
-								style="color: var(--color-destructive); background-color: color-mix(in srgb, var(--color-destructive) 8%, transparent)"
-							>
-								<span>Reset all data…</span>
-								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
-									fill="none" stroke="currentColor" stroke-width="2.5"
-									stroke-linecap="round" stroke-linejoin="round"
-									style="transition: transform 0.2s; transform: rotate({resetOpen ? 90 : 0}deg)"
-								>
-									<path d="m9 18 6-6-6-6"/>
-								</svg>
-							</summary>
-
-							<div class="px-4 py-4 border-t space-y-4" style="border-color: var(--color-destructive)">
-								<p class="text-sm font-semibold" style="color: var(--color-destructive)">
-									⚠ This will permanently delete all clients, invoices, and line items. There is no undo.
-								</p>
-
-								{#if form?.resetError}
-									<p class="text-sm" style="color: var(--color-destructive)">{form.resetError}</p>
-								{/if}
-
-								<div class="space-y-2">
-									{#each [
-										{ bind: resetCheck1, label: 'I understand all client records will be permanently deleted.' },
-										{ bind: resetCheck2, label: 'I understand all invoices and line items will be permanently deleted.' },
-										{ bind: resetCheck3, label: 'I understand this cannot be undone and I have a backup if needed.' }
-									] as item, i}
-										<label class="flex items-start gap-3 cursor-pointer select-none">
-											<input
-												type="checkbox"
-												class="mt-0.5 h-4 w-4 rounded shrink-0 cursor-pointer"
-												style="accent-color: var(--color-destructive)"
-												checked={i === 0 ? resetCheck1 : i === 1 ? resetCheck2 : resetCheck3}
-												onchange={() => {
-													if (i === 0) resetCheck1 = !resetCheck1;
-													else if (i === 1) resetCheck2 = !resetCheck2;
-													else resetCheck3 = !resetCheck3;
-												}}
-											/>
-											<span class="text-sm" style="color: var(--color-foreground)">{item.label}</span>
-										</label>
-									{/each}
-								</div>
-
-								<form
-									method="POST"
-									action="?/resetData"
-									use:enhance={() => {
-										resetting = true;
-										return async ({ update }) => {
-											resetting = false;
-											resetCheck1 = false;
-											resetCheck2 = false;
-											resetCheck3 = false;
-											await update();
-										};
-									}}
-								>
-									<button
-										type="submit"
-										disabled={!resetReady || resetting}
-										class="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
-										style="background-color: var(--color-destructive); color: white"
-									>
-										{resetting ? 'Deleting…' : 'Delete everything'}
-									</button>
-								</form>
-							</div>
-						</details>
-					{/if}
-				{:else}
-					<!-- Upload form -->
-					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">
-						Export your invoices from Harvest (<strong>Invoices → Export → CSV</strong>) and upload the file
-						below. Clients, invoices, and line items will be created automatically. The import is idempotent
-						— existing records are skipped, so it's safe to re-run.
-					</p>
-
-					{#if form?.importSuccess}
-						<div class="mb-5 p-4 rounded-lg" style="background-color: var(--color-accent)">
-							<p class="text-sm font-semibold mb-2" style="color: var(--color-foreground)">Import complete ✓</p>
-							<ul class="text-sm space-y-0.5" style="color: var(--color-muted-foreground)">
-								<li>Clients: {form.importStats?.clientsCreated} created, {form.importStats?.clientsSkipped} already existed</li>
-								<li>
-									Invoices: {form.importStats?.invCreated} created,
-									{form.importStats?.invSkipped} skipped{form.importStats?.invFailed
-										? `, ${form.importStats.invFailed} failed`
-										: ''}
+				{#if form?.importSuccess}
+					{@const allSkipped = (form.importStats?.invCreated ?? 0) === 0 && (form.importStats?.invSkipped ?? 0) > 0}
+					<div class="mb-5 p-4 rounded-lg" style="background-color: {allSkipped ? 'color-mix(in srgb, var(--color-destructive) 10%, transparent)' : 'var(--color-accent)'}">
+						<p class="text-sm font-semibold mb-2" style="color: var(--color-foreground)">
+							{allSkipped ? 'Import finished — nothing was created' : 'Import complete ✓'}
+						</p>
+						<ul class="text-sm space-y-0.5" style="color: var(--color-muted-foreground)">
+							<li>Clients: {form.importStats?.clientsCreated} created, {form.importStats?.clientsSkipped} already existed</li>
+							<li>
+								Invoices: {form.importStats?.invCreated} created,
+								{form.importStats?.invSkipped} skipped{form.importStats?.invFailed
+									? `, ${form.importStats.invFailed} failed`
+									: ''}
+							</li>
+							{#if (form.importStats?.invSkipped ?? 0) > 0}
+								<li class="pl-3 text-xs mt-1 space-y-0.5">
+									{#if form.importStats?.skipDuplicate}<div>↳ {form.importStats.skipDuplicate} already exist (duplicate)</div>{/if}
+									{#if form.importStats?.skipNoClient}<div>↳ {form.importStats.skipNoClient} client name not matched</div>{/if}
+									{#if form.importStats?.skipMissingFields}<div>↳ {form.importStats.skipMissingFields} missing ID or client name</div>{/if}
 								</li>
-							</ul>
-							{#if form.importStats?.errors?.length}
-								<details class="mt-3">
-									<summary class="text-xs cursor-pointer" style="color: var(--color-muted-foreground)">
-										Show errors ({form.importStats.errors.length})
-									</summary>
-									<ul class="mt-1 space-y-0.5 text-xs font-mono" style="color: var(--color-destructive)">
-										{#each form.importStats.errors as err}<li>{err}</li>{/each}
-									</ul>
-								</details>
 							{/if}
-						</div>
-					{/if}
+						</ul>
+						{#if form.importStats?.errors?.length}
+							<ul class="mt-3 space-y-1 text-xs font-mono" style="color: var(--color-destructive)">
+								{#each form.importStats.errors as err}<li>{err}</li>{/each}
+							</ul>
+						{/if}
+					</div>
+				{/if}
 
-					{#if form?.importError}
-						<div class="mb-5 px-4 py-3 rounded-lg text-sm" style="background-color: color-mix(in srgb, var(--color-destructive) 12%, transparent); color: var(--color-destructive)">
-							{form.importError}
-						</div>
-					{/if}
+				{#if form?.importError}
+					<div class="mb-5 px-4 py-3 rounded-lg text-sm" style="background-color: color-mix(in srgb, var(--color-destructive) 12%, transparent); color: var(--color-destructive)">
+						{form.importError}
+					</div>
+				{/if}
 
-					<form
-						method="POST"
-						action="?/harvestImport"
-						enctype="multipart/form-data"
-						class="flex items-end gap-3"
-						use:enhance={() => {
-							importing = true;
-							return async ({ update }) => {
-								importing = false;
-								await update();
-							};
-						}}
+				<form
+					method="POST"
+					action="?/harvestImport"
+					enctype="multipart/form-data"
+					class="flex items-end gap-3"
+					use:enhance={() => {
+						importing = true;
+						return async ({ update }) => {
+							importing = false;
+							await update();
+						};
+					}}
+				>
+					<div class="flex-1 max-w-sm">
+						<label for="harvest-csv-input" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
+							Harvest CSV File
+						</label>
+						<input
+							id="harvest-csv-input"
+							name="csv"
+							type="file"
+							accept=".csv"
+							required
+							class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2 cursor-pointer"
+							style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+						/>
+					</div>
+					<button
+						type="submit"
+						disabled={importing}
+						class="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+						style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
 					>
-						<div class="flex-1 max-w-sm">
-							<label for="harvest-csv-input" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
-								Harvest CSV File
-							</label>
-							<input
-								id="harvest-csv-input"
-								name="csv"
-								type="file"
-								accept=".csv"
-								required
-								class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2 cursor-pointer"
-								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-							/>
-						</div>
-						<button
-							type="submit"
-							disabled={importing}
-							class="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-							style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
-						>
-							{importing ? 'Importing…' : 'Import'}
-						</button>
-					</form>
+						{importing ? 'Importing…' : 'Import'}
+					</button>
+				</form>
+
+				<!-- Reset panel — only shown when data exists -->
+				{#if data.clientCount > 0}
+					<div class="mt-8 pt-6 border-t" style="border-color: var(--color-border)">
+						{#if form?.resetSuccess}
+							<div class="p-4 rounded-lg text-sm" style="background-color: var(--color-accent); color: var(--color-foreground)">
+								All data has been deleted. Reload the page to import a fresh dataset.
+							</div>
+						{:else}
+							<details class="rounded-lg border overflow-hidden" style="border-color: var(--color-destructive)" ontoggle={(e) => resetOpen = (e.target as HTMLDetailsElement).open}>
+								<summary
+									class="flex items-center justify-between px-4 py-3 cursor-pointer list-none select-none text-sm font-medium"
+									style="color: var(--color-destructive); background-color: color-mix(in srgb, var(--color-destructive) 8%, transparent)"
+								>
+									<span>Reset all data…</span>
+									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+										fill="none" stroke="currentColor" stroke-width="2.5"
+										stroke-linecap="round" stroke-linejoin="round"
+										style="transition: transform 0.2s; transform: rotate({resetOpen ? 90 : 0}deg)"
+									>
+										<path d="m9 18 6-6-6-6"/>
+									</svg>
+								</summary>
+
+								<div class="px-4 py-4 border-t space-y-4" style="border-color: var(--color-destructive)">
+									<p class="text-sm font-semibold" style="color: var(--color-destructive)">
+										⚠ This will permanently delete all clients, invoices, and line items. There is no undo.
+									</p>
+
+									{#if form?.resetError}
+										<p class="text-sm" style="color: var(--color-destructive)">{form.resetError}</p>
+									{/if}
+
+									<div class="space-y-2">
+										{#each [
+											{ bind: resetCheck1, label: 'I understand all client records will be permanently deleted.' },
+											{ bind: resetCheck2, label: 'I understand all invoices and line items will be permanently deleted.' },
+											{ bind: resetCheck3, label: 'I understand this cannot be undone and I have a backup if needed.' }
+										] as item, i}
+											<label class="flex items-start gap-3 cursor-pointer select-none">
+												<input
+													type="checkbox"
+													class="mt-0.5 h-4 w-4 rounded shrink-0 cursor-pointer"
+													style="accent-color: var(--color-destructive)"
+													checked={i === 0 ? resetCheck1 : i === 1 ? resetCheck2 : resetCheck3}
+													onchange={() => {
+														if (i === 0) resetCheck1 = !resetCheck1;
+														else if (i === 1) resetCheck2 = !resetCheck2;
+														else resetCheck3 = !resetCheck3;
+													}}
+												/>
+												<span class="text-sm" style="color: var(--color-foreground)">{item.label}</span>
+											</label>
+										{/each}
+									</div>
+
+									<form
+										method="POST"
+										action="?/resetData"
+										use:enhance={() => {
+											resetting = true;
+											return async ({ update }) => {
+												resetting = false;
+												resetCheck1 = false;
+												resetCheck2 = false;
+												resetCheck3 = false;
+												await update();
+											};
+										}}
+									>
+										<button
+											type="submit"
+											disabled={!resetReady || resetting}
+											class="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
+											style="background-color: var(--color-destructive); color: white"
+										>
+											{resetting ? 'Deleting…' : 'Delete everything'}
+										</button>
+									</form>
+								</div>
+							</details>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		</details>
