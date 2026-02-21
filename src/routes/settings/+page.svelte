@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
-	import { Sun, Moon, Monitor, Check, Lock, Save } from 'lucide-svelte';
+	import { Sun, Moon, Monitor, Check, Lock, Save, Palette, Building2, FileText, Hash, Coins, Mail, Server, FileUp } from 'lucide-svelte';
+	import Tip from '$lib/components/Tip.svelte';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -325,7 +326,10 @@
 
 				<!-- Theme -->
 				<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
-					<h4 class="font-semibold mb-1" style="color: var(--color-foreground)">Theme</h4>
+					<div class="flex items-center gap-2 mb-1">
+						<Monitor size={16} style="color: var(--color-primary)" aria-hidden="true" />
+						<h4 class="font-semibold" style="color: var(--color-foreground)">Theme</h4>
+					</div>
 					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Choose how Yield looks to you.</p>
 
 					<div class="grid grid-cols-3 gap-3">
@@ -353,7 +357,10 @@
 
 				<!-- Highlight colour -->
 				<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
-					<h4 class="font-semibold mb-1" style="color: var(--color-foreground)">Highlight Colour</h4>
+					<div class="flex items-center gap-2 mb-1">
+						<Palette size={16} style="color: var(--color-primary)" aria-hidden="true" />
+						<h4 class="font-semibold" style="color: var(--color-foreground)">Highlight Colour</h4>
+					</div>
 					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Accent colour used throughout the interface and on invoice PDFs.</p>
 
 					<!-- Hidden field associated with global save form -->
@@ -416,7 +423,10 @@
 
 				<!-- Company -->
 				<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
-					<h4 class="font-semibold mb-1" style="color: var(--color-foreground)">Your Company</h4>
+					<div class="flex items-center gap-2 mb-1">
+						<Building2 size={16} style="color: var(--color-primary)" aria-hidden="true" />
+						<h4 class="font-semibold" style="color: var(--color-foreground)">Your Company</h4>
+					</div>
 					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Shown as the sender on invoice PDFs and emails.</p>
 					<div class="space-y-4">
 						<div class="flex flex-col gap-1">
@@ -433,8 +443,7 @@
 							/>
 						</div>
 						<div class="flex flex-col gap-1">
-							<label for="company-address" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Address</label>
-							<p class="text-xs" style="color: var(--color-muted-foreground)">Shown below your name in the invoice PDF header.</p>
+							<label for="company-address" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Address <Tip tip="Shown below your name in the invoice PDF header." /></label>
 							<textarea
 								id="company-address"
 								name="company_address"
@@ -451,12 +460,14 @@
 
 				<!-- Invoice Defaults -->
 				<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
-					<h4 class="font-semibold mb-1" style="color: var(--color-foreground)">Invoice Defaults</h4>
+					<div class="flex items-center gap-2 mb-1">
+						<FileText size={16} style="color: var(--color-primary)" aria-hidden="true" />
+						<h4 class="font-semibold" style="color: var(--color-foreground)">Invoice Defaults</h4>
+					</div>
 					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Default notes pre-filled on new invoices, and a footer printed on every PDF.</p>
 					<div class="space-y-4">
 						<div class="flex flex-col gap-1">
-							<label for="default-notes" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Default Notes</label>
-							<p class="text-xs" style="color: var(--color-muted-foreground)">Pre-filled in the Notes field when creating a new invoice. Editable per invoice.</p>
+							<label for="default-notes" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Default Notes <Tip tip="Pre-filled in the Notes field when creating a new invoice. Editable per invoice." /></label>
 							<textarea
 								id="default-notes"
 								name="invoice_default_notes"
@@ -469,8 +480,7 @@
 							></textarea>
 						</div>
 						<div class="flex flex-col gap-1">
-							<label for="invoice-footer" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Invoice Footer</label>
-							<p class="text-xs" style="color: var(--color-muted-foreground)">Printed on every invoice PDF below the line items — bank account, payment instructions, etc.</p>
+							<label for="invoice-footer" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Invoice Footer <Tip tip="Printed on every invoice PDF below the line items — bank account, payment instructions, etc." /></label>
 							<textarea
 								id="invoice-footer"
 								name="invoice_footer"
@@ -487,7 +497,10 @@
 
 				<!-- Invoice Numbering -->
 				<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
-					<h4 class="font-semibold mb-1" style="color: var(--color-foreground)">Invoice Numbering</h4>
+					<div class="flex items-center gap-2 mb-1">
+						<Hash size={16} style="color: var(--color-primary)" aria-hidden="true" />
+						<h4 class="font-semibold" style="color: var(--color-foreground)">Invoice Numbering</h4>
+					</div>
 					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">
 						Use <code class="font-mono text-xs">{'{number}'}</code> as the counter placeholder — e.g. <code class="font-mono text-xs">INV-{'{number}'}</code> produces <code class="font-mono text-xs">INV-615</code>.
 					</p>
@@ -506,8 +519,7 @@
 							/>
 						</div>
 						<div class="flex flex-col gap-1">
-							<label for="invoice-next-number" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Next Number</label>
-							<p class="text-xs" style="color: var(--color-muted-foreground)">Increments automatically when an invoice is created.</p>
+							<label for="invoice-next-number" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Next Number <Tip tip="Increments automatically when an invoice is created." /></label>
 							<input
 								id="invoice-next-number"
 								name="invoice_next_number"
@@ -528,7 +540,10 @@
 
 				<!-- Tax & Currency -->
 				<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
-					<h4 class="font-semibold mb-1" style="color: var(--color-foreground)">Tax & Currency</h4>
+					<div class="flex items-center gap-2 mb-1">
+						<Coins size={16} style="color: var(--color-primary)" aria-hidden="true" />
+						<h4 class="font-semibold" style="color: var(--color-foreground)">Tax & Currency</h4>
+					</div>
 					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Defaults applied when creating new invoices and clients. Existing records are not affected.</p>
 					<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 						<div class="flex flex-col gap-1">
@@ -547,8 +562,7 @@
 							</select>
 						</div>
 						<div class="flex flex-col gap-1">
-							<label for="tax-rate" class="text-xs font-medium" style="color: var(--color-muted-foreground)">GST / Tax Rate (%)</label>
-							<p class="text-xs" style="color: var(--color-muted-foreground)">Default rate on new invoices.</p>
+							<label for="tax-rate" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">GST / Tax Rate (%) <Tip tip="Default rate applied to new invoices." /></label>
 							<input
 								id="tax-rate"
 								name="default_tax_percent"
@@ -561,8 +575,7 @@
 							/>
 						</div>
 						<div class="flex flex-col gap-1">
-							<label for="income-tax-rate" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Income Tax Rate (%)</label>
-							<p class="text-xs" style="color: var(--color-muted-foreground)">Personal rate used in Tax Reports. Not applied to invoices.</p>
+							<label for="income-tax-rate" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Income Tax Rate (%) <Tip tip="Your personal rate used in Tax Reports. Not applied to invoice totals." /></label>
 							<input
 								id="income-tax-rate"
 								name="income_tax_rate"
@@ -586,7 +599,10 @@
 
 				<!-- Email template -->
 				<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
-					<h4 class="font-semibold mb-1" style="color: var(--color-foreground)">Email Template</h4>
+					<div class="flex items-center gap-2 mb-1">
+						<Mail size={16} style="color: var(--color-primary)" aria-hidden="true" />
+						<h4 class="font-semibold" style="color: var(--color-foreground)">Email Template</h4>
+					</div>
 					<p class="text-sm mb-1" style="color: var(--color-muted-foreground)">Boilerplate used when sending invoices. Leave blank to use the built-in defaults.</p>
 					<p class="text-xs mb-5" style="color: var(--color-muted-foreground)">
 						Placeholders: <code class="font-mono">{'{invoice_number}'}</code> <code class="font-mono">{'{client_name}'}</code> <code class="font-mono">{'{total}'}</code> <code class="font-mono">{'{due_date}'}</code> <code class="font-mono">{'{issue_date}'}</code> <code class="font-mono">{'{company_name}'}</code>
@@ -606,7 +622,7 @@
 							/>
 						</div>
 						<div class="flex flex-col gap-1">
-							<label for="email-body" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Body</label>
+							<label for="email-body" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Body <Tip tip="The body can be edited per-send on the invoice detail page." /></label>
 							<textarea
 								id="email-body"
 								name="email_body"
@@ -617,14 +633,16 @@
 								class="w-full px-3 py-2 rounded-lg border text-sm resize-none font-mono"
 								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 							></textarea>
-							<p class="text-xs" style="color: var(--color-muted-foreground)">The body can be edited per-send on the invoice detail page.</p>
 						</div>
 					</div>
 				</div>
 
 				<!-- SMTP -->
 				<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
-					<h4 class="font-semibold mb-1" style="color: var(--color-foreground)">SMTP</h4>
+					<div class="flex items-center gap-2 mb-1">
+						<Server size={16} style="color: var(--color-primary)" aria-hidden="true" />
+						<h4 class="font-semibold" style="color: var(--color-foreground)">SMTP</h4>
+					</div>
 					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Configure a third-party SMTP service to send invoices directly to clients.</p>
 
 					<div class="space-y-4">
@@ -884,7 +902,10 @@
 				>
 					<summary class="flex items-center justify-between px-4 md:px-6 py-5 cursor-pointer list-none select-none">
 						<div>
-							<h4 class="font-semibold" style="color: var(--color-foreground)">Data Import</h4>
+							<div class="flex items-center gap-2">
+								<FileUp size={16} style="color: var(--color-primary)" aria-hidden="true" />
+								<h4 class="font-semibold" style="color: var(--color-foreground)">Data Import</h4>
+							</div>
 							<p class="text-sm mt-0.5" style="color: var(--color-muted-foreground)">
 								Import clients and invoices from a Harvest CSV export
 							</p>
