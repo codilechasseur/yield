@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   # ─── Unit tests + type check + build ──────────────────────────────────────
@@ -26,7 +27,7 @@ jobs:
         run: npm run check
 
       - name: Unit tests
-        run: npm run test:unit -- --coverage
+        run: npm run test:unit:coverage
 
       - name: Build
         run: npm run build
@@ -85,10 +86,13 @@ jobs:
 
       - name: Create PocketBase superuser
         run: |
-          curl -sf -o /dev/null -w "%{http_code}" \
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST http://localhost:8090/api/collections/_superusers/records \
             -H "Content-Type: application/json" \
-            -d "{\"email\":\"$PB_ADMIN_EMAIL\",\"password\":\"$PB_ADMIN_PASSWORD\",\"passwordConfirm\":\"$PB_ADMIN_PASSWORD\"}"
+            -d "{\"email\":\"$PB_ADMIN_EMAIL\",\"password\":\"$PB_ADMIN_PASSWORD\",\"passwordConfirm\":\"$PB_ADMIN_PASSWORD\"}")
+          echo "Superuser creation HTTP status: $STATUS"
+          # 200/201 = created, 400 = already exists — both are acceptable
+          [[ "$STATUS" == 200 || "$STATUS" == 201 || "$STATUS" == 400 ]] || (echo "Unexpected status $STATUS" && exit 1)
 
       - name: Apply PocketBase schema
         run: node pb_setup.js
