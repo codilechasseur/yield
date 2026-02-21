@@ -73,8 +73,11 @@ jobs:
           unzip pocketbase.zip -d pb_bin
           chmod +x pb_bin/pocketbase
 
+      - name: Create PocketBase superuser
+        run: ./pb_bin/pocketbase superuser upsert "$PB_ADMIN_EMAIL" "$PB_ADMIN_PASSWORD" --dir ./pb_data
+
       - name: Start PocketBase
-        run: ./pb_bin/pocketbase serve --http=0.0.0.0:8090 &
+        run: ./pb_bin/pocketbase serve --http=0.0.0.0:8090 --dir ./pb_data &
 
       - name: Wait for PocketBase health
         run: |
@@ -82,16 +85,6 @@ jobs:
             curl -sf http://localhost:8090/api/health && break
             sleep 1
           done
-
-      - name: Create PocketBase superuser
-        run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST http://localhost:8090/api/collections/_superusers/records \
-            -H "Content-Type: application/json" \
-            -d "{\"email\":\"$PB_ADMIN_EMAIL\",\"password\":\"$PB_ADMIN_PASSWORD\",\"passwordConfirm\":\"$PB_ADMIN_PASSWORD\"}")
-          echo "Superuser creation HTTP status: $STATUS"
-          # 200/201 = created, 400 = already exists — both are acceptable
-          [[ "$STATUS" == 200 || "$STATUS" == 201 || "$STATUS" == 400 ]] || (echo "Unexpected status $STATUS" && exit 1)
 
       - name: Apply PocketBase schema
         run: node pb_setup.js
