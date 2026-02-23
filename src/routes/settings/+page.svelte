@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
-	import { Sun, Moon, Monitor, Check, Lock, Save, Palette, Building2, FileText, Hash, Coins, Mail, Server, FileUp } from 'lucide-svelte';
+	import { Sun, Moon, Monitor, Check, Lock, Save, Palette, Building2, FileText, Hash, Coins, Mail, Server, FileUp, Image, X } from 'lucide-svelte';
 	import Tip from '$lib/components/Tip.svelte';
 	import { addToast } from '$lib/toasts.svelte.js';
 	import type { PageData, ActionData } from './$types.js';
@@ -42,7 +42,14 @@
 	let invoiceNextNumber   = $state<number>(untrack(() => data.smtp?.invoice_next_number ?? 1));
 	let emailSubject    = $state(untrack(() => data.smtp?.email_subject ?? ''));
 	let emailBody       = $state(untrack(() => data.smtp?.email_body ?? ''));
+	let hideCompanyName = $state<boolean>(untrack(() => data.smtp?.logo_hide_company_name ?? false));
 	let showPass        = $state(false);
+
+	// ── Logo upload state ─────────────────────────────────────────────────
+	let logoUploading   = $state(false);
+	let logoRemoving    = $state(false);
+	let logoError       = $state('');
+	let logoFile        = $state<File | null>(null);
 
 	const currencies = ['CAD', 'USD', 'EUR', 'GBP', 'AUD', 'NZD', 'CHF', 'JPY', 'MXN', 'BRL'];
 	let defaultCurrency = $state(untrack(() => data.smtp?.default_currency ?? 'CAD'));
@@ -76,6 +83,7 @@
 		smtpFromName:         data.smtp?.smtp_from_name ?? '',
 		smtpFromEmail:        data.smtp?.smtp_from_email ?? '',
 		smtpSecure:           data.smtp?.smtp_secure ?? false,
+		hideCompanyName:      data.smtp?.logo_hide_company_name ?? false,
 	})));
 
 	let isDirty = $derived(
@@ -96,7 +104,8 @@
 		smtpPass            !== snapshot.smtpPass            ||
 		smtpFromName        !== snapshot.smtpFromName        ||
 		smtpFromEmail       !== snapshot.smtpFromEmail       ||
-		smtpSecure          !== snapshot.smtpSecure
+		smtpSecure          !== snapshot.smtpSecure          ||
+		hideCompanyName     !== snapshot.hideCompanyName
 	);
 
 	function markClean() {
@@ -105,6 +114,7 @@
 			defaultNotes, invoiceFooter, invoiceNumberFormat, invoiceNextNumber,
 			emailSubject, emailBody, defaultCurrency,
 			smtpHost, smtpPort, smtpUser, smtpPass, smtpFromName, smtpFromEmail, smtpSecure,
+			hideCompanyName,
 		};
 	}
 
@@ -441,6 +451,114 @@
 								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 							></textarea>
 						</div>
+					</div>
+				</div>
+
+				<!-- Company Logo -->
+				<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
+					<div class="flex items-center gap-2 mb-1">
+						<Image size={16} style="color: var(--color-primary)" aria-hidden="true" />
+						<h4 class="font-semibold" style="color: var(--color-foreground)">Company Logo</h4>
+					</div>
+					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Displayed in invoice PDF headers alongside your company name.</p>
+
+					{#if data.logoUrl}
+						<div class="mb-4 p-3 rounded-lg border inline-flex" style="border-color: var(--color-border); background: var(--color-muted)">
+							<img src={data.logoUrl} alt="Company logo preview" style="max-height:64px;max-width:220px;width:auto;height:auto;object-fit:contain;display:block;" />
+						</div>
+
+						<!-- Hide company name toggle — only shown when a logo is uploaded -->
+						<label class="flex items-center gap-2.5 mb-5 cursor-pointer w-fit">
+							<input
+								type="checkbox"
+								name="logo_hide_company_name"
+								bind:checked={hideCompanyName}
+								form="settings-form"
+								class="rounded border"
+								style="accent-color: var(--color-primary); width:15px; height:15px;"
+							/>
+							<span class="text-sm" style="color: var(--color-foreground)">Hide company name on PDFs</span>
+							<Tip tip="Use this when your logo already contains your company name, to avoid showing it twice on invoices." />
+						</label>
+					{/if}
+
+					{#if logoError}
+						<p class="text-sm mb-3" style="color: var(--color-destructive)">{logoError}</p>
+					{/if}
+
+					<div class="flex flex-wrap items-end gap-3">
+						<!-- Upload form -->
+						<form
+							method="POST"
+							action="?/saveLogo"
+							enctype="multipart/form-data"
+							use:enhance={() => {
+								logoUploading = true;
+								logoError = '';
+								return async ({ update, result }) => {
+									logoUploading = false;
+									logoFile = null;
+									await update();
+									if (result.type === 'success') {
+										addToast('Logo saved');
+									} else if (result.type === 'failure') {
+										logoError = (result.data as any)?.logoError ?? 'Failed to save logo';
+									}
+								};
+							}}
+							class="flex items-end gap-2"
+						>
+							<div class="flex flex-col gap-1">
+								<label for="logo-upload" class="text-xs font-medium" style="color: var(--color-muted-foreground)">{data.logoUrl ? 'Replace logo' : 'Upload logo'}</label>
+								<input
+									id="logo-upload"
+									name="logo"
+									type="file"
+									accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp"
+									onchange={(e) => { logoFile = (e.target as HTMLInputElement).files?.[0] ?? null; }}
+									class="text-sm rounded-lg border px-2 py-1.5 file:mr-2 file:rounded file:border-0 file:px-2 file:py-1 file:text-xs file:font-medium"
+									style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground); file:background-color: var(--color-muted); file:color: var(--color-muted-foreground)"
+								/>
+							</div>
+							<button
+								type="submit"
+								disabled={logoUploading || !logoFile}
+								class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+								style={logoFile && !logoUploading
+									? 'background-color: var(--color-primary); color: var(--color-primary-foreground)'
+									: 'background-color: var(--color-muted); color: var(--color-muted-foreground); opacity: 0.7'}
+							>
+								<FileUp size={14} aria-hidden="true" />
+								{logoUploading ? 'Uploading…' : 'Upload'}
+							</button>
+						</form>
+
+						<!-- Remove logo -->
+						{#if data.logoUrl}
+							<form
+								method="POST"
+								action="?/removeLogo"
+								use:enhance={() => {
+									logoRemoving = true;
+									logoError = '';
+									return async ({ update }) => {
+										logoRemoving = false;
+										await update();
+										addToast('Logo removed');
+									};
+								}}
+							>
+								<button
+									type="submit"
+									disabled={logoRemoving}
+									class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all"
+									style="border-color: var(--color-border); color: var(--color-muted-foreground); background: var(--color-background)"
+								>
+									<X size={13} aria-hidden="true" />
+									{logoRemoving ? 'Removing…' : 'Remove logo'}
+								</button>
+							</form>
+						{/if}
 					</div>
 				</div>
 

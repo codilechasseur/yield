@@ -602,6 +602,29 @@
       },
       {
         "hidden": false,
+        "id": "fld_set_log",
+        "maxSelect": 1,
+        "maxSize": 5242880,
+        "mimeTypes": ["image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp"],
+        "name": "logo",
+        "presentable": false,
+        "protected": false,
+        "required": false,
+        "system": false,
+        "thumbs": null,
+        "type": "file"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_lhc",
+        "name": "logo_hide_company_name",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "bool"
+      },
+      {
+        "hidden": false,
         "id": "autodate2990389176",
         "name": "created",
         "onCreate": true,

@@ -2,7 +2,7 @@ import { fail } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import type { InvoiceStatus } from '$lib/types.js';
-import { getSmtpSettings, sendInvoiceEmail, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY } from '$lib/mail.server.js';
+import { getSmtpSettings, sendInvoiceEmail, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, buildLogoUrl } from '$lib/mail.server.js';
 import type { SmtpSettings } from '$lib/mail.server.js';
 import { hashPassword, invalidatePasswordCache } from '$lib/auth.server.js';
 
@@ -10,12 +10,13 @@ export async function load() {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 	const smtp = await getSmtpSettings(pb);
 	const hasPassword = Boolean(smtp?.app_password_hash);
+	const logoUrl = buildLogoUrl(env.PB_URL || 'http://localhost:8090', smtp?.id ?? '', smtp?.logo);
 	let clientCount = 0;
 	try {
 		const r = await pb.collection('clients').getList(1, 1);
 		clientCount = r.totalItems;
 	} catch { /* ignore — collections may not exist yet */ }
-	return { smtp, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, hasPassword, clientCount };
+	return { smtp, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, hasPassword, clientCount, logoUrl };
 }
 
 export const actions = {
@@ -222,6 +223,55 @@ export const actions = {
 		return {};
 	},
 
+	saveLogo: async ({ request }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const fd = await request.formData();
+		const logoFile = fd.get('logo');
+
+		if (!logoFile || !(logoFile instanceof File) || logoFile.size === 0) {
+			return fail(400, { logoError: 'Please select an image file.' });
+		}
+
+		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
+		if (!allowedTypes.includes(logoFile.type)) {
+			return fail(400, { logoError: 'Only JPEG, PNG, GIF, SVG, and WebP images are allowed.' });
+		}
+
+		if (logoFile.size > 5 * 1024 * 1024) {
+			return fail(400, { logoError: 'Logo must be under 5 MB.' });
+		}
+
+		try {
+			const existing = await getSmtpSettings(pb);
+			const uploadData = new FormData();
+			uploadData.append('logo', logoFile);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, uploadData);
+			} else {
+				await pb.collection('settings').create(uploadData);
+			}
+		} catch (e) {
+			return fail(500, { logoError: 'Failed to save logo: ' + (e as Error).message });
+		}
+
+		return { logoSuccess: true };
+	},
+
+	removeLogo: async () => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		try {
+			const existing = await getSmtpSettings(pb);
+			if (existing?.id) {
+				const clear = new FormData();
+				clear.append('logo', '');
+				await pb.collection('settings').update(existing.id, clear);
+			}
+		} catch (e) {
+			return fail(500, { logoError: 'Failed to remove logo: ' + (e as Error).message });
+		}
+		return { logoRemoved: true };
+	},
+
 	saveAll: async ({ request }) => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const fd = await request.formData();
@@ -253,6 +303,8 @@ export const actions = {
 			default_currency: fd.get('default_currency')?.toString().trim() || 'CAD',
 			// Appearance
 			brand_hue: parseFloat(fd.get('brand_hue')?.toString() ?? '250') || 250,
+			// Logo
+			logo_hide_company_name: fd.get('logo_hide_company_name') === 'on',
 		};
 
 		try {

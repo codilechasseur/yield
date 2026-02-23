@@ -3,7 +3,7 @@ import puppeteer from 'puppeteer';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import type { Invoice, InvoiceItem, Client } from '$lib/types.js';
-import { getSmtpSettings, buildInvoiceHtml } from '$lib/mail.server.js';
+import { getSmtpSettings, buildInvoiceHtml, buildLogoUrl } from '$lib/mail.server.js';
 
 export async function GET({ params }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -27,12 +27,17 @@ export async function GET({ params }) {
 	}
 
 	const settings = await getSmtpSettings(pb).catch(() => null);
+	const logoUrl = settings?.logo && settings?.id
+		? buildLogoUrl(env.PB_URL || 'http://localhost:8090', settings.id, settings.logo)
+		: undefined;
 	const html = buildInvoiceHtml(invoice, items, client, {
 		invoiceFooter: settings?.invoice_footer,
 		companyName: settings?.company_name || settings?.smtp_from_name || undefined,
 		companyAddress: settings?.company_address || undefined,
 		defaultNotes: settings?.invoice_default_notes || undefined,
-		brandHue: settings?.brand_hue || 250
+		brandHue: settings?.brand_hue || 250,
+		logoUrl,
+		hideCompanyName: settings?.logo_hide_company_name
 	});
 
 	let browser;

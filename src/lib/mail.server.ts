@@ -7,6 +7,7 @@ import nodemailer from 'nodemailer';
 import puppeteer from 'puppeteer';
 import type PocketBase from 'pocketbase';
 import type { Invoice, InvoiceItem, Client } from './types.js';
+import { env } from '$env/dynamic/private';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,6 +40,20 @@ export interface SmtpSettings {
 	invoice_number_format?: string;
 	/** The next invoice number to use when creating an invoice. Auto-increments after each creation. */
 	invoice_next_number?: number;
+	/** Filename of the uploaded logo stored in PocketBase (empty string = no logo). */
+	logo?: string;
+	/** When true, the company name text is hidden in the PDF header (useful when the logo already contains the name). */
+	logo_hide_company_name?: boolean;
+}
+
+/**
+ * Build a fully-qualified PocketBase file URL for the settings logo.
+ * Returns an empty string if no logo is stored.
+ */
+export function buildLogoUrl(pbUrl: string, settingsId: string, logo: string | undefined): string {
+	if (!logo || !settingsId) return '';
+	const base = (pbUrl || 'http://localhost:8090').replace(/\/$/, '');
+	return `${base}/api/files/yieldsetts01/${settingsId}/${logo}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,13 +108,15 @@ export function buildInvoiceHtml(
 	invoice: Invoice & { expand?: { client?: Client } },
 	items: InvoiceItem[],
 	client: Client | null,
-	opts?: { invoiceFooter?: string; companyName?: string; companyAddress?: string; defaultNotes?: string; brandHue?: number }
+	opts?: { invoiceFooter?: string; companyName?: string; companyAddress?: string; defaultNotes?: string; brandHue?: number; logoUrl?: string; hideCompanyName?: boolean }
 ): string {
 	const hue = opts?.brandHue || 250;
 	const c = palette(hue);
 	const currency = client?.currency ?? 'USD';
 	const companyName = opts?.companyName || 'Invoice';
 	const companyAddress = opts?.companyAddress || '';
+	const logoUrl = opts?.logoUrl || '';
+	const hideCompanyName = opts?.hideCompanyName ?? false;
 	const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
 	const taxAmt = subtotal * (invoice.tax_percent / 100);
 	const total = subtotal + taxAmt;
@@ -183,7 +200,8 @@ export function buildInvoiceHtml(
   <div style="padding:36px 44px 30px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid ${c.border};">
     <!-- Company -->
     <div>
-      <p style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;line-height:1.1;">${companyName}</p>
+      ${logoUrl ? `<img src="${logoUrl}" alt="${companyName} logo" style="max-height:56px;max-width:180px;width:auto;height:auto;display:block;object-fit:contain;${hideCompanyName ? '' : 'margin-bottom:8px;'}" />` : ''}
+      ${hideCompanyName ? '' : `<p style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;line-height:1.1;">${companyName}</p>`}
       ${companyAddress ? `<p style="font-size:11px;color:${c.mutedFg};margin-top:5px;white-space:pre-line;line-height:1.6;">${companyAddress}</p>` : ''}
     </div>
     <!-- Invoice label + number + issue date -->
@@ -311,7 +329,9 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 			default_currency: r.default_currency ?? '',
 			email_subject: r.email_subject ?? '',
 			email_body: r.email_body ?? '',
-			app_password_hash: r.app_password_hash ?? ''
+			app_password_hash: r.app_password_hash ?? '',
+			logo: r.logo ?? '',
+			logo_hide_company_name: r.logo_hide_company_name ?? false
 		};
 	} catch {
 		return null;
@@ -380,12 +400,15 @@ export async function sendInvoiceEmail({
 	const client = invoice.expand?.client ?? null;
 
 	// 3. Generate PDF
+	const logoUrl = buildLogoUrl(env.PB_URL || 'http://localhost:8090', smtp.id ?? '', smtp.logo);
 	const html = buildInvoiceHtml(invoice, items, client, {
 		invoiceFooter: smtp.invoice_footer,
 		companyName: smtp.company_name || smtp.smtp_from_name || undefined,
 		companyAddress: smtp.company_address || undefined,
 		defaultNotes: smtp.invoice_default_notes || undefined,
-		brandHue: smtp.brand_hue || 250
+		brandHue: smtp.brand_hue || 250,
+		logoUrl: logoUrl || undefined,
+		hideCompanyName: smtp.logo_hide_company_name
 	});
 	let pdfBuffer: Buffer;
 
