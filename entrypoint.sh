@@ -15,18 +15,8 @@ init() {
   fi
 
   echo "[init] First boot — creating superuser..."
-
-  # Create the initial superuser (endpoint is open when 0 superusers exist).
-  CREATE=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X POST "${PB_URL}/api/collections/_superusers/records" \
-    -H "Content-Type: application/json" \
-    -d "{\"email\":\"${PB_ADMIN_EMAIL}\",\"password\":\"${PB_ADMIN_PASSWORD}\",\"passwordConfirm\":\"${PB_ADMIN_PASSWORD}\"}")
-
-  if [ "$CREATE" = "200" ] || [ "$CREATE" = "201" ]; then
-    echo "[init] Superuser created ✓"
-  else
-    echo "[init] Superuser creation returned HTTP ${CREATE} — may already exist, continuing."
-  fi
+  /pb/pocketbase superuser upsert "${PB_ADMIN_EMAIL}" "${PB_ADMIN_PASSWORD}" --dir=/pb/pb_data
+  echo "[init] Superuser created ✓"
 
   echo "[init] Authenticating..."
   AUTH_RESP=$(curl -sf \
