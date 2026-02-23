@@ -25,7 +25,7 @@ A clean, self-hosted invoicing app for freelancers and small agencies. No subscr
 | Styling | [Tailwind CSS v4](https://tailwindcss.com) |
 | Database | [PocketBase v0.36.4](https://pocketbase.io) (SQLite) |
 | PDF | [Puppeteer](https://pptr.dev) (server-side, system Chromium) |
-| Proxy / TLS | [Caddy 2](https://caddyserver.com) (automatic HTTPS via Let's Encrypt) |
+| Reverse proxy | Bring your own (Nginx Proxy Manager, Traefik, Caddy, etc.) |
 | Runtime | Node.js 22, Docker Compose |
 
 ---
@@ -37,12 +37,7 @@ A clean, self-hosted invoicing app for freelancers and small agencies. No subscr
 ### Prerequisites
 
 - A server or NAS running Docker + Docker Compose v2
-- A domain name with two DNS `A` records pointing at your server's public IP:
-  ```
-  yourdomain.com      →  <server IP>
-  pb.yourdomain.com   →  <server IP>
-  ```
-- Ports **80** and **443** open in your firewall
+- A reverse proxy (Nginx Proxy Manager, Traefik, Caddy, etc.) already running and able to reach the app's port
 
 ### 1. Clone and configure
 
@@ -52,13 +47,16 @@ cd yield
 cp .env.example .env
 ```
 
-Open `.env` and fill in three values:
+Open `.env` and fill in the values:
 
 ```env
-DOMAIN=yourdomain.com
+ORIGIN=https://yourdomain.com
+PORT=3000
 PB_ADMIN_EMAIL=admin@example.com
 PB_ADMIN_PASSWORD=a-strong-password
 ```
+
+`ORIGIN` must match the public URL your reverse proxy serves (SvelteKit uses it for CSRF protection). `PORT` is the host port the app binds to — point your proxy at it.
 
 ### 2. Start
 
@@ -73,10 +71,10 @@ On first boot, Yield automatically:
 
 ### 3. Access
 
-| URL | Service |
+| Address | Service |
 |---|---|
-| `https://yourdomain.com` | Yield app |
-| `https://pb.yourdomain.com/_/` | PocketBase admin UI |
+| Via your reverse proxy | Yield app |
+| `http://<host>:8090/_/` | PocketBase admin UI (loopback only by default) |
 
 ### Updating
 
@@ -180,7 +178,6 @@ migrate.js              # Harvest CSV importer
 entrypoint.sh           # PocketBase first-boot auto-init script
 Dockerfile              # SvelteKit app (multi-stage, includes Chromium)
 Dockerfile.pocketbase   # PocketBase (auto-initialises on first boot)
-Caddyfile               # Reverse proxy + automatic TLS
 docker-compose.yml
 ```
 

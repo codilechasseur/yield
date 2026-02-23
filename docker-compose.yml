@@ -1,25 +1,6 @@
 # Copy .env.example → .env and set your values before running.
 
 services:
-  # ─── Caddy (TLS termination + reverse proxy) ──────────────────────────────────
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"   # HTTP/3
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    environment:
-      - DOMAIN=${DOMAIN}
-    depends_on:
-      - app
-    networks:
-      - yield_net
-
   # ─── PocketBase ───────────────────────────────────────────────────────────────
   pocketbase:
     build:
@@ -51,10 +32,13 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
     environment:
       - PB_URL=http://pocketbase:8090
-      # ORIGIN must match the public URL — required by SvelteKit for CSRF protection
-      - ORIGIN=https://${DOMAIN}
+      # ORIGIN must match the public URL your reverse proxy serves (including scheme).
+      # Required by SvelteKit for CSRF protection.
+      - ORIGIN=${ORIGIN}
       # APP_PASSWORD protects the UI with a login screen.
       # Set this before first boot — it is written to the DB automatically.
       # Clear it from the env after first boot (the DB value persists).
@@ -70,8 +54,6 @@ services:
 
 volumes:
   pb_data:
-  caddy_data:
-  caddy_config:
 
 networks:
   yield_net:
