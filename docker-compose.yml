@@ -1,60 +1,31 @@
-# Copy .env.example → .env and set your values before running.
-
 services:
-  # ─── PocketBase ───────────────────────────────────────────────────────────────
   pocketbase:
-    build:
-      context: .
-      dockerfile: Dockerfile.pocketbase
+    image: ghcr.io/codilechasseur/yield-pocketbase:latest
     restart: unless-stopped
-    # Port exposed on loopback so migrate.js / pb_setup.js can be run from the host if needed.
-    # Safe to remove after first-run setup.
-    ports:
-      - "127.0.0.1:8090:8090"
-    environment:
-      # Used by entrypoint.sh to create the initial superuser on first boot.
-      - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL}
-      - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD}
     volumes:
       - pb_data:/pb/pb_data
+    environment:
+      - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL}
+      - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8090/api/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
-    networks:
-      - yield_net
 
-  # ─── SvelteKit App ────────────────────────────────────────────────────────────
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/codilechasseur/yield:latest
     restart: unless-stopped
     ports:
-      - "${PORT:-3000}:3000"
+      - "3000:3000"
     environment:
       - PB_URL=http://pocketbase:8090
-      # ORIGIN must match the public URL your reverse proxy serves (including scheme).
-      # Required by SvelteKit for CSRF protection.
       - ORIGIN=${ORIGIN}
-      # APP_PASSWORD protects the UI with a login screen.
-      # Set this before first boot — it is written to the DB automatically.
-      # Clear it from the env after first boot (the DB value persists).
       - APP_PASSWORD=${APP_PASSWORD}
-      - NODE_ENV=production
-      - HOST=0.0.0.0
-      - PORT=3000
     depends_on:
       pocketbase:
         condition: service_healthy
-    networks:
-      - yield_net
 
 volumes:
   pb_data:
-
-networks:
-  yield_net:
-    driver: bridge

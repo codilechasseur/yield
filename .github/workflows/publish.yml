@@ -1,0 +1,75 @@
+name: Publish Docker Images
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: codilechasseur
+
+jobs:
+  publish:
+    name: Build & push images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── App image ────────────────────────────────────────────────────────────
+      - name: App image metadata
+        id: app-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/yield
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build & push app
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          dockerfile: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.app-meta.outputs.tags }}
+          labels: ${{ steps.app-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── PocketBase image ─────────────────────────────────────────────────────
+      - name: PocketBase image metadata
+        id: pb-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/yield-pocketbase
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build & push pocketbase
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          dockerfile: Dockerfile.pocketbase
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.pb-meta.outputs.tags }}
+          labels: ${{ steps.pb-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
