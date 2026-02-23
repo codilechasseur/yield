@@ -39,7 +39,7 @@ init() {
     return 1
   fi
 
-  TOKEN=$(echo "$AUTH_RESP" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+  TOKEN=$(echo "$AUTH_RESP" | jq -r '.token')
 
   echo "[init] Importing schema..."
   IMPORT=$(curl -s -o /dev/null -w "%{http_code}" \

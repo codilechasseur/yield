@@ -25,21 +25,11 @@ RUN npm prune --production --legacy-peer-deps
 # ─────────────────────────────────────────────
 FROM node:22-slim AS runner
 
-# Install Chromium and its dependencies for Puppeteer
-RUN apt-get update && apt-get install -y \
+# Install Chromium for Puppeteer — apt resolves all transitive shared-lib deps.
+# fonts-liberation is added explicitly so PDFs render correctly.
+RUN apt-get update && apt-get install -y --no-install-recommends \
   chromium \
-  libgbm-dev \
-  libnss3 \
-  libatk-bridge2.0-0 \
-  libdrm2 \
-  libxkbcommon0 \
-  libgles2 \
   fonts-liberation \
-  libasound2 \
-  libxss1 \
-  libxtst6 \
-  xdg-utils \
-  --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 # Tell Puppeteer to use the system Chromium instead of downloading its own

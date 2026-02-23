@@ -7,15 +7,20 @@ FROM alpine:3.20
 ARG PB_VERSION=0.36.4
 ARG TARGETARCH=amd64
 
+# busybox wget ships with alpine — curl & jq are the only extras needed at runtime.
 RUN apk add --no-cache \
       unzip \
       ca-certificates \
-      wget \
-      curl
+      curl \
+      jq
 
-# Download the correct binary for the build platform
-RUN ARCH=${TARGETARCH} && \
-    [ "$ARCH" = "arm64" ] && ARCH="arm64" || ARCH="amd64" && \
+# Download the correct binary for the build platform.
+# Docker TARGETARCH values: amd64 | arm64 | arm (32-bit, e.g. Raspberry Pi)
+RUN case "${TARGETARCH}" in \
+      arm64) ARCH="arm64" ;; \
+      arm)   ARCH="armv7" ;; \
+      *)     ARCH="amd64" ;; \
+    esac && \
     wget -q "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_${ARCH}.zip" \
          -O /tmp/pb.zip && \
     unzip /tmp/pb.zip -d /pb && \

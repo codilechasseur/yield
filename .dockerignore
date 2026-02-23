@@ -8,3 +8,8 @@ pb_data
 .git
 .gitignore
 README.md
+# Local PocketBase dev binary (~30 MB) — not needed in the build context
+pocketbase
+# Test files
+tests/
+playwright.config.ts
