@@ -8,7 +8,7 @@ services:
       - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL}
       - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD}
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8090/api/health"]
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/api/health"]
       interval: 10s
       timeout: 5s
       retries: 5

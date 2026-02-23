@@ -1,9 +1,8 @@
 name: Publish Docker Images
 
 on:
-  push:
-    branches: [main, master]
-    tags: ["v*"]
+  release:
+    types: [published]
 
 env:
   REGISTRY: ghcr.io
@@ -37,8 +36,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.OWNER }}/yield
           tags: |
-            type=ref,event=tag
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=raw,value=latest
 
       - name: Build & push app
         uses: docker/build-push-action@v6
@@ -59,8 +58,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.OWNER }}/yield-pocketbase
           tags: |
-            type=ref,event=tag
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=raw,value=latest
 
       - name: Build & push pocketbase
         uses: docker/build-push-action@v6
