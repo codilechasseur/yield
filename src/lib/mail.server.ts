@@ -313,7 +313,7 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 		return {
 			id: r.id,
 			smtp_host: r.smtp_host ?? '',
-			smtp_port: r.smtp_port ?? 587,
+			smtp_port: r.smtp_port || 587,
 			smtp_user: r.smtp_user ?? '',
 			smtp_pass: r.smtp_pass ?? '',
 			smtp_from_name: r.smtp_from_name ?? '',

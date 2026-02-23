@@ -84,6 +84,7 @@
 				</button>
 			</form>
 		{/if}
+		<p class="mt-3 text-center text-xs" style="color: var(--color-muted-foreground); opacity: 0.5">v{__APP_VERSION__}</p>
 	</div>
 </aside>
 
@@ -199,6 +200,7 @@
 					</button>
 				</form>
 			{/if}
+			<p class="mt-3 text-center text-xs" style="color: var(--color-muted-foreground); opacity: 0.5">v{__APP_VERSION__}</p>
 		</div>
 	</div>
 {/if}

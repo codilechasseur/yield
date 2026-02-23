@@ -56,7 +56,7 @@
 
 	// SMTP field state (bound so dirty-tracking works)
 	let smtpHost      = $state(untrack(() => data.smtp?.smtp_host ?? ''));
-	let smtpPort      = $state<number>(untrack(() => data.smtp?.smtp_port ?? 587));
+	let smtpPort      = $state<number>(untrack(() => data.smtp?.smtp_port || 587));
 	let smtpUser      = $state(untrack(() => data.smtp?.smtp_user ?? ''));
 	let smtpPass      = $state(untrack(() => data.smtp?.smtp_pass ?? ''));
 	let smtpFromName  = $state(untrack(() => data.smtp?.smtp_from_name ?? ''));
@@ -77,7 +77,7 @@
 		emailBody:            data.smtp?.email_body ?? '',
 		defaultCurrency:      data.smtp?.default_currency ?? 'CAD',
 		smtpHost:             data.smtp?.smtp_host ?? '',
-		smtpPort:             data.smtp?.smtp_port ?? 587,
+		smtpPort:             data.smtp?.smtp_port || 587,
 		smtpUser:             data.smtp?.smtp_user ?? '',
 		smtpPass:             data.smtp?.smtp_pass ?? '',
 		smtpFromName:         data.smtp?.smtp_from_name ?? '',

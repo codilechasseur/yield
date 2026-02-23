@@ -6,7 +6,7 @@ vi.mock('$env/dynamic/private', () => ({ env: { PB_URL: 'http://pb.test:8090' } 
 vi.mock('nodemailer', () => ({ default: { createTransport: vi.fn() } }));
 vi.mock('puppeteer', () => ({ default: { launch: vi.fn() } }));
 
-import { buildLogoUrl, buildInvoiceHtml } from '../mail.server.js';
+import { buildLogoUrl, buildInvoiceHtml, getSmtpSettings } from '../mail.server.js';
 import type { Invoice, InvoiceItem, Client } from '../types.js';
 
 // ── Minimal fixtures ─────────────────────────────────────────────────────────
@@ -149,5 +149,35 @@ describe('buildInvoiceHtml logo rendering', () => {
 		});
 		// Footer always shows company name
 		expect(html).toContain('ACME Ltd');
+	});
+});
+
+// ── getSmtpSettings – smtp_port fallback ─────────────────────────────────────
+
+function makePb(items: Record<string, unknown>[]) {
+	return {
+		collection: () => ({ getList: async () => ({ items }) })
+	} as unknown as import('pocketbase').default;
+}
+
+describe('getSmtpSettings', () => {
+	it('returns null when no settings record exists', async () => {
+		const result = await getSmtpSettings(makePb([]));
+		expect(result).toBeNull();
+	});
+
+	it('defaults smtp_port to 587 when the stored value is 0', async () => {
+		const result = await getSmtpSettings(makePb([{ id: 's1', smtp_port: 0 }]));
+		expect(result?.smtp_port).toBe(587);
+	});
+
+	it('preserves a valid smtp_port from the database', async () => {
+		const result = await getSmtpSettings(makePb([{ id: 's1', smtp_port: 465 }]));
+		expect(result?.smtp_port).toBe(465);
+	});
+
+	it('defaults smtp_port to 587 when the stored value is null/undefined', async () => {
+		const result = await getSmtpSettings(makePb([{ id: 's1', smtp_port: null }]));
+		expect(result?.smtp_port).toBe(587);
 	});
 });
