@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { BarChart2, TrendingUp, Wallet, Receipt, Calculator } from 'lucide-svelte';
+	import { BarChart2, TrendingUp, Wallet, Receipt, Calculator, Users, CalendarDays, PieChart } from 'lucide-svelte';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
@@ -31,15 +31,15 @@
 </script>
 
 <svelte:head>
-	<title>Tax Reports — Yield</title>
+	<title>Reports — Yield</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto">
 	<!-- Header -->
 	<div class="mb-6">
-		<h2 class="text-2xl font-bold" style="color: var(--color-foreground)">Tax Reports</h2>
+		<h2 class="text-2xl font-bold" style="color: var(--color-foreground)">Reports</h2>
 		<p class="mt-1 text-sm" style="color: var(--color-muted-foreground)">
-			Monthly revenue and GST/HST summary for income tax and sales tax remittance
+			Revenue breakdown, client summary, and tax figures for the selected year
 		</p>
 	</div>
 
@@ -105,13 +105,64 @@
 		{/each}
 	</div>
 
+	<!-- By Client -->
+	<div
+		class="rounded-xl border overflow-hidden mb-6"
+		style="background-color: var(--color-card); border-color: var(--color-border)"
+	>
+		<div class="px-6 py-4 border-b flex items-center gap-2" style="border-color: var(--color-border)">
+			<Users size={16} style="color: var(--color-primary)" aria-hidden="true" />
+			<h3 class="font-semibold" style="color: var(--color-foreground)">Revenue by Client — {data.year}</h3>
+		</div>
+		{#if data.clientSummaries.length === 0}
+			<p class="px-6 py-8 text-sm text-center" style="color: var(--color-muted-foreground)">No data for this period.</p>
+		{:else}
+			<div class="overflow-x-auto">
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b" style="border-color: var(--color-border)">
+						<th scope="col" class="px-6 py-3 text-left font-medium" style="color: var(--color-muted-foreground)">Client</th>
+						<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)"># Invoices</th>
+						<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Revenue (pre-tax)</th>
+						<th scope="col" class="px-6 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Total Invoiced</th>
+						<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Share</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each data.clientSummaries as cs}
+						{@const share = data.totals.subtotal > 0 ? (cs.subtotal / data.totals.subtotal) * 100 : 0}
+						<tr class="border-b" style="border-color: var(--color-border)">
+							<td class="px-6 py-3 font-medium" style="color: var(--color-foreground)">{cs.clientName}</td>
+							<td class="px-4 py-3 text-right tabular-nums" style="color: var(--color-foreground)">{cs.invoiceCount}</td>
+							<td class="px-4 py-3 text-right tabular-nums" style="color: var(--color-foreground)">{fmt(cs.subtotal)}</td>
+							<td class="px-6 py-3 text-right tabular-nums font-medium" style="color: var(--color-foreground)">{fmt(cs.total)}</td>
+							<td class="px-4 py-3 text-right">
+								<div class="flex items-center justify-end gap-2">
+									<div class="w-16 rounded-full h-1.5 overflow-hidden" style="background-color: var(--color-border)">
+										<div class="h-full rounded-full" style="width: {share.toFixed(1)}%; background-color: var(--color-primary)"></div>
+									</div>
+									<span class="text-xs tabular-nums w-10 text-right" style="color: var(--color-muted-foreground)">{share.toFixed(1)}%</span>
+								</div>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+			</div>
+		{/if}
+	</div>
+
 	<!-- Monthly Table -->
 	<div
 		class="rounded-xl border overflow-hidden mb-6"
 		style="background-color: var(--color-card); border-color: var(--color-border)"
 	>
-		<div class="px-6 py-4 border-b" style="border-color: var(--color-border)">
-			<h3 class="font-semibold" style="color: var(--color-foreground)">Monthly Breakdown — {data.year}</h3>
+		<div class="px-6 py-4 border-b flex items-center gap-2" style="border-color: var(--color-border)">
+			<CalendarDays size={16} style="color: var(--color-primary)" aria-hidden="true" />
+			<div>
+				<h3 class="font-semibold" style="color: var(--color-foreground)">Monthly Breakdown — {data.year}</h3>
+				<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Including tax columns for remittance planning</p>
+			</div>
 		</div>
 
 		<div class="overflow-x-auto">
@@ -173,11 +224,14 @@
 		class="rounded-xl border overflow-hidden"
 		style="background-color: var(--color-card); border-color: var(--color-border)"
 	>
-		<div class="px-6 py-4 border-b" style="border-color: var(--color-border)">
-			<h3 class="font-semibold" style="color: var(--color-foreground)">Quarterly Summary</h3>
-			<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">
-				Useful for quarterly GST/HST remittance filing
-			</p>
+		<div class="px-6 py-4 border-b flex items-center gap-2" style="border-color: var(--color-border)">
+			<PieChart size={16} style="color: var(--color-primary)" aria-hidden="true" />
+			<div>
+				<h3 class="font-semibold" style="color: var(--color-foreground)">Quarterly Summary</h3>
+				<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">
+					Useful for quarterly GST/HST remittance filing
+				</p>
+			</div>
 		</div>
 
 		<div class="overflow-x-auto">
@@ -210,10 +264,11 @@
 
 	<!-- Notes -->
 	<div class="mt-6 rounded-xl border p-5 text-sm space-y-1.5" style="background-color: var(--color-card); border-color: var(--color-border); color: var(--color-muted-foreground)">
-		<p class="font-medium" style="color: var(--color-foreground)">How to use this report</p>
+		<p class="font-medium" style="color: var(--color-foreground)">How to use these reports</p>
 		<ul class="list-disc list-inside space-y-1">
+			<li><strong>Revenue by Client</strong> — shows how income is distributed across clients for the selected year.</li>
 			<li><strong>Revenue (pre-tax)</strong> — report as business income for income tax purposes.</li>
-			<li><strong>GST/HST Collected</strong> — amount to remit to CRA each period (from your invoices' tax % field).</li>
+			<li><strong>GST/HST Collected</strong> — amount to remit to CRA each period (derived from your invoices' tax % field).</li>
 			<li><strong>Est. Income Tax</strong> — estimated personal income tax based on your configured effective rate ({data.incomeTaxRate > 0 ? `${data.incomeTaxRate}%` : 'not set — configure in Settings'}). This is a rough estimate; deductions and credits are not accounted for.</li>
 			<li>Use <strong>Cash basis</strong> if you remit GST only on <em>paid</em> invoices (default for most small businesses).</li>
 			<li>Use <strong>Accrual basis</strong> if you remit GST on <em>invoiced</em> amounts regardless of payment.</li>

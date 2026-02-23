@@ -1,6 +1,6 @@
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
-import type { Invoice, InvoiceItem } from '$lib/types.js';
+import type { Client, Invoice, InvoiceItem } from '$lib/types.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
 
 export interface MonthSummary {
@@ -11,6 +11,14 @@ export interface MonthSummary {
 	gstCollected: number; // tax collected (GST/HST remittance)
 	total: number; // invoiced total
 	estimatedIncomeTax: number; // estimated income tax (subtotal × income_tax_rate)
+}
+
+export interface ClientSummary {
+	clientId: string;
+	clientName: string;
+	invoiceCount: number;
+	subtotal: number;
+	total: number;
 }
 
 export interface ReportData {
@@ -24,6 +32,7 @@ export interface ReportData {
 		total: number;
 		estimatedIncomeTax: number;
 	};
+	clientSummaries: ClientSummary[];
 	basisLabel: string; // "Cash" or "Accrual"
 	incomeTaxRate: number; // the configured rate, e.g. 30
 }
@@ -57,18 +66,18 @@ export async function load({ url }) {
 
 		const dateFilter = `invoice.issue_date >= "${year}-01-01 00:00:00" && invoice.issue_date <= "${year}-12-31 23:59:59"`;
 
-		// Fetch all items whose parent invoice matches our criteria, with the invoice expanded
+		// Fetch all items whose parent invoice matches our criteria, with the invoice and client expanded
 		const items = await pb
 			.collection('invoice_items')
-			.getFullList<InvoiceItem & { expand: { invoice: Invoice } }>({
+			.getFullList<InvoiceItem & { expand: { invoice: Invoice & { expand?: { client?: Client } } } }>({
 				filter: `${statusFilter} && ${dateFilter}`,
-				expand: 'invoice',
+				expand: 'invoice,invoice.client',
 				sort: 'invoice.issue_date'
 			});
 
 		// Group items by invoice, then by month
 		// invoiceMap: invoiceId -> { invoice, items[] }
-		const invoiceMap = new Map<string, { invoice: Invoice; items: InvoiceItem[] }>();
+		const invoiceMap = new Map<string, { invoice: Invoice & { expand?: { client?: Client } }; items: InvoiceItem[] }>();
 		for (const item of items) {
 			const inv = item.expand?.invoice;
 			if (!inv) continue;
@@ -80,6 +89,8 @@ export async function load({ url }) {
 
 		// Aggregate by month (1-indexed)
 		const monthMap = new Map<number, MonthSummary>();
+		// Aggregate by client
+		const clientMap = new Map<string, ClientSummary>();
 
 		for (const { invoice, items: invItems } of invoiceMap.values()) {
 			const issueDate = new Date(invoice.issue_date);
@@ -89,6 +100,7 @@ export async function load({ url }) {
 			const gst = subtotal * ((invoice.tax_percent ?? 0) / 100);
 			const total = subtotal + gst;
 
+			// Monthly aggregation
 			if (!monthMap.has(month)) {
 				monthMap.set(month, {
 					month,
@@ -106,6 +118,17 @@ export async function load({ url }) {
 			ms.gstCollected += gst;
 			ms.total += total;
 			ms.estimatedIncomeTax += subtotal * (incomeTaxRate / 100);
+
+			// Client aggregation
+			const clientId = invoice.client ?? 'unknown';
+			const clientName = invoice.expand?.client?.name ?? 'Unknown Client';
+			if (!clientMap.has(clientId)) {
+				clientMap.set(clientId, { clientId, clientName, invoiceCount: 0, subtotal: 0, total: 0 });
+			}
+			const cs = clientMap.get(clientId)!;
+			cs.invoiceCount += 1;
+			cs.subtotal += subtotal;
+			cs.total += total;
 		}
 
 		// Fill in all 12 months (zero for months with no data)
@@ -133,11 +156,17 @@ export async function load({ url }) {
 			{ invoiceCount: 0, subtotal: 0, gstCollected: 0, total: 0, estimatedIncomeTax: 0 }
 		);
 
+		// Sort clients by total revenue descending
+		const clientSummaries: ClientSummary[] = Array.from(clientMap.values()).sort(
+			(a, b) => b.subtotal - a.subtotal
+		);
+
 		return {
 			year,
 			availableYears,
 			months,
 			totals,
+			clientSummaries,
 			basis,
 			basisLabel: basis === 'cash' ? 'Cash (paid invoices)' : 'Accrual (all non-draft invoices)',
 			incomeTaxRate
@@ -157,6 +186,7 @@ export async function load({ url }) {
 				estimatedIncomeTax: 0
 			})),
 			totals: { invoiceCount: 0, subtotal: 0, gstCollected: 0, total: 0, estimatedIncomeTax: 0 },
+			clientSummaries: [],
 			basis,
 			basisLabel: basis === 'cash' ? 'Cash (paid invoices)' : 'Accrual (all non-draft invoices)',
 			incomeTaxRate: 0
