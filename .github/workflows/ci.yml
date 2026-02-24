@@ -16,6 +16,9 @@ on:
       - 'pb_setup.js'
       - '.github/workflows/ci.yml'
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.head_ref }}
   cancel-in-progress: true
