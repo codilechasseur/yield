@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import Nav from '$lib/components/Nav.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
@@ -8,6 +9,16 @@
 	let { children, data }: { children: any; data: LayoutData } = $props();
 
 	const isLogin = $derived($page.url.pathname === '/login');
+
+	onMount(() => {
+		// DB is the source of truth — sync to localStorage and DOM on every page load.
+		const theme = data.brandTheme ?? 'system';
+		const hue = String(data.brandHue ?? 250);
+		localStorage.setItem('yield-theme', theme);
+		localStorage.setItem('yield-hue', hue);
+		document.documentElement.setAttribute('data-theme', theme);
+		document.documentElement.style.setProperty('--hue', hue);
+	});
 </script>
 
 {#if isLogin}

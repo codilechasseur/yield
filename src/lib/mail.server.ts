@@ -29,6 +29,7 @@ export interface SmtpSettings {
 	company_name?: string;
 	company_address?: string;
 	brand_hue?: number;
+	brand_theme?: string;
 	default_currency?: string;
 	/** Subject line template. Supports {invoice_number}, {client_name}, {company_name}. */
 	email_subject?: string;
@@ -362,7 +363,8 @@ export function interpolateEmailTemplate(
 interface SendInvoiceEmailOptions {
 	pb: PocketBase;
 	invoiceId: string;
-	toEmail: string;
+	/** Primary recipient email, or an array of recipient emails. */
+	toEmail: string | string[];
 	toName: string;
 	/** Extra message body written above the PDF note. */
 	message?: string;
@@ -471,7 +473,7 @@ export async function sendInvoiceEmail({
 
 	await transporter.sendMail({
 		from: fromField,
-		to: toEmail,
+		to: Array.isArray(toEmail) ? toEmail.join(', ') : toEmail,
 		subject,
 		text: bodyText,
 		html: bodyHtml,

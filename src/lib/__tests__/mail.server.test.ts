@@ -1,4 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import nodemailerActual from 'nodemailer';
+import puppeteerActual from 'puppeteer';
 
 // Provide mock env before importing the module under test
 vi.mock('$env/dynamic/private', () => ({ env: { PB_URL: 'http://pb.test:8090' } }));
@@ -6,7 +8,7 @@ vi.mock('$env/dynamic/private', () => ({ env: { PB_URL: 'http://pb.test:8090' } 
 vi.mock('nodemailer', () => ({ default: { createTransport: vi.fn() } }));
 vi.mock('puppeteer', () => ({ default: { launch: vi.fn() } }));
 
-import { buildLogoUrl, buildInvoiceHtml, getSmtpSettings } from '../mail.server.js';
+import { buildLogoUrl, buildInvoiceHtml, getSmtpSettings, sendInvoiceEmail } from '../mail.server.js';
 import type { Invoice, InvoiceItem, Client } from '../types.js';
 
 // ── Minimal fixtures ─────────────────────────────────────────────────────────
@@ -179,5 +181,84 @@ describe('getSmtpSettings', () => {
 	it('defaults smtp_port to 587 when the stored value is null/undefined', async () => {
 		const result = await getSmtpSettings(makePb([{ id: 's1', smtp_port: null }]));
 		expect(result?.smtp_port).toBe(587);
+	});
+});
+
+// ── sendInvoiceEmail – recipient addressing ───────────────────────────────────
+
+function makeSendMailPb() {
+	const smtpRecord = {
+		id: 'sett1',
+		smtp_host: 'smtp.example.com',
+		smtp_port: 587,
+		smtp_user: 'user',
+		smtp_pass: 'pass',
+		smtp_from_email: 'from@example.com',
+		smtp_from_name: 'Sender',
+		smtp_secure: false
+	};
+	const invoice = {
+		...baseInvoice,
+		expand: { client: baseClient }
+	};
+	return {
+		collection: (name: string) => ({
+			getOne: async () => invoice,
+			getFullList: async () => baseItems,
+			getList: async () => ({ items: name === 'settings' ? [smtpRecord] : [] })
+		})
+	} as unknown as import('pocketbase').default;
+}
+
+describe('sendInvoiceEmail', () => {
+	let sendMailSpy: ReturnType<typeof vi.fn>;
+
+	beforeEach(() => {
+		// Set up puppeteer mock: browser → page → setContent/pdf
+		const pageMock = {
+			setContent: vi.fn().mockResolvedValue(undefined),
+			pdf: vi.fn().mockResolvedValue(Buffer.from('PDF'))
+		};
+		const browserMock = {
+			newPage: vi.fn().mockResolvedValue(pageMock),
+			close: vi.fn().mockResolvedValue(undefined)
+		};
+		vi.mocked(puppeteerActual.launch).mockResolvedValue(browserMock as any);
+
+		// Set up nodemailer mock: transporter.sendMail resolves
+		sendMailSpy = vi.fn().mockResolvedValue({});
+		vi.mocked(nodemailerActual.createTransport).mockReturnValue({ sendMail: sendMailSpy } as any);
+	});
+
+	it('sends to a single email string directly', async () => {
+		const pb = makeSendMailPb();
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'Alice' });
+		expect(sendMailSpy).toHaveBeenCalledOnce();
+		expect(sendMailSpy.mock.calls[0][0].to).toBe('a@example.com');
+	});
+
+	it('joins an array of emails with ", " for the to field', async () => {
+		const pb = makeSendMailPb();
+		await sendInvoiceEmail({
+			pb,
+			invoiceId: 'inv1',
+			toEmail: ['a@example.com', 'b@example.com', 'c@example.com'],
+			toName: 'Alice'
+		});
+		expect(sendMailSpy).toHaveBeenCalledOnce();
+		expect(sendMailSpy.mock.calls[0][0].to).toBe('a@example.com, b@example.com, c@example.com');
+	});
+
+	it('sends to a single-element array correctly', async () => {
+		const pb = makeSendMailPb();
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: ['solo@example.com'], toName: 'Solo' });
+		expect(sendMailSpy.mock.calls[0][0].to).toBe('solo@example.com');
+	});
+
+	it('attaches a PDF with the correct filename', async () => {
+		const pb = makeSendMailPb();
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'x@example.com', toName: 'X' });
+		const attachments = sendMailSpy.mock.calls[0][0].attachments as Array<{ filename: string }>;
+		expect(attachments[0].filename).toBe(`invoice-${baseInvoice.number}.pdf`);
 	});
 });
