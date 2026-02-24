@@ -20,7 +20,7 @@
 		"test": "npm run test:unit"
 	},
 	"dependencies": {
-		"@types/nodemailer": "^7.0.10",
+		"@types/nodemailer": "^7.0.11",
 		"lucide-svelte": "^0.468.0",
 		"nodemailer": "^8.0.1",
 		"pocketbase": "^0.22.0",
