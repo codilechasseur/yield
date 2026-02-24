@@ -2,7 +2,6 @@
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, Download, Pencil, Trash2, MessageSquare, Mail, ArrowRight, FileText, Banknote, Send, ChevronDown } from 'lucide-svelte';
 	import { STATUS_COLORS } from '$lib/pocketbase.js';
-	import { addToast } from '$lib/toasts.svelte.js';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -53,10 +52,13 @@
 
 	const hasSentBefore = $derived(data.logs.some((l) => l.action === 'email_sent'));
 	const sendDisabledReason = $derived(
-		!data.smtpConfigured
+		!invoice.expand?.client?.email
+			? 'This client has no email address — add one on the client page'
+			: !data.smtpConfigured
 			? 'SMTP is not configured — set it up under Settings → Email'
 			: null
 	);
+	let showSendTip = $state(false);
 
 	function openPaymentForm() {
 		paymentAmount = remaining.toFixed(2);
@@ -71,7 +73,7 @@
 
 <div class="max-w-5xl mx-auto">
 	<!-- Toolbar -->
-	<div class="mb-6 flex items-center justify-between gap-3 flex-wrap">
+	<div class="mb-6 flex items-center justify-between gap-4 flex-wrap">
 		<a href="/invoices" class="inline-flex items-center gap-1.5 text-sm" style="color: var(--color-muted-foreground)">
 			<ArrowLeft size={15} /> Invoices
 		</a>
@@ -82,20 +84,23 @@
 			</span>
 
 			<!-- Split action button -->
-			<div class="relative">
+			<div
+				class="relative"
+				role="group"
+				onmouseenter={() => { if (displayStatus === 'draft') showSendTip = true; }}
+				onmouseleave={() => (showSendTip = false)}
+			>
 				<div class="flex items-center rounded-lg overflow-hidden" style="background: var(--color-primary)">
 					<!-- Primary action — context-aware -->
 					{#if displayStatus === 'draft'}
-					<span title={sendDisabledReason ?? undefined} class="inline-flex">
-						<button
-							onclick={sendDisabledReason ? undefined : openSend}
-							disabled={!!sendDisabledReason}
-							class="flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 text-sm font-medium disabled:opacity-60"
-							style="color: var(--color-primary-foreground)"
-						>
-							<Send size={15} /> Send Invoice
-						</button>
-					</span>
+					<button
+						onclick={sendDisabledReason ? undefined : openSend}
+						disabled={!!sendDisabledReason}
+						class="flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+						style="color: var(--color-primary-foreground)"
+					>
+						<Send size={15} /> Send Invoice
+					</button>
 					{:else if displayStatus === 'sent' || displayStatus === 'overdue'}
 						<button
 							onclick={openPaymentForm}
@@ -125,6 +130,19 @@
 					</button>
 				</div>
 
+				<!-- Send disabled tooltip -->
+				{#if sendDisabledReason && showSendTip}
+					<span
+						role="tooltip"
+						class="absolute top-full left-0 mt-2.5 z-50 w-56 rounded-xl px-3 py-2.5 text-xs leading-relaxed shadow-lg pointer-events-none whitespace-normal"
+						style="background-color: var(--color-card); color: var(--color-muted-foreground); border: 1px solid var(--color-border); box-shadow: 0 4px 16px -2px color-mix(in srgb, var(--color-foreground) 12%, transparent)"
+					>{sendDisabledReason}<span
+							aria-hidden="true"
+							class="absolute bottom-full left-4"
+							style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:5px solid var(--color-border);"
+						></span></span>
+				{/if}
+
 				<!-- Click-outside backdrop -->
 				{#if showActionMenu}
 					<button
@@ -142,18 +160,17 @@
 						class="absolute right-0 top-full mt-1.5 z-40 rounded-lg border shadow-lg min-w-48 py-1 overflow-hidden"
 						style="background: var(--color-card); border-color: var(--color-border)"
 					>
-						<!-- Send / Re-send (not for paid or written_off) -->
-						{#if invoice.status !== 'paid' && invoice.status !== 'written_off'}
-							<button
-								onclick={openSend}
-								disabled={!!sendDisabledReason}
-								title={sendDisabledReason ?? undefined}
-								class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left disabled:opacity-50 hover:bg-muted transition-colors"
-								style="color: var(--color-foreground)"
-							>
-								<Send size={14} /> {hasSentBefore ? 'Re-send Invoice' : 'Send Invoice'}
-							</button>
-						{/if}
+					<!-- Send / Re-send (not for paid or written_off) -->
+					{#if invoice.status !== 'paid' && invoice.status !== 'written_off'}
+						<button
+							onclick={openSend}
+							disabled={!!sendDisabledReason}
+							class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left disabled:opacity-50 hover:bg-muted transition-colors"
+							style="color: var(--color-foreground)"
+						>
+							<Send size={14} /> {hasSentBefore ? 'Re-send Invoice' : 'Send Invoice'}
+						</button>
+					{/if}
 						<!-- Record Payment (sent / overdue only, not already covered by primary) -->
 						{#if displayStatus !== 'sent' && displayStatus !== 'overdue' && invoice.status !== 'paid' && invoice.status !== 'draft' && invoice.status !== 'written_off'}
 							<button
@@ -238,7 +255,13 @@
 	{/if}
 
 	{#if form?.error}
-		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
+		<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
+	{/if}
+	{#if form?.sendError}
+		<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.sendError}</div>
+	{/if}
+	{#if form?.sendSuccess}
+		<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Invoice emailed to {invoice.expand?.client?.email}.</div>
 	{/if}
 
 	<!-- Record Payment panel -->
@@ -256,15 +279,10 @@
 				class="flex flex-wrap items-end gap-3"
 				use:enhance={() => {
 					paymentSubmitting = true;
-					return async ({ update, result }) => {
+					return async ({ update }) => {
 						paymentSubmitting = false;
+						showPayment = false;
 						await update();
-						if (result.type !== 'failure') {
-							showPayment = false;
-							addToast('Payment recorded');
-						} else {
-							addToast((result.data as any)?.error ?? 'Failed to record payment', 'error');
-						}
 					};
 				}}
 			>
@@ -369,9 +387,10 @@
 					<textarea
 						id="send-message"
 						name="message"
-						rows="6"
+						rows="3"
+						placeholder="Add a personal note to the email…"
 						bind:value={sendMessage}
-						class="px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 resize-none font-mono"
+						class="px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 resize-none"
 						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 					></textarea>
 				</div>
@@ -413,7 +432,7 @@
 				<span class="{STATUS_COLORS[displayStatus] ?? 'status-badge'}">{displayStatus === 'written_off' ? 'Written Off' : displayStatus.replace(/\b\w/g, c => c.toUpperCase())}</span>
 			</div>
 
-			<div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-6">
+			<div class="mt-6 grid grid-cols-4 gap-6">
 				<div>
 					<p class="text-xs font-medium uppercase tracking-wide mb-1" style="color: var(--color-muted-foreground)">Billed To</p>
 					{#if invoice.expand?.client}
@@ -451,8 +470,7 @@
 		</div>
 
 		<!-- Line items -->
-		<div class="overflow-x-auto">
-		<table class="w-full min-w-100">
+		<table class="w-full">
 			<thead>
 				<tr style="border-bottom: 1px solid var(--color-border); background: var(--color-muted)">
 					<th scope="col" class="px-8 py-3 text-left text-xs font-medium uppercase tracking-wide w-full" style="color: var(--color-muted-foreground)">Description</th>
@@ -472,7 +490,6 @@
 				{/each}
 			</tbody>
 		</table>
-		</div>
 
 		<!-- Totals -->
 		<div class="px-8 py-6 border-t" style="border-color: var(--color-border); background: var(--color-muted)">
@@ -559,7 +576,7 @@
 			</div>
 		{/if}
 
-		<!-- Add note -->
+		<!-- Add note + log email sent -->
 		<div class="flex flex-col gap-3 sm:flex-row sm:items-start">
 			<form
 				method="POST"
@@ -567,11 +584,10 @@
 				class="flex-1 flex gap-2"
 				use:enhance={() => {
 					noteSubmitting = true;
-					return async ({ update, result }) => {
+					return async ({ update }) => {
 						noteSubmitting = false;
-						if (result.type !== 'failure') noteText = '';
+						noteText = '';
 						await update();
-						if (result.type !== 'failure') addToast('Note added');
 					};
 				}}
 			>
@@ -590,6 +606,16 @@
 					style="border-color: var(--color-border); color: var(--color-foreground)"
 				>
 					<MessageSquare size={14} /> Add note
+				</button>
+			</form>
+
+			<form method="POST" action="?/logEmail" use:enhance>
+				<button
+					type="submit"
+					class="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors hover:bg-muted"
+					style="border-color: var(--color-border); color: var(--color-foreground)"
+				>
+					<Mail size={14} /> Log email sent
 				</button>
 			</form>
 		</div>
