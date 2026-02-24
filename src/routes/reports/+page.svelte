@@ -44,7 +44,7 @@
 	</div>
 
 	<!-- Controls -->
-	<form method="GET" class="flex flex-wrap items-center gap-3 mb-6">
+	<form method="GET" class="flex flex-wrap items-start gap-3 mb-6">
 		<!-- Year -->
 		<div class="flex items-center gap-2">
 			<label class="text-sm font-medium" style="color: var(--color-foreground)" for="year-select">Year</label>
@@ -76,7 +76,7 @@
 			</select>
 		</div>
 
-		<span class="text-xs ml-auto" style="color: var(--color-muted-foreground)">
+		<span class="text-xs sm:ml-auto w-full sm:w-auto" style="color: var(--color-muted-foreground)">
 			{data.basisLabel}
 		</span>
 	</form>
@@ -100,7 +100,7 @@
 						<Icon size={18} style="color: var(--color-primary)" />
 					</div>
 				</div>
-				<p class="text-2xl font-semibold" style="color: var(--color-foreground)">{card.value}</p>
+				<p class="text-lg sm:text-2xl font-semibold break-all" style="color: var(--color-foreground)">{card.value}</p>
 			</div>
 		{/each}
 	</div>

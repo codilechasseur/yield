@@ -22,7 +22,7 @@
 	</a>
 	<div class="min-h-screen flex" style="background-color: var(--color-background)">
 		<Nav authEnabled={data.authEnabled} />
-		<main id="main-content" class="flex-1 md:ml-56 p-4 md:p-8 pt-18 md:pt-8 md:pb-8 overflow-x-clip" tabindex="-1">
+		<main id="main-content" class="flex-1 min-w-0 md:ml-56 p-4 md:p-8 pt-18 md:pt-8 md:pb-8 overflow-x-clip" tabindex="-1">
 			{@render children()}
 		</main>
 		<Toaster />
