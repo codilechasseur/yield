@@ -59,7 +59,7 @@ export const actions = {
 		const data = await request.formData();
 		const status = data.get('status')?.toString();
 
-		if (!['draft', 'sent', 'paid', 'overdue'].includes(status ?? '')) {
+		if (!['draft', 'written_off'].includes(status ?? '')) {
 			return fail(400, { error: 'Invalid status' });
 		}
 
@@ -164,23 +164,32 @@ export const actions = {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const fd = await request.formData();
 		const message = fd.get('message')?.toString().trim() || undefined;
+		const extraRecipientsRaw = fd.get('extra_recipients')?.toString().trim() || '';
 
-		// Load client email
-		let toEmail = '';
+		// Parse comma-separated extra recipients; accept only strings containing '@'
+		const extraEmails = extraRecipientsRaw
+			.split(',')
+			.map((e) => e.trim())
+			.filter((e) => e.includes('@'));
+
+		let clientEmail = '';
 		let toName = '';
 		try {
 			const inv = await pb
 				.collection('invoices')
 				.getOne<Invoice & { expand: { client: Client } }>(params.id, { expand: 'client' });
-			toEmail = inv.expand?.client?.email ?? '';
+			clientEmail = inv.expand?.client?.email ?? '';
 			toName = inv.expand?.client?.name ?? '';
 		} catch {
 			return fail(404, { sendError: 'Invoice not found.' });
 		}
 
-		if (!toEmail) {
-			return fail(400, { sendError: 'This client has no email address on file.' });
+		const allEmails = [clientEmail, ...extraEmails].filter(Boolean);
+		if (allEmails.length === 0) {
+			return fail(400, { sendError: 'No recipients specified. Add an email address to the client or enter additional recipients below.' });
 		}
+
+		const toEmail = allEmails.length === 1 ? allEmails[0] : allEmails;
 
 		try {
 			await sendInvoiceEmail({ pb, invoiceId: params.id, toEmail, toName, message });
@@ -189,9 +198,21 @@ export const actions = {
 			await pb.collection('invoice_logs').create({
 				invoice: params.id,
 				action: 'email_sent',
-				detail: `Invoice emailed to ${toEmail}`,
+				detail: `Invoice emailed to ${allEmails.join(', ')}`,
 				occurred_at: new Date().toISOString()
 			});
+
+			// Auto-advance draft → sent
+			const current = await pb.collection('invoices').getOne(params.id, { fields: 'status' });
+			if (current.status === 'draft') {
+				await pb.collection('invoices').update(params.id, { status: 'sent' });
+				await pb.collection('invoice_logs').create({
+					invoice: params.id,
+					action: 'status_changed',
+					detail: 'draft → sent',
+					occurred_at: new Date().toISOString()
+				});
+			}
 		} catch (e) {
 			return fail(500, { sendError: (e as Error).message });
 		}

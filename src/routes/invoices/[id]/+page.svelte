@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { ArrowLeft, Download, Pencil, Trash2, MessageSquare, Mail, ArrowRight, FileText, DollarSign, Send } from 'lucide-svelte';
+	import { ArrowLeft, Download, Pencil, Trash2, MessageSquare, Mail, ArrowRight, FileText, Banknote, Send, ChevronDown } from 'lucide-svelte';
 	import { STATUS_COLORS } from '$lib/pocketbase.js';
 	import { addToast } from '$lib/toasts.svelte.js';
 	import type { PageData, ActionData } from './$types.js';
@@ -26,8 +26,12 @@
 
 	let remaining = $derived(Math.round((total - (invoice.paid_amount ?? 0)) * 100) / 100);
 
-	const STATUSES = ['draft', 'sent', 'paid', 'overdue', 'written_off'] as const;
-	let statusForm: HTMLFormElement | undefined = $state();
+	// Overdue is computed — a sent invoice past its due date
+	const isOverdue = $derived(
+		invoice.status === 'sent' && !!invoice.due_date && new Date(invoice.due_date) < new Date()
+	);
+	const displayStatus = $derived(isOverdue ? 'overdue' : invoice.status);
+
 	let noteText = $state('');
 	let noteSubmitting = $state(false);
 	let showPayment = $state(false);
@@ -36,27 +40,28 @@
 	let showSend = $state(false);
 	let sendMessage = $state('');
 	let sendSubmitting = $state(false);
+	let extraRecipients = $state('');
+	let showActionMenu = $state(false);
+	let showDeleteConfirm = $state(false);
 
 	// Pre-fill send panel from server-resolved templates
 	function openSend() {
 		if (!showSend) sendMessage = data.emailBody ?? '';
-		showSend = !showSend;
+		showSend = true;
+		showActionMenu = false;
 	}
 
 	const hasSentBefore = $derived(data.logs.some((l) => l.action === 'email_sent'));
 	const sendDisabledReason = $derived(
-		!invoice.expand?.client?.email
-			? 'This client has no email address — add one on the client page'
-			: !data.smtpConfigured
+		!data.smtpConfigured
 			? 'SMTP is not configured — set it up under Settings → Email'
 			: null
 	);
-	let showSendTip = $state(false);
-	let showDeleteConfirm = $state(false);
 
 	function openPaymentForm() {
 		paymentAmount = remaining.toFixed(2);
 		showPayment = true;
+		showActionMenu = false;
 	}
 </script>
 
@@ -70,95 +75,166 @@
 		<a href="/invoices" class="inline-flex items-center gap-1.5 text-sm" style="color: var(--color-muted-foreground)">
 			<ArrowLeft size={15} /> Invoices
 		</a>
-		<div class="flex items-center gap-2 flex-wrap">
-			<!-- Status selector -->
-			<form method="POST" action="?/updateStatus" use:enhance={() => async ({ update, result }) => { await update(); if (result.type !== 'failure') addToast('Status updated'); }} bind:this={statusForm}>
-				<select name="status" onchange={() => statusForm?.requestSubmit()}
-					class="px-3 py-1.5 rounded-lg border text-sm font-medium"
-					style="background: var(--color-card); border-color: var(--color-border); color: var(--color-foreground)"
-				>
-					{#each STATUSES as s}
-						<option value={s} selected={invoice.status === s}>{s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
-					{/each}
-				</select>
-			</form>
-			<a href="/api/invoice/{invoice.id}/pdf" target="_blank"
-				class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors hover:bg-muted"
-				style="border-color: var(--color-border); color: var(--color-foreground)"
-			>
-				<Download size={15} /> PDF
-			</a>
-			<a href="/invoices/{invoice.id}/edit"
-				class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors hover:bg-muted"
-				style="border-color: var(--color-border); color: var(--color-foreground)"
-			>
-				<Pencil size={15} /> Edit
-			</a>
+		<div class="flex items-center gap-3">
+			<!-- Status badge (read-only display) -->
+			<span class="{STATUS_COLORS[displayStatus] ?? 'status-badge'}">
+				{displayStatus === 'written_off' ? 'Written Off' : displayStatus.replace(/\b\w/g, c => c.toUpperCase())}
+			</span>
+
+			<!-- Split action button -->
 			<div class="relative">
-				<button
-					onclick={() => (showDeleteConfirm = true)}
-					class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors hover:bg-red-50"
-					style="border-color: var(--color-border); color: var(--color-destructive, #dc2626)"
-				>
-					<Trash2 size={15} /> Delete
-				</button>
-				{#if showDeleteConfirm}
+				<div class="flex items-center rounded-lg overflow-hidden" style="background: var(--color-primary)">
+					<!-- Primary action — context-aware -->
+					{#if displayStatus === 'draft'}
+						<button
+							onclick={sendDisabledReason ? undefined : openSend}
+							disabled={!!sendDisabledReason}
+							title={sendDisabledReason ?? undefined}
+							class="flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 text-sm font-medium disabled:opacity-60"
+							style="color: var(--color-primary-foreground)"
+						>
+							<Send size={15} /> Send Invoice
+						</button>
+					{:else if displayStatus === 'sent' || displayStatus === 'overdue'}
+						<button
+							onclick={openPaymentForm}
+							class="flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 text-sm font-medium"
+							style="color: var(--color-primary-foreground)"
+						>
+							<Banknote size={15} /> Record Payment
+						</button>
+					{:else}
+						<a
+							href="/api/invoice/{invoice.id}/pdf"
+							target="_blank"
+							class="flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 text-sm font-medium"
+							style="color: var(--color-primary-foreground)"
+						>
+							<Download size={15} /> Download PDF
+						</a>
+					{/if}
+					<!-- Chevron toggles dropdown -->
+					<button
+						onclick={() => (showActionMenu = !showActionMenu)}
+						aria-label="More actions"
+						class="flex items-center px-2 py-1.5 border-l"
+						style="color: var(--color-primary-foreground); border-color: color-mix(in srgb, var(--color-primary-foreground) 35%, transparent)"
+					>
+						<ChevronDown size={14} />
+					</button>
+				</div>
+
+				<!-- Click-outside backdrop -->
+				{#if showActionMenu}
+					<button
+						class="fixed inset-0 z-30"
+						onclick={() => (showActionMenu = false)}
+						aria-hidden="true"
+						tabindex="-1"
+						style="background: transparent; border: none; cursor: default"
+					></button>
+				{/if}
+
+				<!-- Dropdown menu -->
+				{#if showActionMenu}
 					<div
-						class="absolute right-0 top-full mt-1.5 z-30 flex items-center gap-2 rounded-lg border shadow-md px-3 py-2 text-sm whitespace-nowrap"
+						class="absolute right-0 top-full mt-1.5 z-40 rounded-lg border shadow-lg min-w-48 py-1 overflow-hidden"
 						style="background: var(--color-card); border-color: var(--color-border)"
 					>
-						<span style="color: var(--color-foreground)">Delete this invoice?</span>
-					<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { if (result.type !== 'failure') addToast('Invoice deleted'); await update(); }}>
-							<button type="submit" class="px-2.5 py-0.5 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors">
-								Yes, delete
+						<!-- Send / Re-send (not for paid or written_off) -->
+						{#if invoice.status !== 'paid' && invoice.status !== 'written_off'}
+							<button
+								onclick={openSend}
+								disabled={!!sendDisabledReason}
+								title={sendDisabledReason ?? undefined}
+								class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left disabled:opacity-50 hover:bg-muted transition-colors"
+								style="color: var(--color-foreground)"
+							>
+								<Send size={14} /> {hasSentBefore ? 'Re-send Invoice' : 'Send Invoice'}
 							</button>
-						</form>
-						<button
-							onclick={() => (showDeleteConfirm = false)}
-							class="px-2.5 py-0.5 rounded-md border text-xs font-medium transition-colors hover:bg-muted"
-							style="border-color: var(--color-border); color: var(--color-muted-foreground)"
+						{/if}
+						<!-- Record Payment (sent / overdue only, not already covered by primary) -->
+						{#if displayStatus !== 'sent' && displayStatus !== 'overdue' && invoice.status !== 'paid' && invoice.status !== 'draft' && invoice.status !== 'written_off'}
+							<button
+								onclick={openPaymentForm}
+								class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-muted transition-colors"
+								style="color: var(--color-foreground)"
+							>
+								<Banknote size={14} /> Record Payment
+							</button>
+						{/if}
+						<!-- Download PDF -->
+						<a
+							href="/api/invoice/{invoice.id}/pdf"
+							target="_blank"
+							onclick={() => (showActionMenu = false)}
+							class="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted transition-colors"
+							style="color: var(--color-foreground)"
 						>
-							Cancel
+							<Download size={14} /> Download PDF
+						</a>
+						<!-- Edit -->
+						<a
+							href="/invoices/{invoice.id}/edit"
+							onclick={() => (showActionMenu = false)}
+							class="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted transition-colors"
+							style="color: var(--color-foreground)"
+						>
+							<Pencil size={14} /> Edit
+						</a>
+
+						<div class="my-1 border-t" style="border-color: var(--color-border)"></div>
+
+						<!-- Mark as Draft -->
+						{#if invoice.status !== 'draft'}
+							<form method="POST" action="?/updateStatus" use:enhance={() => async ({ update, result }) => { showActionMenu = false; await update(); if (result.type !== 'failure') addToast('Moved to draft'); }}>
+								<input type="hidden" name="status" value="draft" />
+								<button type="submit" class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-muted transition-colors" style="color: var(--color-foreground)">
+									<FileText size={14} /> Mark as Draft
+								</button>
+							</form>
+						{/if}
+						<!-- Mark as Written Off -->
+						{#if invoice.status !== 'written_off'}
+							<form method="POST" action="?/updateStatus" use:enhance={() => async ({ update, result }) => { showActionMenu = false; await update(); if (result.type !== 'failure') addToast('Marked as written off'); }}>
+								<input type="hidden" name="status" value="written_off" />
+								<button type="submit" class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-muted transition-colors" style="color: var(--color-muted-foreground)">
+									<FileText size={14} /> Mark as Written Off
+								</button>
+							</form>
+						{/if}
+
+						<div class="my-1 border-t" style="border-color: var(--color-border)"></div>
+
+						<!-- Delete -->
+						<button
+							onclick={() => { showActionMenu = false; showDeleteConfirm = true; }}
+							class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-red-50 transition-colors"
+							style="color: var(--color-destructive, #dc2626)"
+						>
+							<Trash2 size={14} /> Delete
 						</button>
 					</div>
 				{/if}
 			</div>
-			{#if invoice.status !== 'paid' && invoice.status !== 'draft' && invoice.status !== 'written_off'}
-				<button
-					onclick={openPaymentForm}
-					class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-					style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
-				>
-					<DollarSign size={15} /> Record Payment
-				</button>
-			{/if}
-			<span class="relative">
-				<button
-					onclick={sendDisabledReason ? undefined : openSend}
-					disabled={!!sendDisabledReason}
-					onmouseenter={() => (showSendTip = true)}
-					onmouseleave={() => (showSendTip = false)}
-					class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-opacity"
-					style={sendDisabledReason
-						? 'background: var(--color-muted); color: var(--color-muted-foreground); border: 1px solid var(--color-border); cursor: not-allowed; opacity: 0.7;'
-						: 'background-color: var(--color-primary); color: var(--color-primary-foreground);'}
-				>
-					<Send size={15} /> {hasSentBefore ? 'Re-send Invoice' : 'Send Invoice'}
-				</button>
-				{#if sendDisabledReason && showSendTip}
-					<span
-						role="tooltip"
-						class="absolute top-full right-0 mt-2.5 z-50 w-56 rounded-xl px-3 py-2.5 text-xs leading-relaxed shadow-lg pointer-events-none whitespace-normal"
-						style="background-color: var(--color-card); color: var(--color-muted-foreground); border: 1px solid var(--color-border); box-shadow: 0 4px 16px -2px color-mix(in srgb, var(--color-foreground) 12%, transparent)"
-					>{sendDisabledReason}<span
-							aria-hidden="true"
-							class="absolute bottom-full right-4"
-							style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:5px solid var(--color-border);"
-						></span></span>
-				{/if}
-			</span>
 		</div>
 	</div>
+
+	<!-- Delete confirmation modal -->
+	{#if showDeleteConfirm}
+		<div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.4)">
+			<div class="rounded-xl border shadow-xl p-5 max-w-sm w-full mx-4" style="background: var(--color-card); border-color: var(--color-border)">
+				<p class="font-semibold mb-1" style="color: var(--color-foreground)">Delete this invoice?</p>
+				<p class="text-sm mb-4" style="color: var(--color-muted-foreground)">This action cannot be undone.</p>
+				<div class="flex gap-2 justify-end">
+					<button onclick={() => (showDeleteConfirm = false)} class="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors" style="border-color: var(--color-border); color: var(--color-muted-foreground)">Cancel</button>
+					<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { if (result.type !== 'failure') addToast('Invoice deleted'); await update(); }}>
+						<button type="submit" class="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
+					</form>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	{#if form?.error}
 		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
@@ -168,7 +244,7 @@
 	{#if showPayment}
 		<div class="mb-6 rounded-xl border p-5" style="background: var(--color-card); border-color: var(--color-border)">
 			<div class="flex items-center justify-between mb-4">
-				<h3 class="font-semibold text-sm" style="color: var(--color-foreground)">Record Payment</h3>
+			<h3 class="font-semibold text-sm" style="color: var(--color-foreground)">Record Payment</h3>
 				<span class="text-xs" style="color: var(--color-muted-foreground)">
 					Balance due: <strong>{fmt(remaining)}</strong>
 				</span>
@@ -230,7 +306,7 @@
 						class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
 						style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
 					>
-						<DollarSign size={14} /> {paymentSubmitting ? 'Saving…' : 'Record Payment'}
+						<Banknote size={14} /> {paymentSubmitting ? 'Saving…' : 'Record Payment'}
 					</button>
 				</div>
 			</form>
@@ -242,9 +318,11 @@
 		<div class="mb-6 rounded-xl border p-5" style="background: var(--color-card); border-color: var(--color-border)">
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="font-semibold text-sm" style="color: var(--color-foreground)">{hasSentBefore ? 'Re-send Invoice' : 'Send Invoice'}</h3>
-				<span class="text-xs" style="color: var(--color-muted-foreground)">
-					To: <strong>{invoice.expand?.client?.email}</strong>
-				</span>
+				{#if invoice.expand?.client?.email}
+					<span class="text-xs" style="color: var(--color-muted-foreground)">
+						To: <strong>{invoice.expand.client.email}</strong>
+					</span>
+				{/if}
 			</div>
 			<form
 				method="POST"
@@ -256,10 +334,23 @@
 						sendSubmitting = false;
 						showSend = false;
 						sendMessage = '';
+						extraRecipients = '';
 						await update();
 					};
 				}}
 			>
+				<div class="flex flex-col gap-1">
+					<label for="send-recipients" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Additional recipients <span style="color: var(--color-muted-foreground); font-weight:400;">(comma-separated)</span></label>
+					<input
+						id="send-recipients"
+						name="extra_recipients"
+						type="text"
+						placeholder="e.g. accountant@example.com, boss@example.com"
+						bind:value={extraRecipients}
+						class="px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2"
+						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+					/>
+				</div>
 				<div class="flex flex-col gap-1">
 					<label for="send-subject" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Subject</label>
 					<input
@@ -286,7 +377,7 @@
 				<p class="text-xs" style="color: var(--color-muted-foreground)">
 					The invoice PDF will be attached automatically.
 					{#if !invoice.expand?.client?.email}
-						<span class="text-red-600">This client has no email address on file.</span>
+						<span class="font-medium" style="color: var(--color-foreground)">No client email on file — you must enter at least one recipient above.</span>
 					{/if}
 				</p>
 				<div class="flex gap-2 justify-end">
@@ -318,7 +409,7 @@
 					<h1 class="text-2xl font-bold" style="color: var(--color-primary)">INVOICE</h1>
 					<p class="text-lg font-semibold mt-1" style="color: var(--color-foreground)">{invoice.number}</p>
 				</div>
-				<span class="{STATUS_COLORS[invoice.status] ?? ''}">{invoice.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+				<span class="{STATUS_COLORS[displayStatus] ?? 'status-badge'}">{displayStatus === 'written_off' ? 'Written Off' : displayStatus.replace(/\b\w/g, c => c.toUpperCase())}</span>
 			</div>
 
 			<div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-6">
@@ -363,19 +454,19 @@
 		<table class="w-full min-w-100">
 			<thead>
 				<tr style="border-bottom: 1px solid var(--color-border); background: var(--color-muted)">
-					<th scope="col" class="px-8 py-3 text-left text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Description</th>
-					<th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Qty</th>
-					<th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Unit Price</th>
-					<th scope="col" class="px-8 py-3 text-right text-xs font-medium uppercase tracking-wide" style="color: var(--color-muted-foreground)">Amount</th>
+					<th scope="col" class="px-8 py-3 text-left text-xs font-medium uppercase tracking-wide w-full" style="color: var(--color-muted-foreground)">Description</th>
+				<th scope="col" class="px-3 py-3 text-center text-xs font-medium uppercase tracking-wide whitespace-nowrap" style="color: var(--color-muted-foreground)">Qty</th>
+				<th scope="col" class="px-3 py-3 text-center text-xs font-medium uppercase tracking-wide whitespace-nowrap" style="color: var(--color-muted-foreground)">Unit Price</th>
+					<th scope="col" class="pl-3 pr-8 py-3 text-right text-xs font-medium uppercase tracking-wide whitespace-nowrap" style="color: var(--color-muted-foreground)">Amount</th>
 				</tr>
 			</thead>
 			<tbody>
 				{#each items as item}
 					<tr style="border-bottom: 1px solid var(--color-border)">
-						<td class="px-8 py-4 text-sm" style="color: var(--color-foreground)">{item.description || '—'}</td>
-						<td class="px-4 py-4 text-sm text-right font-mono" style="color: var(--color-muted-foreground)">{item.quantity}</td>
-						<td class="px-4 py-4 text-sm text-right font-mono" style="color: var(--color-muted-foreground)">{fmt(item.unit_price)}</td>
-						<td class="px-8 py-4 text-sm text-right font-mono font-medium" style="color: var(--color-foreground)">{fmt(item.quantity * item.unit_price)}</td>
+						<td class="px-8 py-4 text-sm w-full" style="color: var(--color-foreground)">{item.description || '—'}</td>
+					<td class="px-3 py-4 text-sm text-center font-mono whitespace-nowrap" style="color: var(--color-muted-foreground)">{item.quantity}</td>
+					<td class="px-3 py-4 text-sm text-center font-mono whitespace-nowrap" style="color: var(--color-muted-foreground)">{fmt(item.unit_price)}</td>
+						<td class="pl-3 pr-8 py-4 text-sm text-right font-mono font-medium whitespace-nowrap" style="color: var(--color-foreground)">{fmt(item.quantity * item.unit_price)}</td>
 					</tr>
 				{/each}
 			</tbody>
@@ -415,7 +506,7 @@
 		{#if invoice.notes}
 			<div class="px-8 py-4 border-t" style="border-color: var(--color-border)">
 				<p class="text-xs font-medium uppercase tracking-wide mb-1" style="color: var(--color-muted-foreground)">Notes</p>
-				<p class="text-sm" style="color: var(--color-foreground)">{invoice.notes}</p>
+				<p class="text-sm whitespace-pre-line" style="color: var(--color-foreground)">{invoice.notes}</p>
 			</div>
 		{/if}
 	</div>
@@ -442,7 +533,7 @@
 							{:else if log.action === 'invoice_created'}
 								<FileText size={12} style="color: var(--color-muted-foreground)" />
 							{:else if log.action === 'payment_recorded'}
-								<DollarSign size={12} style="color: var(--color-muted-foreground)" />
+						<Banknote size={12} style="color: var(--color-muted-foreground)" />
 							{:else}
 								<Pencil size={12} style="color: var(--color-muted-foreground)" />
 							{/if}

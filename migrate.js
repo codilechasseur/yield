@@ -125,7 +125,8 @@ async function run() {
   for (const [name, row] of uniqueClients) {
     // Idempotent: find by name
     try {
-      const existing = await pb.collection('clients').getFirstListItem(`name = "${name.replace(/"/g, '\\"')}"`);
+      const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const existing = await pb.collection('clients').getFirstListItem(`name = "${escapedName}"`);
       clientIdMap.set(name, existing.id);
       clientsSkipped++;
       continue;

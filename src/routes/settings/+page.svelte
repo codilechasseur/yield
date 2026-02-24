@@ -11,15 +11,21 @@
 	type Theme = 'light' | 'system' | 'dark';
 
 	let current = $state<Theme>(
-		(typeof localStorage !== 'undefined'
-			? (localStorage.getItem('yield-theme') as Theme)
-			: null) ?? 'system'
+		data.smtp?.brand_theme as Theme
+			?? ((typeof localStorage !== 'undefined'
+				? (localStorage.getItem('yield-theme') as Theme)
+				: null) ?? 'system')
 	);
 
 	function setTheme(t: Theme) {
 		current = t;
 		localStorage.setItem('yield-theme', t);
 		document.documentElement.setAttribute('data-theme', t);
+		// Persist to DB immediately
+		fetch('?/saveAppearance', {
+			method: 'POST',
+			body: new URLSearchParams({ brand_theme: t, brand_hue: String(hue) })
+		}).catch(() => { /* ignore */ });
 	}
 
 	const options: { value: Theme; label: string; desc: string; icon: typeof Sun }[] = [
@@ -84,6 +90,7 @@
 		smtpFromEmail:        data.smtp?.smtp_from_email ?? '',
 		smtpSecure:           data.smtp?.smtp_secure ?? false,
 		hideCompanyName:      data.smtp?.logo_hide_company_name ?? false,
+		brandTheme:           (data.smtp?.brand_theme as Theme) ?? 'system',
 	})));
 
 	let isDirty = $derived(
@@ -105,7 +112,8 @@
 		smtpFromName        !== snapshot.smtpFromName        ||
 		smtpFromEmail       !== snapshot.smtpFromEmail       ||
 		smtpSecure          !== snapshot.smtpSecure          ||
-		hideCompanyName     !== snapshot.hideCompanyName
+		hideCompanyName     !== snapshot.hideCompanyName     ||
+		current             !== snapshot.brandTheme
 	);
 
 	function markClean() {
@@ -115,6 +123,7 @@
 			emailSubject, emailBody, defaultCurrency,
 			smtpHost, smtpPort, smtpUser, smtpPass, smtpFromName, smtpFromEmail, smtpSecure,
 			hideCompanyName,
+			brandTheme: current,
 		};
 	}
 
@@ -144,11 +153,7 @@
 		{ label: 'Sky',     hue: 215 }
 	];
 
-	let hue = $state<number>(untrack(() =>
-		typeof localStorage !== 'undefined'
-			? Number(localStorage.getItem('yield-hue') ?? (data.smtp?.brand_hue ?? 250))
-			: (data.smtp?.brand_hue ?? 250)
-	));
+	let hue = $state<number>(untrack(() => data.smtp?.brand_hue ?? 250));
 
 	function setHue(h: number) {
 		hue = h;
@@ -157,7 +162,7 @@
 		// Persist to DB silently so the PDF generator picks it up
 		fetch('?/saveAppearance', {
 			method: 'POST',
-			body: new URLSearchParams({ brand_hue: String(h) })
+			body: new URLSearchParams({ brand_hue: String(h), brand_theme: current })
 		}).catch(() => { /* ignore */ });
 	}
 
@@ -350,6 +355,9 @@
 						{options.find(o => o.value === current)?.desc}
 					</p>
 				</div>
+
+				<!-- Hidden field for the global save form -->
+				<input type="hidden" name="brand_theme" value={current} form="settings-form" />
 
 				<!-- Highlight colour -->
 				<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">

@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Bump version & build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          # Use a PAT or the default token — default token is enough for
+          # pushing back to main if branch protection allows it
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bump package.json version to match release tag
+        run: |
+          # Strip leading 'v' from the tag (e.g. v1.2.0 → 1.2.0)
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm version "$VERSION" --no-git-tag-version
+          echo "Bumped to $VERSION"
+
+      - name: Commit updated package.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to ${GITHUB_REF_NAME#v} [skip ci]"
+          git push origin main
+
+      - name: Type check (svelte-check)
+        run: npm run check
+
+      - name: Unit tests
+        run: npm run test:unit:coverage
+
+      - name: Build
+        run: npm run build

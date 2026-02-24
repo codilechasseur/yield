@@ -517,6 +517,19 @@
       },
       {
         "hidden": false,
+        "id": "fld_set_bth",
+        "max": 6,
+        "min": 0,
+        "name": "brand_theme",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
         "id": "fld_set_itr",
         "max": 100,
         "min": 0,
