@@ -2,6 +2,9 @@
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, Download, Pencil, Trash2, MessageSquare, Mail, ArrowRight, FileText, Banknote, Send, ChevronDown } from 'lucide-svelte';
 	import { STATUS_COLORS } from '$lib/pocketbase.js';
+	import { addToast } from '$lib/toasts.svelte.js';
+	import RichTextarea from '$lib/components/RichTextarea.svelte';
+	import FormAlert from '$lib/components/FormAlert.svelte';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -254,15 +257,9 @@
 		</div>
 	{/if}
 
-	{#if form?.error}
-		<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
-	{/if}
-	{#if form?.sendError}
-		<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.sendError}</div>
-	{/if}
-	{#if form?.sendSuccess}
-		<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Invoice emailed to {invoice.expand?.client?.email}.</div>
-	{/if}
+	<FormAlert message={form?.error} />
+	<FormAlert message={form?.sendError} />
+	<FormAlert message={form?.sendSuccess ? `Invoice emailed to ${invoice.expand?.client?.email}.` : null} variant="success" />
 
 	<!-- Record Payment panel -->
 	{#if showPayment}
@@ -384,15 +381,15 @@
 				</div>
 				<div class="flex flex-col gap-1">
 					<label for="send-message" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Body</label>
-					<textarea
-						id="send-message"
-						name="message"
-						rows="3"
-						placeholder="Add a personal note to the email…"
-						bind:value={sendMessage}
-						class="px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 resize-none"
-						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-					></textarea>
+				<RichTextarea
+					id="send-message"
+					name="message"
+					rows={3}
+					placeholder="Add a personal note to the email…"
+					bind:value={sendMessage}
+					class="px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 resize-none"
+					style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+				/>
 				</div>
 				<p class="text-xs" style="color: var(--color-muted-foreground)">
 					The invoice PDF will be attached automatically.
@@ -591,14 +588,14 @@
 					};
 				}}
 			>
-				<textarea
+				<RichTextarea
 					name="note"
-					rows="1"
+					rows={1}
 					placeholder="Add a note…"
 					bind:value={noteText}
 					class="flex-1 px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 resize-none"
 					style="background: var(--color-card); border-color: var(--color-border); color: var(--color-foreground)"
-				></textarea>
+				/>
 				<button
 					type="submit"
 					disabled={!noteText.trim() || noteSubmitting}

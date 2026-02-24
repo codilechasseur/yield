@@ -303,6 +303,7 @@ export const actions = {
 			// Tax / rates
 			default_tax_percent: parseFloat(fd.get('default_tax_percent')?.toString() ?? '5') || 5,
 			income_tax_rate: parseFloat(fd.get('income_tax_rate')?.toString() ?? '0') || 0,
+			default_hourly_rate: parseFloat(fd.get('default_hourly_rate')?.toString() ?? '0') || 0,
 			// Client defaults
 			default_currency: fd.get('default_currency')?.toString().trim() || 'CAD',
 			// Appearance

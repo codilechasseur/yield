@@ -3,11 +3,14 @@
 	import { ArrowLeft, Mail, MapPin, Save } from 'lucide-svelte';
 	import { STATUS_COLORS, formatCurrency } from '$lib/pocketbase.js';
 	import { addToast } from '$lib/toasts.svelte.js';
+	import RichTextarea from '$lib/components/RichTextarea.svelte';
+	import FormAlert from '$lib/components/FormAlert.svelte';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let editing = $state(false);
 	let saving = $state(false);
+	let editAddress = $state(data.client.address ?? '');
 
 	function formatDate(d: string) {
 		return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -23,9 +26,7 @@
 		<ArrowLeft size={15} /> Back to Clients
 	</a>
 
-	{#if form?.error}
-		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.error}</div>
-	{/if}
+	<FormAlert message={form?.error} />
 
 	<!-- Client Header -->
 	<div class="rounded-xl border p-4 md:p-6 mb-6" style="background-color: var(--color-card); border-color: var(--color-border)">
@@ -63,9 +64,11 @@
 					</div>
 					<div class="col-span-2">
 						<label for="edit-address" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Address</label>
-						<textarea id="edit-address" name="address" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-none"
+						<RichTextarea id="edit-address" name="address" rows={2}
+							bind:value={editAddress}
+							class="w-full px-3 py-2 rounded-lg border text-sm resize-none"
 							style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-						>{data.client.address}</textarea>
+						/>
 					</div>
 					<div>
 						<label for="edit-currency" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Currency</label>
@@ -76,6 +79,15 @@
 								<option selected={data.client.currency === c}>{c}</option>
 							{/each}
 						</select>
+					</div>
+					<div>
+						<label for="edit-hourly-rate" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Default Hourly Rate</label>
+						<input id="edit-hourly-rate" name="default_hourly_rate" type="number" min="0" step="0.01"
+							value={data.client.default_hourly_rate ?? ''}
+							placeholder="Use global default"
+							class="w-full px-3 py-2 rounded-lg border text-sm font-mono"
+							style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+						/>
 					</div>
 				</div>
 				<div class="flex gap-3 justify-end">
@@ -95,9 +107,16 @@
 			<div class="flex items-start justify-between">
 				<div>
 					<h2 class="text-xl font-bold" style="color: var(--color-foreground)">{data.client.name}</h2>
-					<span class="inline-block mt-1 px-2 py-0.5 rounded text-xs font-mono"
-						style="background: var(--color-muted); color: var(--color-muted-foreground)"
-					>{data.client.currency}</span>
+					<div class="flex items-center gap-2 mt-1 flex-wrap">
+						<span class="inline-block px-2 py-0.5 rounded text-xs font-mono"
+							style="background: var(--color-muted); color: var(--color-muted-foreground)"
+						>{data.client.currency}</span>
+						{#if data.client.default_hourly_rate}
+							<span class="inline-block px-2 py-0.5 rounded text-xs font-mono"
+								style="background: var(--color-muted); color: var(--color-muted-foreground)"
+							>{formatCurrency(data.client.default_hourly_rate, data.client.currency)}/hr</span>
+						{/if}
+					</div>
 				</div>
 				<button onclick={() => editing = true}
 					class="px-3 py-1.5 text-sm rounded-lg border font-medium"

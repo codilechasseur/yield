@@ -14,9 +14,18 @@ export default defineConfig({
 	},
 
 	projects: [
+		// Run the auth setup first (creates password + logs in, saves storageState)
+		{
+			name: 'setup',
+			testMatch: /auth\.setup\.ts/
+		},
 		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] }
+			use: {
+				...devices['Desktop Chrome'],
+				storageState: 'tests/e2e/.auth/user.json'
+			},
+			dependencies: ['setup']
 		}
 	],
 

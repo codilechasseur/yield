@@ -1,9 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-// These E2E tests assume:
-//  - PocketBase is running with the schema applied (pb_setup.js has been run)
-//  - No app password is configured, so the login page redirects to /
-//  - The DB is empty (no clients, no invoices)
+// These E2E tests run with authentication.
+// The auth.setup.ts project runs first: it completes /setup (if needed) and logs in,
+// saving the session to tests/e2e/.auth/user.json which these tests consume.
 
 test.describe('Dashboard', () => {
 	test('home page loads and shows stat cards', async ({ page }) => {
@@ -70,9 +69,9 @@ test.describe('Navigation', () => {
 });
 
 test.describe('Login', () => {
-	test('visiting /login redirects to / when no password is configured', async ({ page }) => {
-		await page.goto('/login');
-		// Without a password set in settings, the load function redirects away from /login
+	test('/setup redirects to / when a password is already configured', async ({ page }) => {
+		await page.goto('/setup');
+		// Password was set during auth.setup — /setup should redirect away
 		await expect(page).toHaveURL('/');
 	});
 });

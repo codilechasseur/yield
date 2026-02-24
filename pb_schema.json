@@ -70,6 +70,18 @@
       },
       {
         "hidden": false,
+        "id": "fld_cli_dhr",
+        "max": null,
+        "min": 0,
+        "name": "default_hourly_rate",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
         "id": "fld_cli_arch",
         "name": "archived",
         "presentable": false,
@@ -534,6 +546,18 @@
         "max": 100,
         "min": 0,
         "name": "income_tax_rate",
+        "onlyInt": false,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_dhr",
+        "max": null,
+        "min": 0,
+        "name": "default_hourly_rate",
         "onlyInt": false,
         "presentable": false,
         "required": false,

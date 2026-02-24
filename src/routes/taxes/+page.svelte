@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { Landmark, Trash2, PlusCircle } from 'lucide-svelte';
 	import { addToast } from '$lib/toasts.svelte.js';
+	import FormAlert from '$lib/components/FormAlert.svelte';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -97,9 +98,7 @@
 			<h3 class="text-base font-semibold mb-4" style="color: var(--color-foreground)">
 				Record a Payment
 			</h3>
-			{#if form?.createError}
-				<p role="alert" class="mb-3 text-sm rounded-lg px-3 py-2 bg-red-50 text-red-700">{form.createError}</p>
-			{/if}
+			<FormAlert message={form?.createError} class="mb-3" />
 			<form method="POST" action="?/create" use:enhance class="flex flex-col gap-4">
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>

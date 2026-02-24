@@ -3,6 +3,8 @@
 	import { untrack } from 'svelte';
 	import { Sun, Moon, Monitor, Check, Lock, Save, Palette, Building2, FileText, Hash, Coins, Mail, Server, FileUp, Image, X } from 'lucide-svelte';
 	import Tip from '$lib/components/Tip.svelte';
+	import RichTextarea from '$lib/components/RichTextarea.svelte';
+	import FormAlert from '$lib/components/FormAlert.svelte';
 	import { addToast } from '$lib/toasts.svelte.js';
 	import type { PageData, ActionData } from './$types.js';
 
@@ -40,6 +42,7 @@
 	// Field state (fed into the single global form)
 	let taxPercent      = $state<number>(untrack(() => data.smtp?.default_tax_percent ?? 5));
 	let incomeTaxRate   = $state<number>(untrack(() => data.smtp?.income_tax_rate ?? 0));
+	let defaultHourlyRate = $state<number>(untrack(() => data.smtp?.default_hourly_rate ?? 0));
 	let companyName     = $state(untrack(() => data.smtp?.company_name ?? ''));
 	let companyAddress  = $state(untrack(() => data.smtp?.company_address ?? ''));
 	let defaultNotes    = $state(untrack(() => data.smtp?.invoice_default_notes ?? ''));
@@ -73,6 +76,7 @@
 	let snapshot = $state(untrack(() => ({
 		taxPercent:           data.smtp?.default_tax_percent ?? 5,
 		incomeTaxRate:        data.smtp?.income_tax_rate ?? 0,
+		defaultHourlyRate:    data.smtp?.default_hourly_rate ?? 0,
 		companyName:          data.smtp?.company_name ?? '',
 		companyAddress:       data.smtp?.company_address ?? '',
 		defaultNotes:         data.smtp?.invoice_default_notes ?? '',
@@ -96,6 +100,7 @@
 	let isDirty = $derived(
 		taxPercent          !== snapshot.taxPercent          ||
 		incomeTaxRate       !== snapshot.incomeTaxRate       ||
+		defaultHourlyRate   !== snapshot.defaultHourlyRate   ||
 		companyName         !== snapshot.companyName         ||
 		companyAddress      !== snapshot.companyAddress      ||
 		defaultNotes        !== snapshot.defaultNotes        ||
@@ -118,7 +123,7 @@
 
 	function markClean() {
 		snapshot = {
-			taxPercent, incomeTaxRate, companyName, companyAddress,
+			taxPercent, incomeTaxRate, defaultHourlyRate, companyName, companyAddress,
 			defaultNotes, invoiceFooter, invoiceNumberFormat, invoiceNextNumber,
 			emailSubject, emailBody, defaultCurrency,
 			smtpHost, smtpPort, smtpUser, smtpPass, smtpFromName, smtpFromEmail, smtpSecure,
@@ -448,16 +453,16 @@
 						</div>
 						<div class="flex flex-col gap-1">
 							<label for="company-address" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Address <Tip tip="Shown below your name in the invoice PDF header." /></label>
-							<textarea
+							<RichTextarea
 								id="company-address"
 								name="company_address"
-								rows="3"
+								rows={3}
 								placeholder={"e.g. 123 Main St\nToronto, ON M5V 1A1"}
 								bind:value={companyAddress}
 								form="settings-form"
 								class="w-full px-3 py-2 rounded-lg border text-sm resize-none"
 								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-							></textarea>
+							/>
 						</div>
 					</div>
 				</div>
@@ -490,9 +495,7 @@
 						</label>
 					{/if}
 
-					{#if logoError}
-						<p class="text-sm mb-3" style="color: var(--color-destructive)">{logoError}</p>
-					{/if}
+					<FormAlert message={logoError || null} class="mb-3" />
 
 					<div class="flex flex-wrap items-end gap-3">
 						<!-- Upload form -->
@@ -580,29 +583,29 @@
 					<div class="space-y-4">
 						<div class="flex flex-col gap-1">
 							<label for="default-notes" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Default Notes <Tip tip="Pre-filled in the Notes field when creating a new invoice. Editable per invoice." /></label>
-							<textarea
+							<RichTextarea
 								id="default-notes"
 								name="invoice_default_notes"
-								rows="3"
+								rows={3}
 								placeholder="e.g. Payment due within 30 days. Thank you for your business!"
 								bind:value={defaultNotes}
 								form="settings-form"
 								class="w-full px-3 py-2 rounded-lg border text-sm resize-none"
 								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-							></textarea>
+							/>
 						</div>
 						<div class="flex flex-col gap-1">
 							<label for="invoice-footer" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Invoice Footer <Tip tip="Printed on every invoice PDF below the line items — bank account, payment instructions, etc." /></label>
-							<textarea
+							<RichTextarea
 								id="invoice-footer"
 								name="invoice_footer"
-								rows="12"
+								rows={12}
 								placeholder={"e.g. E-transfer: you@example.com\nBank: TD Canada Trust · Transit 12345 · Account 678900"}
 								bind:value={invoiceFooter}
 								form="settings-form"
 								class="w-full px-3 py-2 rounded-lg border text-sm resize-none font-mono"
 								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-							></textarea>
+							/>
 						</div>
 					</div>
 				</div>
@@ -657,7 +660,7 @@
 						<h4 class="font-semibold" style="color: var(--color-foreground)">Tax & Currency</h4>
 					</div>
 					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Defaults applied when creating new invoices and clients. Existing records are not affected.</p>
-					<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 						<div class="flex flex-col gap-1">
 							<label for="default_currency" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Default Currency</label>
 							<select
@@ -699,6 +702,19 @@
 								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 							/>
 						</div>
+						<div class="flex flex-col gap-1">
+							<label for="default-hourly-rate" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Default Hourly Rate <Tip tip="Default rate pre-filled when adding line items. Can be overridden per client." /></label>
+							<input
+								id="default-hourly-rate"
+								name="default_hourly_rate"
+								type="number"
+								min="0" step="0.01"
+								bind:value={defaultHourlyRate}
+								form="settings-form"
+								class="w-full px-3 py-2 rounded-lg border text-sm font-mono"
+								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+							/>
+						</div>
 					</div>
 				</div>
 			</section>
@@ -735,16 +751,16 @@
 						</div>
 						<div class="flex flex-col gap-1">
 							<label for="email-body" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Body <Tip tip="The body can be edited per-send on the invoice detail page." /></label>
-							<textarea
+							<RichTextarea
 								id="email-body"
 								name="email_body"
-								rows="8"
+								rows={8}
 								bind:value={emailBody}
 								placeholder={data.DEFAULT_EMAIL_BODY}
 								form="settings-form"
 								class="w-full px-3 py-2 rounded-lg border text-sm resize-none font-mono"
 								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-							></textarea>
+							/>
 						</div>
 					</div>
 				</div>
@@ -878,12 +894,8 @@
 						<h5 class="text-sm font-semibold mb-1" style="color: var(--color-foreground)">Send a test email</h5>
 						<p class="text-xs mb-3" style="color: var(--color-muted-foreground)">Save your settings first, then enter an address to verify delivery.</p>
 
-						{#if form?.testSuccess}
-							<div class="mb-3 px-4 py-2 rounded-lg bg-green-50 text-green-700 text-sm">Test email sent!</div>
-						{/if}
-						{#if form?.testError}
-							<div class="mb-3 px-4 py-2 rounded-lg bg-red-50 text-red-700 text-sm">{form.testError}</div>
-						{/if}
+						<FormAlert message={form?.testSuccess ? 'Test email sent!' : null} variant="success" class="mb-3" />
+						<FormAlert message={form?.testError} class="mb-3" />
 
 						<form
 							method="POST"
@@ -939,15 +951,9 @@
 							: '🔓 No password set — app is publicly accessible.'}
 					</p>
 
-					{#if form?.passwordSuccess}
-						<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Password saved.</div>
-					{/if}
-					{#if form?.passwordRemoved}
-						<div role="status" class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 text-sm">Password protection removed.</div>
-					{/if}
-					{#if form?.passwordError}
-						<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm">{form.passwordError}</div>
-					{/if}
+					<FormAlert message={form?.passwordSuccess ? 'Password saved.' : null} variant="success" />
+					<FormAlert message={form?.passwordRemoved ? 'Password protection removed.' : null} variant="success" />
+					<FormAlert message={form?.passwordError} />
 
 					<form
 						method="POST"
@@ -1074,11 +1080,7 @@
 							</div>
 						{/if}
 
-						{#if form?.importError}
-							<div class="mb-5 px-4 py-3 rounded-lg text-sm" style="background-color: color-mix(in srgb, var(--color-destructive) 12%, transparent); color: var(--color-destructive)">
-								{form.importError}
-							</div>
-						{/if}
+						<FormAlert message={form?.importError} class="mb-5" />
 
 						<form
 							method="POST"
@@ -1160,9 +1162,7 @@
 												⚠ This will permanently delete all clients, invoices, and line items. There is no undo.
 											</p>
 
-											{#if form?.resetError}
-												<p class="text-sm" style="color: var(--color-destructive)">{form.resetError}</p>
-											{/if}
+<FormAlert message={form?.resetError} class="" />
 
 											<div class="space-y-2">
 												{#each [

@@ -41,6 +41,8 @@ export interface SmtpSettings {
 	invoice_number_format?: string;
 	/** The next invoice number to use when creating an invoice. Auto-increments after each creation. */
 	invoice_next_number?: number;
+	/** Default hourly rate applied to new invoice line items. */
+	default_hourly_rate?: number;
 	/** Filename of the uploaded logo stored in PocketBase (empty string = no logo). */
 	logo?: string;
 	/** When true, the company name text is hidden in the PDF header (useful when the logo already contains the name). */

@@ -7,6 +7,7 @@ export interface Client {
 	address: string;
 	currency: string;
 	harvest_id: string;
+	default_hourly_rate?: number;
 	archived: boolean;
 	created: string;
 	updated: string;

@@ -36,11 +36,12 @@ export const actions = {
 		const email = data.get('email')?.toString().trim() ?? '';
 		const address = data.get('address')?.toString().trim() ?? '';
 		const currency = data.get('currency')?.toString().trim() || 'USD';
+		const default_hourly_rate = parseFloat(data.get('default_hourly_rate')?.toString() ?? '0') || 0;
 
 		if (!name) return fail(400, { error: 'Name is required' });
 
 		try {
-			await pb.collection('clients').update(params.id, { name, email, address, currency });
+			await pb.collection('clients').update(params.id, { name, email, address, currency, default_hourly_rate });
 		} catch (e: unknown) {
 			return fail(500, { error: 'Failed to update client' });
 		}
