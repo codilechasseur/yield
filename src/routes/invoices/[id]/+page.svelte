@@ -86,15 +86,16 @@
 				<div class="flex items-center rounded-lg overflow-hidden" style="background: var(--color-primary)">
 					<!-- Primary action — context-aware -->
 					{#if displayStatus === 'draft'}
+					<span title={sendDisabledReason ?? undefined} class="inline-flex">
 						<button
 							onclick={sendDisabledReason ? undefined : openSend}
 							disabled={!!sendDisabledReason}
-							title={sendDisabledReason ?? undefined}
 							class="flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 text-sm font-medium disabled:opacity-60"
 							style="color: var(--color-primary-foreground)"
 						>
 							<Send size={15} /> Send Invoice
 						</button>
+					</span>
 					{:else if displayStatus === 'sent' || displayStatus === 'overdue'}
 						<button
 							onclick={openPaymentForm}

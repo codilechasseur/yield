@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────
+# Pre-built runtime image.
+# The SvelteKit build/ directory and pruned
+# node_modules/ are injected by CI — no npm
+# install or vite build runs inside Docker.
+# ─────────────────────────────────────────────
+FROM node:22-slim
+
+# Install Chromium for Puppeteer — apt resolves all transitive shared-lib deps.
+# fonts-liberation is added explicitly so PDFs render correctly.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  chromium \
+  fonts-liberation \
+  && rm -rf /var/lib/apt/lists/*
+
+# Tell Puppeteer to use the system Chromium instead of downloading its own
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+WORKDIR /app
+
+# Pre-built artefacts are provided by the CI build context
+COPY build ./build
+COPY node_modules ./node_modules
+COPY package.json ./package.json
+
+# PocketBase URL — overridden by docker-compose in production
+ENV PB_URL=http://pocketbase:8090
+# ORIGIN is set at runtime by docker-compose (required by SvelteKit for CSRF)
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3000
+
+EXPOSE 3000
+
+CMD ["node", "build"]

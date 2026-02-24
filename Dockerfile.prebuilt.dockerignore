@@ -1,0 +1,7 @@
+# Companion .dockerignore for Dockerfile.prebuilt.
+# Only the pre-built artefacts (build/, node_modules/, package.json)
+# are needed — exclude everything else to keep the context small.
+*
+!build/
+!node_modules/
+!package.json
