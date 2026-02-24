@@ -1,9 +1,24 @@
 name: CI
 
 on:
-  push:
-    branches-ignore: [main, master]
   pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'static/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'svelte.config.js'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - 'playwright.config.ts'
+      - 'pb_schema.json'
+      - 'pb_setup.js'
+      - '.github/workflows/ci.yml'
+
+concurrency:
+  group: ci-${{ github.head_ref }}
+  cancel-in-progress: true
 
 jobs:
   # ─── Unit tests + type check + build ──────────────────────────────────────
