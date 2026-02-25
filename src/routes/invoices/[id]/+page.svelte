@@ -46,17 +46,47 @@
 	let showActionMenu = $state(false);
 	let showDeleteConfirm = $state(false);
 
+	// Contact recipients for send panel: set of contact IDs to include
+	let selectedContactIds = $state(new Set<string>(
+		// Pre-select contacts that have an email address
+		(data.contacts ?? []).filter((c) => c.email).map((c) => c.id)
+	));
+
+	function toggleContact(id: string) {
+		const next = new Set(selectedContactIds);
+		if (next.has(id)) next.delete(id);
+		else next.add(id);
+		selectedContactIds = next;
+	}
+
+	// Whether there is at least one sendable recipient (contact with email, or client.email, or extra)
+	const hasAnyRecipient = $derived(
+		selectedContactIds.size > 0 ||
+		!!invoice.expand?.client?.email ||
+		extraRecipients.includes('@')
+	);
+
 	// Pre-fill send panel from server-resolved templates
 	function openSend() {
-		if (!showSend) sendMessage = data.emailBody ?? '';
+		if (!showSend) {
+			sendMessage = data.emailBody ?? '';
+			// Reset selection to contacts with emails
+			selectedContactIds = new Set(
+				(data.contacts ?? []).filter((c) => c.email).map((c) => c.id)
+			);
+		}
 		showSend = true;
 		showActionMenu = false;
 	}
 
 	const hasSentBefore = $derived(data.logs.some((l) => l.action === 'email_sent'));
+	const hasEmailRecipient = $derived(
+		!!(invoice.expand?.client?.email) ||
+		(data.contacts ?? []).some((c) => c.email)
+	);
 	const sendDisabledReason = $derived(
-		!invoice.expand?.client?.email
-			? 'This client has no email address — add one on the client page'
+		!hasEmailRecipient
+			? 'This client has no email address or contacts — add one on the client page'
 			: !data.smtpConfigured
 			? 'SMTP is not configured — set it up under Settings → Email'
 			: null
@@ -134,14 +164,14 @@
 				</div>
 
 				<!-- Send disabled tooltip -->
-				{#if sendDisabledReason && showSendTip}
+				{#if sendDisabledReason && showSendTip && !showActionMenu}
 					<span
 						role="tooltip"
-						class="absolute top-full left-0 mt-2.5 z-50 w-56 rounded-xl px-3 py-2.5 text-xs leading-relaxed shadow-lg pointer-events-none whitespace-normal"
+						class="absolute top-full right-0 mt-2.5 z-50 w-56 rounded-xl px-3 py-2.5 text-xs leading-relaxed shadow-lg pointer-events-none whitespace-normal"
 						style="background-color: var(--color-card); color: var(--color-muted-foreground); border: 1px solid var(--color-border); box-shadow: 0 4px 16px -2px color-mix(in srgb, var(--color-foreground) 12%, transparent)"
 					>{sendDisabledReason}<span
 							aria-hidden="true"
-							class="absolute bottom-full left-4"
+							class="absolute bottom-full right-4"
 							style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:5px solid var(--color-border);"
 						></span></span>
 				{/if}
@@ -259,7 +289,7 @@
 
 	<FormAlert message={form?.error} />
 	<FormAlert message={form?.sendError} />
-	<FormAlert message={form?.sendSuccess ? `Invoice emailed to ${invoice.expand?.client?.email}.` : null} variant="success" />
+	<FormAlert message={form?.sendSuccess ? 'Invoice sent successfully.' : null} variant="success" />
 
 	<!-- Record Payment panel -->
 	{#if showPayment}
@@ -334,11 +364,6 @@
 		<div class="mb-6 rounded-xl border p-5" style="background: var(--color-card); border-color: var(--color-border)">
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="font-semibold text-sm" style="color: var(--color-foreground)">{hasSentBefore ? 'Re-send Invoice' : 'Send Invoice'}</h3>
-				{#if invoice.expand?.client?.email}
-					<span class="text-xs" style="color: var(--color-muted-foreground)">
-						To: <strong>{invoice.expand.client.email}</strong>
-					</span>
-				{/if}
 			</div>
 			<form
 				method="POST"
@@ -355,6 +380,41 @@
 					};
 				}}
 			>
+				<!-- Contact recipient selection -->
+				{#if (data.contacts ?? []).length > 0}
+					<fieldset>
+						<legend class="text-xs font-medium mb-2" style="color: var(--color-muted-foreground)">Recipients</legend>
+						<div class="space-y-1.5">
+							{#each data.contacts ?? [] as contact}
+								{@const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ') || '(unnamed)'}
+								<label class="flex items-center gap-2.5 text-sm cursor-pointer select-none">
+									<input
+										type="checkbox"
+										name="contact_ids"
+										value={contact.id}
+										checked={selectedContactIds.has(contact.id)}
+										onchange={() => toggleContact(contact.id)}
+										disabled={!contact.email}
+										class="rounded"
+									/>
+									<span style="color: {contact.email ? 'var(--color-foreground)' : 'var(--color-muted-foreground)'}">
+										{name}
+										{#if contact.email}
+											<span class="font-mono text-xs" style="color: var(--color-muted-foreground)"> &lt;{contact.email}&gt;</span>
+										{:else}
+											<span class="text-xs italic" style="color: var(--color-muted-foreground)"> — no email</span>
+										{/if}
+									</span>
+								</label>
+							{/each}
+						</div>
+					</fieldset>
+				{:else if invoice.expand?.client?.email}
+					<p class="text-xs" style="color: var(--color-muted-foreground)">
+						To: <strong>{invoice.expand.client.email}</strong>
+					</p>
+				{/if}
+
 				<div class="flex flex-col gap-1">
 					<label for="send-recipients" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Additional recipients <span style="color: var(--color-muted-foreground); font-weight:400;">(comma-separated)</span></label>
 					<input
@@ -393,8 +453,8 @@
 				</div>
 				<p class="text-xs" style="color: var(--color-muted-foreground)">
 					The invoice PDF will be attached automatically.
-					{#if !invoice.expand?.client?.email}
-						<span class="font-medium" style="color: var(--color-foreground)">No client email on file — you must enter at least one recipient above.</span>
+					{#if !hasAnyRecipient}
+						<span class="font-medium" style="color: var(--color-foreground)">No recipients selected — add a contact or enter an address above.</span>
 					{/if}
 				</p>
 				<div class="flex gap-2 justify-end">
@@ -534,11 +594,11 @@
 			<div class="rounded-xl border overflow-hidden mb-4" style="background: var(--color-card); border-color: var(--color-border)">
 				{#each data.logs as log, i}
 					<div
-						class="flex items-start gap-3 px-5 py-3.5 text-sm"
+						class="flex items-center gap-3 px-5 py-3.5 text-sm"
 						style={i < data.logs.length - 1 ? 'border-bottom: 1px solid var(--color-border)' : ''}
 					>
 						<!-- Icon -->
-						<div class="mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style="background: var(--color-muted)">
+						<div class="shrink-0 w-6 h-6 rounded-full flex items-center justify-center" style="background: var(--color-muted)">
 							{#if log.action === 'status_changed'}
 								<ArrowRight size={12} style="color: var(--color-muted-foreground)" />
 							{:else if log.action === 'note'}
@@ -578,7 +638,7 @@
 			<form
 				method="POST"
 				action="?/addNote"
-				class="flex-1 flex gap-2"
+				class="flex-1 flex items-start gap-2"
 				use:enhance={() => {
 					noteSubmitting = true;
 					return async ({ update }) => {
@@ -588,14 +648,16 @@
 					};
 				}}
 			>
-				<RichTextarea
-					name="note"
-					rows={1}
-					placeholder="Add a note…"
-					bind:value={noteText}
-					class="flex-1 px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 resize-none"
-					style="background: var(--color-card); border-color: var(--color-border); color: var(--color-foreground)"
-				/>
+				<div class="flex-1">
+					<RichTextarea
+						name="note"
+						rows={1}
+						placeholder="Add a note…"
+						bind:value={noteText}
+						class="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 resize-none"
+						style="background: var(--color-card); border-color: var(--color-border); color: var(--color-foreground)"
+					/>
+				</div>
 				<button
 					type="submit"
 					disabled={!noteText.trim() || noteSubmitting}

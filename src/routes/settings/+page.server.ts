@@ -371,7 +371,16 @@ export const actions = {
 	harvestImport: async ({ request }) => {
 		// ── Harvest API types ─────────────────────────────────────────────────────
 		interface HarvestClient { id: number; name: string; currency: string; address: string; is_active: boolean; }
-		interface HarvestContact { id: number; client: { id: number }; email: string; }
+		interface HarvestContact {
+			id: number;
+			client: { id: number };
+			first_name: string;
+			last_name: string;
+			title: string;
+			email: string;
+			phone_office: string;
+			phone_mobile: string;
+		}
 		interface HarvestLineItem { description: string; quantity: number; unit_price: number; amount: number; }
 		interface HarvestInvoice {
 			id: number; number: string; client: { id: number }; state: string;
@@ -431,7 +440,7 @@ export const actions = {
 			return fail(400, { importError: (e as Error).message });
 		}
 
-		// Build contact email map: harvest client id → primary email
+		// Build contact email map: harvest client id → primary email (used to backfill client.email)
 		const emailByClientId = new Map<number, string>();
 		for (const contact of harvestContacts) {
 			if (contact.email && contact.client?.id && !emailByClientId.has(contact.client.id)) {
@@ -483,7 +492,36 @@ export const actions = {
 			}
 		}
 
-		// ── 2. Upsert invoices + line items ───────────────────────────────────────
+		// ── 2. Upsert contacts ────────────────────────────────────────────────────
+		let contactsCreated = 0, contactsSkipped = 0;
+
+		for (const hc of harvestContacts) {
+			if (!hc.client?.id) continue;
+			const pbClientId = clientIdMap.get(hc.client.id);
+			if (!pbClientId) continue;
+			const phone = hc.phone_office || hc.phone_mobile || '';
+			try {
+				await pb.collection('contacts').getFirstListItem(`harvest_id = "${hc.id}"`);
+				contactsSkipped++;
+			} catch {
+				try {
+					await pb.collection('contacts').create({
+						client: pbClientId,
+						first_name: hc.first_name ?? '',
+						last_name: hc.last_name ?? '',
+						email: hc.email ?? '',
+						title: hc.title ?? '',
+						phone,
+						harvest_id: String(hc.id)
+					});
+					contactsCreated++;
+				} catch (e) {
+					importErrors.push(`Contact "${hc.first_name} ${hc.last_name}" (client ${pbClientId}): ${(e as Error).message}`);
+				}
+			}
+		}
+
+		// ── 3. Upsert invoices + line items ───────────────────────────────────────
 		let invCreated = 0, invFailed = 0;
 		let skipMissingFields = 0, skipNoClient = 0, skipDuplicate = 0;
 
@@ -539,6 +577,8 @@ export const actions = {
 			importStats: {
 				clientsCreated,
 				clientsSkipped,
+				contactsCreated,
+				contactsSkipped,
 				invCreated,
 				invSkipped: skipMissingFields + skipNoClient + skipDuplicate,
 				invFailed,
@@ -554,7 +594,7 @@ export const actions = {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 
 		try {
-			// Delete in dependency order: items → invoices → clients
+			// Delete in dependency order: items → invoices → clients → contacts
 			const deleteAll = async (collection: string) => {
 				let page = 1;
 				while (true) {
@@ -567,6 +607,7 @@ export const actions = {
 
 			await deleteAll('invoice_items');
 			await deleteAll('invoices');
+			await deleteAll('contacts');
 			await deleteAll('clients');
 		} catch (e) {
 			return fail(500, { resetError: 'Reset failed: ' + (e as Error).message });

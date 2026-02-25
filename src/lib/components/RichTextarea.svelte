@@ -113,7 +113,7 @@
 				}}
 				class="tool-btn"
 			>
-				<tool.icon size={13} aria-hidden="true" />
+				<tool.icon size={16} aria-hidden="true" />
 			</button>
 		{/each}
 	</div>
@@ -146,37 +146,36 @@
 
 	.rich-toolbar {
 		position: absolute;
-		bottom: 100%;
+		top: 100%;
 		left: 0;
 		right: 0;
 		display: flex;
 		gap: 1px;
 		padding: 3px 4px;
 		border: 1px solid var(--color-border);
-		border-bottom: none;
-		border-radius: 0.5rem 0.5rem 0 0;
+		border-top: none;
+		border-radius: 0 0 0.5rem 0.5rem;
 		background: var(--color-muted);
 		z-index: 10;
 		visibility: hidden;
 		opacity: 0;
 		pointer-events: none;
-		transition:
-			opacity 150ms ease,
-			visibility 150ms ease;
+		transition: none;
 	}
 
 	.rich-toolbar.visible {
 		visibility: visible;
 		opacity: 1;
 		pointer-events: auto;
+		transition: none;
 	}
 
 	.tool-btn {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 24px;
-		height: 24px;
+		width: 28px;
+		height: 28px;
 		border-radius: 4px;
 		border: none;
 		background: transparent;
@@ -198,12 +197,11 @@
 	}
 
 	.rich-editor.ce-focused {
-		border-top-left-radius: 0 !important;
-		border-top-right-radius: 0 !important;
+		border-bottom-left-radius: 0 !important;
+		border-bottom-right-radius: 0 !important;
 	}
 
 	.rich-editor {
-		padding-bottom: calc(2 * 1.5em);
 	}
 
 	.rich-editor:empty::before {

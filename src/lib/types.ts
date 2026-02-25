@@ -13,6 +13,19 @@ export interface Client {
 	updated: string;
 }
 
+export interface Contact {
+	id: string;
+	client: string;
+	first_name: string;
+	last_name: string;
+	email: string;
+	title: string;
+	phone: string;
+	harvest_id: string;
+	created: string;
+	updated: string;
+}
+
 export type PaymentTerms = 'upon_receipt' | 'net_15' | 'net_30' | 'net_45' | 'net_60' | 'custom' | '';
 
 export interface Invoice {

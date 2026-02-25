@@ -24,6 +24,15 @@
 	let nextId = $state(2);
 	let selectedClientId = $state(untrack(() => data.preselectedClient ?? ''));
 
+	const selectedClient = $derived(data.clients.find((c) => c.id === selectedClientId) ?? null);
+
+	$effect(() => {
+		const rate = selectedClient?.default_hourly_rate;
+		if (rate != null && rate > 0) {
+			items = items.map((item) => (item.unit_price === 0 ? { ...item, unit_price: rate } : item));
+		}
+	});
+
 	// Today and 30 days out
 	const today = new Date().toISOString().split('T')[0];
 	const defaultDue = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
@@ -55,7 +64,8 @@
 	);
 
 	function addItem() {
-		items = [...items, { id: nextId++, description: '', quantity: 1, unit_price: 0 }];
+		const defaultRate = selectedClient?.default_hourly_rate ?? 0;
+		items = [...items, { id: nextId++, description: '', quantity: 1, unit_price: defaultRate }];
 	}
 
 	function removeItem(id: number) {

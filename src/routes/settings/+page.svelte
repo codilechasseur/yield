@@ -1062,6 +1062,7 @@
 								</p>
 								<ul class="text-sm space-y-0.5" style="color: var(--color-muted-foreground)">
 									<li>Clients: {form.importStats?.clientsCreated} created, {form.importStats?.clientsSkipped} already existed</li>
+									<li>Contacts: {form.importStats?.contactsCreated} created, {form.importStats?.contactsSkipped} already existed</li>
 									<li>
 										Invoices: {form.importStats?.invCreated} created,
 										{form.importStats?.invSkipped} skipped{form.importStats?.invFailed
