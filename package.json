@@ -37,7 +37,7 @@
 		"clsx": "^2.1.1",
 		"svelte": "^5.53.3",
 		"svelte-check": "^4.4.3",
-		"tailwind-merge": "^2.5.4",
+		"tailwind-merge": "^3.5.0",
 		"tailwind-variants": "^3.2.2",
 		"tailwindcss": "^4.0.0",
 		"typescript": "^5.9.3",
