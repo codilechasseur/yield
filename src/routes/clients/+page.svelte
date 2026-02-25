@@ -469,7 +469,7 @@
 								{/if}								{#if client.address}
 									<span class="flex items-center gap-1 text-xs" style="color: var(--color-muted-foreground)">
 										<MapPin size={11} />
-										<span class="truncate max-w-56">{client.address}</span>
+										<span class="truncate max-w-56">{client.address?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()}</span>
 									</span>
 								{/if}							</div>
 					{/if}

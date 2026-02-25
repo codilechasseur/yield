@@ -438,7 +438,7 @@
 							<p class="text-sm mt-0.5" style="color: var(--color-muted-foreground)">{invoice.expand.client.email}</p>
 						{/if}
 						{#if invoice.expand.client.address}
-							<p class="text-sm mt-1 whitespace-pre-line" style="color: var(--color-muted-foreground)">{invoice.expand.client.address}</p>
+						<div class="text-sm mt-1" style="color: var(--color-muted-foreground)">{@html invoice.expand.client.address}</div>
 						{/if}
 					{:else}
 						<p class="text-sm" style="color: var(--color-muted-foreground)">—</p>
@@ -479,7 +479,7 @@
 			<tbody>
 				{#each items as item}
 					<tr style="border-bottom: 1px solid var(--color-border)">
-						<td class="px-8 py-4 text-sm w-full" style="color: var(--color-foreground)">{item.description || '—'}</td>
+						<td class="px-8 py-4 text-sm w-full" style="color: var(--color-foreground)">{@html item.description || '—'}</td>
 					<td class="px-3 py-4 text-sm text-center font-mono whitespace-nowrap" style="color: var(--color-muted-foreground)">{item.quantity}</td>
 					<td class="px-3 py-4 text-sm text-center font-mono whitespace-nowrap" style="color: var(--color-muted-foreground)">{fmt(item.unit_price)}</td>
 						<td class="pl-3 pr-8 py-4 text-sm text-right font-mono font-medium whitespace-nowrap" style="color: var(--color-foreground)">{fmt(item.quantity * item.unit_price)}</td>
@@ -521,7 +521,7 @@
 		{#if invoice.notes}
 			<div class="px-8 py-4 border-t" style="border-color: var(--color-border)">
 				<p class="text-xs font-medium uppercase tracking-wide mb-1" style="color: var(--color-muted-foreground)">Notes</p>
-				<p class="text-sm whitespace-pre-line" style="color: var(--color-foreground)">{invoice.notes}</p>
+				<div class="text-sm" style="color: var(--color-foreground)">{@html invoice.notes}</div>
 			</div>
 		{/if}
 	</div>
@@ -561,8 +561,8 @@
 								<span style="color: var(--color-foreground)">Status changed: </span>
 								<span class="{STATUS_COLORS[parts[0]] ?? ''}">{fmtStatus(parts[0])}</span>
 								<span class="mx-1" style="color: var(--color-muted-foreground)">→</span>
-								<span class="{STATUS_COLORS[parts[1]] ?? ''}">{fmtStatus(parts[1])}</span>
-							{:else}
+								<span class="{STATUS_COLORS[parts[1]] ?? ''}">{fmtStatus(parts[1])}</span>						{:else if log.action === 'note'}
+							<div style="color: var(--color-foreground)">{@html log.detail}</div>							{:else}
 								<span style="color: var(--color-foreground)">{log.detail}</span>
 							{/if}
 						</div>

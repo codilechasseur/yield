@@ -552,10 +552,14 @@
 								use:enhance={() => {
 									logoRemoving = true;
 									logoError = '';
-									return async ({ update }) => {
+									return async ({ update, result }) => {
 										logoRemoving = false;
 										await update();
-										addToast('Logo removed');
+										if (result.type === 'success') {
+											addToast('Logo removed');
+										} else if (result.type === 'failure') {
+											logoError = (result.data as any)?.logoError ?? 'Failed to remove logo';
+										}
 									};
 								}}
 							>

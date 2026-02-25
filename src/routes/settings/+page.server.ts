@@ -266,9 +266,9 @@ export const actions = {
 		try {
 			const existing = await getSmtpSettings(pb);
 			if (existing?.id) {
-				const clear = new FormData();
-				clear.append('logo', '');
-				await pb.collection('settings').update(existing.id, clear);
+				// PocketBase file-delete convention: send `fieldName-` with the filename to remove.
+				// Using an empty string as a fallback clears the field even if the filename is unknown.
+				await pb.collection('settings').update(existing.id, { 'logo-': existing.logo ?? '' });
 			}
 		} catch (e) {
 			return fail(500, { logoError: 'Failed to remove logo: ' + (e as Error).message });

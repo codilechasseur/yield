@@ -131,7 +131,7 @@
 				{/if}
 				{#if data.client.address}
 					<div class="flex items-start gap-2 text-sm" style="color: var(--color-muted-foreground)">
-						<MapPin size={14} class="mt-0.5" /> {data.client.address}
+						<MapPin size={14} class="mt-0.5 shrink-0" /> <span>{@html data.client.address}</span>
 					</div>
 				{/if}
 			</div>

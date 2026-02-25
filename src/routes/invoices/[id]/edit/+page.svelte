@@ -150,7 +150,7 @@
 				</button>
 			</div>
 			<!-- Desktop header (hidden on mobile) -->
-			<div class="hidden sm:grid px-4 py-2 border-b"
+			<div class="hidden sm:grid sm:gap-2 px-4 py-2 border-b"
 				style="border-color: var(--color-border); grid-template-columns: 1fr 6rem 8rem 7rem 2.5rem">
 				<span class="text-xs font-medium" style="color: var(--color-muted-foreground)">Description</span>
 				<span class="text-xs font-medium text-right" style="color: var(--color-muted-foreground)">Qty</span>
@@ -167,7 +167,7 @@
 							<span class="block text-xs font-medium mb-1 sm:hidden" style="color: var(--color-muted-foreground)">Description</span>
 						<RichTextarea bind:value={item.description} placeholder="Service description" rows={2}
 							aria-label="Item description"
-							class="w-full px-2 py-1.5 rounded border text-sm resize-y"
+						class="w-full px-2 py-1.5 rounded border text-sm"
 							style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 						/>
 						</div>

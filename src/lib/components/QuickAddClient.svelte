@@ -71,31 +71,29 @@
 	}
 </script>
 
-<div class="flex items-end gap-2">
-	<div class="flex-1">
-		<label for={inputId} class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
-			Client <span aria-hidden="true">*</span>
-		</label>
-		<select
-			id={inputId}
-			name="client"
-			required
-			bind:value={selectedId}
-			class="w-full px-3 py-2 rounded-lg border text-sm"
-			style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-		>
-			<option value="">Select a client…</option>
-			{#each clients as c (c.id)}
-				<option value={c.id}>{c.name}</option>
-			{/each}
-		</select>
-	</div>
+<div class="grid gap-x-2" style="grid-template-columns: 1fr auto">
+	<label for={inputId} class="block text-xs font-medium mb-1.5 col-start-1 row-start-1" style="color: var(--color-muted-foreground)">
+		Client <span aria-hidden="true">*</span>
+	</label>
+	<select
+		id={inputId}
+		name="client"
+		required
+		bind:value={selectedId}
+		class="col-start-1 row-start-2 w-full px-3 py-2 rounded-lg border text-sm"
+		style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+	>
+		<option value="">Select a client…</option>
+		{#each clients as c (c.id)}
+			<option value={c.id}>{c.name}</option>
+		{/each}
+	</select>
 	<button
 		type="button"
 		onclick={openDialog}
 		aria-label="Add new client"
 		title="Add new client"
-		class="shrink-0 mb-0.5 flex items-center justify-center size-9 rounded-lg border transition-colors hover:opacity-80"
+		class="col-start-2 row-start-2 flex items-center justify-center w-9 self-stretch rounded-lg border transition-colors hover:opacity-80"
 		style="background: var(--color-primary); border-color: var(--color-primary); color: var(--color-primary-foreground)"
 	>
 		<Plus size={16} aria-hidden="true" />
@@ -107,7 +105,7 @@
 <dialog
 	bind:this={dialogEl}
 	aria-labelledby="qac-title"
-	class="rounded-xl border shadow-xl w-full max-w-sm p-0 backdrop:bg-black/40"
+	class="m-auto rounded-xl border shadow-xl w-full max-w-sm p-0 backdrop:bg-black/40"
 	style="background: var(--color-card); border-color: var(--color-border)"
 >
 	<div class="flex items-center justify-between px-5 pt-5 pb-3">

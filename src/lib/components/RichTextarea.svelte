@@ -5,27 +5,41 @@
 		value = $bindable(''),
 		name,
 		id,
+		form,
 		rows = 3,
 		placeholder = '',
 		class: className = '',
 		style = '',
 		'aria-label': ariaLabel,
-		...rest
 	}: {
 		value?: string;
 		name?: string;
 		id?: string;
+		form?: string;
 		rows?: number;
 		placeholder?: string;
 		class?: string;
 		style?: string;
 		'aria-label'?: string;
-		[key: string]: unknown;
 	} = $props();
 
-	let textarea: HTMLTextAreaElement;
+	let editor: HTMLDivElement;
 	let focused = $state(false);
 	let blurTimer: ReturnType<typeof setTimeout>;
+
+	$effect(() => {
+		if (editor) {
+			const html = value ?? '';
+			if (editor.innerHTML !== html) {
+				editor.innerHTML = html.includes('<') ? html : html.replace(/\n/g, '<br>');
+			}
+		}
+	});
+
+	function syncValue() {
+		const html = editor.innerHTML;
+		value = html === '<br>' ? '' : html;
+	}
 
 	function handleFocus() {
 		clearTimeout(blurTimer);
@@ -38,64 +52,49 @@
 		}, 120);
 	}
 
-	function applyFormat(before: string, after = before) {
+	function cmd(command: string) {
 		clearTimeout(blurTimer);
-		const start = textarea.selectionStart;
-		const end = textarea.selectionEnd;
-		const sel = value.slice(start, end);
-		value = value.slice(0, start) + before + sel + after + value.slice(end);
-		requestAnimationFrame(() => {
-			textarea.focus();
-			const cursor = sel ? start + before.length : start + before.length;
-			textarea.setSelectionRange(cursor, cursor + sel.length);
-		});
+		document.execCommand(command, false);
+		editor.focus();
+		syncValue();
 	}
 
-	function applyBullet() {
+	function applyCode() {
 		clearTimeout(blurTimer);
-		const start = textarea.selectionStart;
-		const end = textarea.selectionEnd;
-		// Expand to full lines
-		const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-		const lineEnd = value.indexOf('\n', end);
-		const block = value.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
-		const lines = block.split('\n');
-		const allBulleted = lines.every((l) => l.startsWith('• '));
-		const replaced = lines.map((l) => (allBulleted ? l.slice(2) : '• ' + l)).join('\n');
-		value =
-			value.slice(0, lineStart) +
-			replaced +
-			(lineEnd === -1 ? '' : value.slice(lineEnd));
-		requestAnimationFrame(() => {
-			textarea.focus();
-		});
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0) { editor.focus(); return; }
+		const range = sel.getRangeAt(0);
+		const code = document.createElement('code');
+		try {
+			range.surroundContents(code);
+		} catch {
+			const frag = range.extractContents();
+			code.appendChild(frag);
+			range.insertNode(code);
+		}
+		editor.focus();
+		syncValue();
 	}
 
 	function applyHRule() {
 		clearTimeout(blurTimer);
-		const pos = textarea.selectionStart;
-		const before = value.slice(0, pos);
-		const after = value.slice(pos);
-		const prefix = before.length && !before.endsWith('\n') ? '\n' : '';
-		const suffix = after.length && !after.startsWith('\n') ? '\n' : '';
-		const rule = prefix + '─────────────────────' + suffix;
-		value = before + rule + after;
-		requestAnimationFrame(() => {
-			textarea.focus();
-		});
+		document.execCommand('insertHorizontalRule', false);
+		editor.focus();
+		syncValue();
 	}
 
 	const tools = [
-		{ label: 'Bold', icon: Bold, action: () => applyFormat('**') },
-		{ label: 'Italic', icon: Italic, action: () => applyFormat('_') },
-		{ label: 'Code', icon: Code2, action: () => applyFormat('`') },
-		{ label: 'Bullet list', icon: List, action: applyBullet },
-		{ label: 'Divider', icon: Minus, action: applyHRule }
+		{ label: 'Bold',    icon: Bold,   action: () => cmd('bold') },
+		{ label: 'Italic',  icon: Italic, action: () => cmd('italic') },
+		{ label: 'Code',    icon: Code2,  action: applyCode },
+		{ label: 'List',    icon: List,   action: () => cmd('insertUnorderedList') },
+		{ label: 'Divider', icon: Minus,  action: applyHRule },
 	];
+
+	const minHeight = `calc(${rows} * 1.6em + 0.5rem)`;
 </script>
 
 <div class="rich-textarea-root">
-	<!-- Toolbar -->
 	<div
 		class="rich-toolbar"
 		class:visible={focused}
@@ -119,31 +118,37 @@
 		{/each}
 	</div>
 
-	<!-- Textarea -->
-	<textarea
-		bind:this={textarea}
-		bind:value
-		{name}
+	<div
+		bind:this={editor}
+		contenteditable="true"
+		role="textbox"
+		aria-multiline="true"
 		{id}
-		{rows}
-		{placeholder}
 		aria-label={ariaLabel}
-		class={className}
-		{style}
+		data-placeholder={placeholder}
+		class="rich-editor {className}"
+		class:ce-focused={focused}
+		style="{style}; min-height: {minHeight};"
+		oninput={syncValue}
 		onfocus={handleFocus}
 		onblur={handleBlur}
-		{...rest}
-	></textarea>
+	></div>
+
+	{#if name}
+		<input type="hidden" {name} {form} bind:value />
+	{/if}
 </div>
 
 <style>
 	.rich-textarea-root {
-		display: flex;
-		flex-direction: column;
-		gap: 0;
+		position: relative;
 	}
 
 	.rich-toolbar {
+		position: absolute;
+		bottom: 100%;
+		left: 0;
+		right: 0;
 		display: flex;
 		gap: 1px;
 		padding: 3px 4px;
@@ -151,17 +156,18 @@
 		border-bottom: none;
 		border-radius: 0.5rem 0.5rem 0 0;
 		background: var(--color-muted);
+		z-index: 10;
+		visibility: hidden;
 		opacity: 0;
-		transform: translateY(4px);
 		pointer-events: none;
 		transition:
 			opacity 150ms ease,
-			transform 150ms ease;
+			visibility 150ms ease;
 	}
 
 	.rich-toolbar.visible {
+		visibility: visible;
 		opacity: 1;
-		transform: translateY(0);
 		pointer-events: auto;
 	}
 
@@ -191,14 +197,45 @@
 		outline-offset: -1px;
 	}
 
-	/* When toolbar is visible, square off the top corners of the textarea */
-	.rich-textarea-root:has(.rich-toolbar.visible) :global(textarea) {
+	.rich-editor.ce-focused {
 		border-top-left-radius: 0 !important;
 		border-top-right-radius: 0 !important;
 	}
 
-	/* Use a slightly softer corner to join with toolbar when not focused */
-	:global(.rich-textarea-root textarea) {
-		transition: border-radius 150ms ease;
+	.rich-editor {
+		padding-bottom: calc(2 * 1.5em);
+	}
+
+	.rich-editor:empty::before {
+		content: attr(data-placeholder);
+		color: var(--color-muted-foreground);
+		opacity: 0.5;
+		pointer-events: none;
+		cursor: text;
+	}
+
+	.rich-editor :global(ul) {
+		list-style: disc;
+		padding-left: 1.25em;
+		margin: 0.25em 0;
+	}
+
+	.rich-editor :global(code) {
+		font-family: ui-monospace, monospace;
+		font-size: 0.875em;
+		background: rgba(127, 127, 127, 0.15);
+		padding: 0.1em 0.3em;
+		border-radius: 3px;
+	}
+
+	.rich-editor :global(hr) {
+		border: none;
+		border-top: 1px solid var(--color-border);
+		margin: 0.4em 0;
+	}
+
+	.rich-editor :global(b),
+	.rich-editor :global(strong) {
+		font-weight: 600;
 	}
 </style>
