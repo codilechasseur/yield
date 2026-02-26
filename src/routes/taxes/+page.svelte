@@ -205,7 +205,7 @@
 				<Receipt size={15} style="color: var(--color-primary)" aria-hidden="true" />
 				<h3 class="font-semibold text-sm" style="color: var(--color-foreground)">GST/HST — {data.year}</h3>
 			</div>
-			<div class="divide-y" style="border-color: var(--color-border)">
+			<div>
 				<div class="px-5 py-3 flex items-center justify-between">
 					<div>
 						<p class="text-sm font-medium" style="color: var(--color-foreground)">Estimated liability</p>
@@ -213,19 +213,19 @@
 					</div>
 					<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(data.taxPosition.gstLiability)}</p>
 				</div>
-				<div class="px-5 py-3 flex items-center justify-between">
+				<div class="border-t px-5 py-3 flex items-center justify-between" style="border-color: var(--color-border)">
 					<div>
 						<p class="text-sm font-medium" style="color: var(--color-foreground)">Remitted to CRA</p>
 						<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">From recorded payments below</p>
 					</div>
 					<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(totalGst)}</p>
 				</div>
-				<div class="px-5 py-3 flex items-center justify-between" style="background-color: var(--color-accent)">
+				<div class="border-t px-5 py-3 flex items-center justify-between" style="border-color: var(--color-border); background-color: var(--color-accent)">
 					<div>
 						<p class="text-sm font-semibold" style="color: var(--color-foreground)">Balance remaining</p>
 						<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Estimated still owed to CRA</p>
 					</div>
-					<p class="text-base font-bold tabular-nums" style="color: {gstBalance > 0 ? 'var(--color-warning, #b45309)' : 'var(--color-foreground)'}">
+					<p class="text-base font-bold tabular-nums" style="color: var(--color-foreground)">
 						{fmt(gstBalance)}
 					</p>
 				</div>
@@ -246,7 +246,7 @@
 					<p class="text-sm" style="color: var(--color-muted-foreground)">Configure an income tax rate in <a href="/settings" class="underline" style="color: var(--color-primary)">Settings</a> to see estimates.</p>
 				</div>
 			{:else}
-				<div class="divide-y" style="border-color: var(--color-border)">
+				<div>
 					<div class="px-5 py-3 flex items-center justify-between">
 						<div>
 							<p class="text-sm font-medium" style="color: var(--color-foreground)">Estimated liability</p>
@@ -254,19 +254,19 @@
 						</div>
 						<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(data.taxPosition.incomeTaxLiability)}</p>
 					</div>
-					<div class="px-5 py-3 flex items-center justify-between">
+					<div class="border-t px-5 py-3 flex items-center justify-between" style="border-color: var(--color-border)">
 						<div>
 							<p class="text-sm font-medium" style="color: var(--color-foreground)">Paid to CRA</p>
 							<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">From recorded payments below</p>
 						</div>
 						<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(totalIncomeTax)}</p>
 					</div>
-					<div class="px-5 py-3 flex items-center justify-between" style="background-color: var(--color-accent)">
+					<div class="border-t px-5 py-3 flex items-center justify-between" style="border-color: var(--color-border); background-color: var(--color-accent)">
 						<div>
 							<p class="text-sm font-semibold" style="color: var(--color-foreground)">Balance remaining</p>
 							<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Estimated still owed to CRA</p>
 						</div>
-						<p class="text-base font-bold tabular-nums" style="color: {itBalance > 0 ? 'var(--color-warning, #b45309)' : 'var(--color-foreground)'}">
+						<p class="text-base font-bold tabular-nums" style="color: var(--color-foreground)">
 							{fmt(itBalance)}
 						</p>
 					</div>
