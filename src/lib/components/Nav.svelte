@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { LayoutDashboard, Users, FileText, PlusCircle, Settings, BarChart2, Landmark, LogOut, Menu, X, Bug } from 'lucide-svelte';
+	import { LayoutDashboard, Users, FileText, PlusCircle, Settings, BarChart2, Landmark, LogOut, Menu, X, Bug, Zap } from 'lucide-svelte';
 	import { debugState } from '$lib/debug.svelte.js';
+	import QuickAddItem from '$lib/components/QuickAddItem.svelte';
 
 	let { authEnabled = false }: { authEnabled?: boolean } = $props();
+
+	let quickAddOpen = $state(false);
 
 	const links = [
 		{ href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -81,12 +84,21 @@
 
 	<!-- Quick action -->
 	<div class="px-3 py-4 border-t" style="border-color: var(--color-border)">
+		<button
+			type="button"
+			onclick={() => quickAddOpen = true}
+			class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 mb-2"
+			style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+		>
+			<Zap size={16} aria-hidden="true" />
+			Quick Add Item
+		</button>
 		<a
 			href="/invoices/new"
 			class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-			style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+			style="background-color: var(--color-primary); color: var(--color-primary-foreground); opacity: 0.85"
 		>
-			<PlusCircle size={16} />
+			<PlusCircle size={16} aria-hidden="true" />
 			New Invoice
 		</a>
 
@@ -214,13 +226,22 @@
 
 		<!-- Drawer footer -->
 		<div class="px-3 py-4 border-t" style="border-color: var(--color-border)">
+			<button
+				type="button"
+				onclick={() => { close(); quickAddOpen = true; }}
+				class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium mb-2"
+				style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+			>
+				<Zap size={16} aria-hidden="true" />
+				Quick Add Item
+			</button>
 			<a
 				href="/invoices/new"
 				onclick={close}
 				class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium"
-				style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+				style="background-color: var(--color-primary); color: var(--color-primary-foreground); opacity: 0.85"
 			>
-				<PlusCircle size={16} />
+				<PlusCircle size={16} aria-hidden="true" />
 				New Invoice
 			</a>
 
@@ -240,3 +261,5 @@
 		</div>
 	</div>
 {/if}
+<!-- Quick Add Item dialog — rendered once, outside the sidebar DOM flow -->
+<QuickAddItem open={quickAddOpen} onclose={() => quickAddOpen = false} />
