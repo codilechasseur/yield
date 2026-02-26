@@ -4,6 +4,8 @@
 	import { Users, Plus, Trash2, Mail, MapPin, Archive, ArchiveRestore, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-svelte';
 	import { formatCurrency } from '$lib/pocketbase.js';
 	import { addToast } from '$lib/toasts.svelte.js';
+	import RichTextarea from '$lib/components/RichTextarea.svelte';
+	import FormAlert from '$lib/components/FormAlert.svelte';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -110,11 +112,7 @@
 	</div>
 
 	<!-- Error from form action -->
-	{#if form?.error}
-		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
-			{form.error}
-		</div>
-	{/if}
+	<FormAlert message={form?.error} />
 
 	<!-- Bulk action bar -->
 	{#if selectedIds.size > 0}
@@ -259,14 +257,14 @@
 					<label for="new-address" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
 						Address
 					</label>
-					<textarea
+					<RichTextarea
 						id="new-address"
 						name="address"
-						rows="2"
+						rows={2}
 						placeholder="123 Main St, City, State ZIP"
 						class="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"
 						style="background-color: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-					></textarea>
+					/>
 				</div>
 				<div>
 					<label for="new-currency" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
@@ -292,6 +290,21 @@
 						name="harvest_id"
 						placeholder="12345"
 						class="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-primary/20"
+						style="background-color: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+					/>
+				</div>
+				<div>
+					<label for="new-hourly-rate" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
+						Default Hourly Rate (optional)
+					</label>
+					<input
+						id="new-hourly-rate"
+						name="default_hourly_rate"
+						type="number"
+						min="0"
+						step="0.01"
+						placeholder="Use global default"
+						class="w-full px-3 py-2 rounded-lg border text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20"
 						style="background-color: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 					/>
 				</div>
@@ -456,7 +469,7 @@
 								{/if}								{#if client.address}
 									<span class="flex items-center gap-1 text-xs" style="color: var(--color-muted-foreground)">
 										<MapPin size={11} />
-										<span class="truncate max-w-56">{client.address}</span>
+										<span class="truncate max-w-56">{client.address?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()}</span>
 									</span>
 								{/if}							</div>
 					{/if}

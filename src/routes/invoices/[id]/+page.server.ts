@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
-import type { Invoice, InvoiceItem, Client, InvoiceLog } from '$lib/types.js';
+import type { Invoice, InvoiceItem, Client, InvoiceLog, Contact } from '$lib/types.js';
 import { sendInvoiceEmail, getSmtpSettings, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, interpolateEmailTemplate } from '$lib/mail.server.js';
 
 export async function load({ params }) {
@@ -23,6 +23,15 @@ export async function load({ params }) {
 
 		const client = invoice.expand?.client ?? null;
 		const currency = client?.currency ?? 'USD';
+
+		// Load contacts for the invoice's client
+		const contacts = client
+			? await pb.collection('contacts').getFullList<Contact>({
+					filter: `client = "${client.id}"`,
+					sort: 'first_name,last_name'
+				}).catch(() => [] as Contact[])
+			: [] as Contact[];
+
 		const subtotal = items.reduce((s: number, i: InvoiceItem) => s + i.quantity * i.unit_price, 0);
 		const total = subtotal * (1 + invoice.tax_percent / 100);
 		const fmtCurrency = (n: number) =>
@@ -47,7 +56,7 @@ export async function load({ params }) {
 			smtp?.email_body?.trim() || DEFAULT_EMAIL_BODY, vars
 		);
 
-		return { invoice, items, logs, emailSubject, emailBody, smtpConfigured: !!(smtp?.smtp_host && smtp?.smtp_from_email) };
+		return { invoice, items, logs, contacts, emailSubject, emailBody, smtpConfigured: !!(smtp?.smtp_host && smtp?.smtp_from_email) };
 	} catch {
 		throw error(404, 'Invoice not found');
 	}
@@ -165,6 +174,7 @@ export const actions = {
 		const fd = await request.formData();
 		const message = fd.get('message')?.toString().trim() || undefined;
 		const extraRecipientsRaw = fd.get('extra_recipients')?.toString().trim() || '';
+		const contactIdsRaw = fd.getAll('contact_ids').map((v) => v.toString()).filter(Boolean);
 
 		// Parse comma-separated extra recipients; accept only strings containing '@'
 		const extraEmails = extraRecipientsRaw
@@ -173,20 +183,43 @@ export const actions = {
 			.filter((e) => e.includes('@'));
 
 		let clientEmail = '';
+		let clientId = '';
 		let toName = '';
 		try {
 			const inv = await pb
 				.collection('invoices')
 				.getOne<Invoice & { expand: { client: Client } }>(params.id, { expand: 'client' });
 			clientEmail = inv.expand?.client?.email ?? '';
+			clientId = inv.expand?.client?.id ?? '';
 			toName = inv.expand?.client?.name ?? '';
 		} catch {
 			return fail(404, { sendError: 'Invoice not found.' });
 		}
 
-		const allEmails = [clientEmail, ...extraEmails].filter(Boolean);
+		// Resolve emails from selected contact IDs
+		const contactEmails: string[] = [];
+		if (contactIdsRaw.length > 0 && clientId) {
+			try {
+				const contacts = await pb.collection('contacts').getFullList<Contact>({
+					filter: `client = "${clientId}"`,
+					fields: 'id,email'
+				});
+				const contactMap = new Map(contacts.map((c) => [c.id, c.email]));
+				for (const id of contactIdsRaw) {
+					const email = contactMap.get(id);
+					if (email) contactEmails.push(email);
+				}
+			} catch {
+				// Non-critical — fall through to client.email fallback
+			}
+		}
+
+		// Build recipient list: contact emails (if any selected) + extra, else fall back to client.email
+		const primaryEmails = contactEmails.length > 0 ? contactEmails : (clientEmail ? [clientEmail] : []);
+		const allEmails = [...new Set([...primaryEmails, ...extraEmails])].filter(Boolean);
+
 		if (allEmails.length === 0) {
-			return fail(400, { sendError: 'No recipients specified. Add an email address to the client or enter additional recipients below.' });
+			return fail(400, { sendError: 'No recipients specified. Add a contact with an email address or enter additional recipients below.' });
 		}
 
 		const toEmail = allEmails.length === 1 ? allEmails[0] : allEmails;
@@ -218,5 +251,20 @@ export const actions = {
 		}
 
 		return { sendSuccess: true };
+	},
+
+	logEmail: async ({ params }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		try {
+			await pb.collection('invoice_logs').create({
+				invoice: params.id,
+				action: 'email_sent',
+				detail: 'Email marked as sent manually',
+				occurred_at: new Date().toISOString()
+			});
+		} catch {
+			return fail(500, { error: 'Failed to log email' });
+		}
+		return { logEmailSuccess: true };
 	}
 };

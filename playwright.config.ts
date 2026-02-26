@@ -14,9 +14,18 @@ export default defineConfig({
 	},
 
 	projects: [
+		// Run the auth setup first (creates password + logs in, saves storageState)
+		{
+			name: 'setup',
+			testMatch: /auth\.setup\.ts/
+		},
 		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] }
+			use: {
+				...devices['Desktop Chrome'],
+				storageState: 'tests/e2e/.auth/user.json'
+			},
+			dependencies: ['setup']
 		}
 	],
 
@@ -29,7 +38,8 @@ export default defineConfig({
 				reuseExistingServer: true,
 				timeout: 60_000,
 				env: {
-					PB_URL: process.env.PB_URL || 'http://localhost:8090'
+					PB_URL: process.env.PB_URL || 'http://localhost:8090',
+					...(process.env.APP_PASSWORD ? { APP_PASSWORD: process.env.APP_PASSWORD } : {})
 				}
 		  }
 });

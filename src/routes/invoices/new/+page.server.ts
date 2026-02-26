@@ -57,6 +57,7 @@ export const actions = {
 			return fail(400, { error: 'Invalid line items' });
 		}
 
+		let invoiceId: string;
 		try {
 			// Fetch settings to auto-increment invoice number after creation
 			const settingsRecord = await getSmtpSettings(pb).catch(() => null);
@@ -71,6 +72,7 @@ export const actions = {
 				tax_percent,
 				notes
 			});
+			invoiceId = invoice.id;
 
 			for (const item of items) {
 				await pb.collection('invoice_items').create({
@@ -86,7 +88,7 @@ export const actions = {
 				action: 'invoice_created',
 				detail: 'Invoice created',
 				occurred_at: new Date().toISOString()
-			});
+			}).catch(() => { /* non-critical */ });
 
 			// Auto-increment the next invoice number in settings if the user used the suggested number
 			if (settingsRecord?.id && settingsRecord.invoice_next_number) {
@@ -98,11 +100,11 @@ export const actions = {
 					}).catch(() => { /* non-critical */ });
 				}
 			}
-
-			return redirect(302, `/invoices/${invoice.id}`);
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : 'Failed to create invoice';
 			return fail(500, { error: msg });
 		}
+
+		return redirect(302, `/invoices/${invoiceId}`);
 	}
 };

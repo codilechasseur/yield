@@ -1,4 +1,4 @@
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import { getSmtpSettings } from '$lib/mail.server.js';
@@ -91,17 +91,20 @@ export const actions = {
 		const address = data.get('address')?.toString().trim() ?? '';
 		const currency = data.get('currency')?.toString().trim() || 'USD';
 		const harvest_id = data.get('harvest_id')?.toString().trim() ?? '';
+		const default_hourly_rate = parseFloat(data.get('default_hourly_rate')?.toString() ?? '0') || 0;
 
 		if (!name) return fail(400, { error: 'Name is required' });
 
+		let newClientId: string;
 		try {
-			await pb.collection('clients').create({ name, email, address, currency, harvest_id, archived: false });
+			const newClient = await pb.collection('clients').create({ name, email, address, currency, harvest_id, default_hourly_rate, archived: false });
+			newClientId = newClient.id;
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : 'Failed to create client';
 			return fail(500, { error: msg });
 		}
 
-		return { success: true };
+		redirect(303, `/clients/${newClientId}`);
 	},
 
 	archive: async ({ request }) => {

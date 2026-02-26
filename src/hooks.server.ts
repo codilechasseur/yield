@@ -59,8 +59,13 @@ async function getPasswordHash(): Promise<string | null> {
 export const handle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 
-	// Always pass through the login route (and SvelteKit internals)
-	if (path.startsWith('/login') || path.startsWith('/__data') || path.startsWith('/_app/')) {
+	// Always pass through the login/setup routes (and SvelteKit internals)
+	if (
+		path.startsWith('/login') ||
+		path.startsWith('/setup') ||
+		path.startsWith('/__data') ||
+		path.startsWith('/_app/')
+	) {
 		event.locals.authEnabled = false;
 		event.locals.authed = false;
 		return resolve(event);
@@ -71,8 +76,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.authEnabled = authEnabled;
 
 	if (!authEnabled) {
-		event.locals.authed = false;
-		return resolve(event);
+		// No password has been configured yet — force the user to create one.
+		redirect(302, '/setup');
 	}
 
 	const token = event.cookies.get(SESSION_COOKIE);

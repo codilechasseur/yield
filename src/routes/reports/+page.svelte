@@ -44,14 +44,14 @@
 	</div>
 
 	<!-- Controls -->
-	<form method="GET" class="flex flex-wrap items-start gap-3 mb-6">
+	<form method="GET" class="flex flex-wrap items-center gap-3 mb-6">
 		<!-- Year -->
 		<div class="flex items-center gap-2">
 			<label class="text-sm font-medium" style="color: var(--color-foreground)" for="year-select">Year</label>
 			<select
 				id="year-select"
 				name="year"
-				onchange={() => (document.querySelector('form') as HTMLFormElement)?.requestSubmit()}
+				onchange={(e) => (e.currentTarget as HTMLSelectElement).form?.requestSubmit()}
 				class="rounded-lg border px-3 py-1.5 text-sm"
 				style="background-color: var(--color-card); border-color: var(--color-border); color: var(--color-foreground)"
 			>
@@ -67,7 +67,7 @@
 			<select
 				id="basis-select"
 				name="basis"
-				onchange={() => (document.querySelector('form') as HTMLFormElement)?.requestSubmit()}
+				onchange={(e) => (e.currentTarget as HTMLSelectElement).form?.requestSubmit()}
 				class="rounded-lg border px-3 py-1.5 text-sm"
 				style="background-color: var(--color-card); border-color: var(--color-border); color: var(--color-foreground)"
 			>

@@ -2,6 +2,10 @@
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { ArrowLeft, Plus, Trash2, Settings2 } from 'lucide-svelte';
+	import DatePicker from '$lib/components/DatePicker.svelte';
+	import RichTextarea from '$lib/components/RichTextarea.svelte';
+	import QuickAddClient from '$lib/components/QuickAddClient.svelte';
+	import FormAlert from '$lib/components/FormAlert.svelte';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -15,8 +19,19 @@
 
 	let items = $state<LineItem[]>([{ id: 1, description: '', quantity: 1, unit_price: 0 }]);
 	let taxPercent = $state<number>(untrack(() => data.defaultTaxPercent ?? 5));
+	let notes = $state(untrack(() => data.defaultNotes ?? ''));
 	let submitting = $state(false);
 	let nextId = $state(2);
+	let selectedClientId = $state(untrack(() => data.preselectedClient ?? ''));
+
+	const selectedClient = $derived(data.clients.find((c) => c.id === selectedClientId) ?? null);
+
+	$effect(() => {
+		const rate = selectedClient?.default_hourly_rate;
+		if (rate != null && rate > 0) {
+			items = items.map((item) => (item.unit_price === 0 ? { ...item, unit_price: rate } : item));
+		}
+	});
 
 	// Today and 30 days out
 	const today = new Date().toISOString().split('T')[0];
@@ -49,7 +64,8 @@
 	);
 
 	function addItem() {
-		items = [...items, { id: nextId++, description: '', quantity: 1, unit_price: 0 }];
+		const defaultRate = selectedClient?.default_hourly_rate ?? 0;
+		items = [...items, { id: nextId++, description: '', quantity: 1, unit_price: defaultRate }];
 	}
 
 	function removeItem(id: number) {
@@ -84,9 +100,7 @@
 
 	<h2 class="text-2xl font-bold mb-6" style="color: var(--color-foreground)">New Invoice</h2>
 
-	{#if form?.error}
-		<div role="alert" class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">{form.error}</div>
-	{/if}
+	<FormAlert message={form?.error} />
 
 	<form
 		method="POST"
@@ -114,23 +128,15 @@
 
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 				<div>
-					<label for="new-client" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Client *</label>
-					<select id="new-client" name="client" required
-						class="w-full px-3 py-2 rounded-lg border text-sm"
-						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-					>
-						<option value="">Select a client…</option>
-						{#each data.clients as c}
-							<option value={c.id} selected={c.id === data.preselectedClient}>{c.name}</option>
-						{/each}
-					</select>
+					<QuickAddClient
+						clients={data.clients}
+						bind:selectedId={selectedClientId}
+						inputId="new-client"
+					/>
 				</div>
 				<div>
 					<label for="new-issue-date" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Issue Date</label>
-					<input id="new-issue-date" type="date" name="issue_date" bind:value={issueDateVal}
-						class="w-full px-3 py-2 rounded-lg border text-sm"
-						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-					/>
+					<DatePicker id="new-issue-date" name="issue_date" bind:value={issueDateVal} />
 				</div>
 
 				{#if showAdvanced}
@@ -167,10 +173,7 @@
 					{#if paymentTerms === 'custom'}
 						<div>
 							<label for="inp-due" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Due Date</label>
-							<input id="inp-due" type="date" name="due_date" bind:value={customDueDate}
-								class="w-full px-3 py-2 rounded-lg border text-sm"
-								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-							/>
+							<DatePicker id="inp-due" name="due_date" bind:value={customDueDate} />
 						</div>
 					{:else}
 						<input type="hidden" name="due_date" value={computedDueDate} />
@@ -205,7 +208,7 @@
 			</div>
 
 			<!-- Desktop header (hidden on mobile) -->
-		<div class="hidden sm:grid px-4 py-2 border-b"
+		<div class="hidden sm:grid sm:gap-2 px-4 py-2 border-b"
 			style="border-color: var(--color-border); grid-template-columns: 1fr 6rem 8rem 7rem 2.5rem">
 			<span class="text-xs font-medium" style="color: var(--color-muted-foreground)">Description</span>
 			<span class="text-xs font-medium text-right" style="color: var(--color-muted-foreground)">Qty</span>
@@ -221,11 +224,11 @@
 					<!-- Description — full width on mobile, first col on desktop -->
 					<div>
 						<span class="block text-xs font-medium mb-1 sm:hidden" style="color: var(--color-muted-foreground)">Description</span>
-						<textarea bind:value={item.description} placeholder="Service description" rows="2"
-							aria-label="Item description"
-							class="w-full px-2 py-1.5 rounded border text-sm resize-y"
-							style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-						></textarea>
+					<RichTextarea bind:value={item.description} placeholder="Service description" rows={2}
+						aria-label="Item description"
+						class="w-full px-2 py-1.5 rounded border text-sm"
+						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+					/>
 					</div>
 					<!-- Qty / Unit Price / Amount / Delete — stacked row on mobile -->
 					<div class="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 sm:contents">
@@ -286,10 +289,11 @@
 		<!-- Notes -->
 		<div class="rounded-xl border p-4 md:p-6" style="background: var(--color-card); border-color: var(--color-border)">
 			<label for="new-notes" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Notes</label>
-			<textarea id="new-notes" name="notes" rows="3" placeholder="Payment terms, thank you message…"
+			<RichTextarea id="new-notes" name="notes" rows={3} placeholder="Payment terms, thank you message…"
+				bind:value={notes}
 				class="w-full px-3 py-2 rounded-lg border text-sm resize-none"
 				style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-			>{data.defaultNotes}</textarea>
+			/>
 		</div>
 
 		<!-- Submit -->

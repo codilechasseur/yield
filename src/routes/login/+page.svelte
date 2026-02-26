@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import FormAlert from '$lib/components/FormAlert.svelte';
 	import type { ActionData } from './$types.js';
 
 	let { form }: { form: ActionData } = $props();
@@ -39,11 +40,7 @@
 		<h2 class="text-lg font-semibold mb-1" style="color: var(--color-foreground)">Sign in</h2>
 		<p class="text-sm mb-6" style="color: var(--color-muted-foreground)">Enter your password to continue.</p>
 
-		{#if form?.error}
-			<div class="mb-4 px-4 py-3 rounded-lg text-sm" style="background-color: color-mix(in oklch, var(--color-destructive) 12%, transparent); color: var(--color-destructive)">
-				{form.error}
-			</div>
-		{/if}
+		<FormAlert message={form?.error} />
 
 		<form
 			method="POST"

@@ -7,7 +7,21 @@ export interface Client {
 	address: string;
 	currency: string;
 	harvest_id: string;
+	default_hourly_rate?: number;
 	archived: boolean;
+	created: string;
+	updated: string;
+}
+
+export interface Contact {
+	id: string;
+	client: string;
+	first_name: string;
+	last_name: string;
+	email: string;
+	title: string;
+	phone: string;
+	harvest_id: string;
 	created: string;
 	updated: string;
 }

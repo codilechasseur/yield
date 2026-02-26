@@ -41,6 +41,8 @@ export interface SmtpSettings {
 	invoice_number_format?: string;
 	/** The next invoice number to use when creating an invoice. Auto-increments after each creation. */
 	invoice_next_number?: number;
+	/** Default hourly rate applied to new invoice line items. */
+	default_hourly_rate?: number;
 	/** Filename of the uploaded logo stored in PocketBase (empty string = no logo). */
 	logo?: string;
 	/** When true, the company name text is hidden in the PDF header (useful when the logo already contains the name). */
@@ -203,7 +205,7 @@ export function buildInvoiceHtml(
     <div>
       ${logoUrl ? `<img src="${logoUrl}" alt="${companyName} logo" style="max-height:56px;max-width:180px;width:auto;height:auto;display:block;object-fit:contain;${hideCompanyName ? '' : 'margin-bottom:8px;'}" />` : ''}
       ${hideCompanyName ? '' : `<p style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;line-height:1.1;">${companyName}</p>`}
-      ${companyAddress ? `<p style="font-size:11px;color:${c.mutedFg};margin-top:5px;white-space:pre-line;line-height:1.6;">${companyAddress}</p>` : ''}
+      ${companyAddress ? `<div style="font-size:11px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${companyAddress}</div>` : ''}
     </div>
     <!-- Invoice label + number + issue date -->
     <div style="text-align:right;">
@@ -224,7 +226,7 @@ export function buildInvoiceHtml(
         ${client
           ? `<p style="font-size:14px;font-weight:600;color:${c.fg};line-height:1.35;">${client.name}</p>
              ${client.email    ? `<p style="font-size:12px;color:${c.mutedFg};margin-top:3px;">${client.email}</p>` : ''}
-             ${client.address  ? `<p style="font-size:12px;color:${c.mutedFg};margin-top:5px;white-space:pre-line;line-height:1.6;">${client.address}</p>` : ''}`
+             ${client.address  ? `<div style="font-size:12px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${client.address}</div>` : ''}`
           : `<p style="color:${c.mutedFg};">—</p>`}
       </div>
       <!-- Due Date -->
@@ -282,12 +284,12 @@ export function buildInvoiceHtml(
     ${invoice.notes || opts?.defaultNotes ? `
     <div style="margin-top:28px;padding:16px 20px;border:1px solid ${c.borderLight};">
       <p style="${lbl}margin-bottom:6px;">Notes</p>
-      <p style="font-size:12.5px;color:${c.mutedFg};white-space:pre-line;line-height:1.7;">${invoice.notes || opts?.defaultNotes}</p>
+      <div style="font-size:12.5px;color:${c.mutedFg};line-height:1.7;">${invoice.notes || opts?.defaultNotes}</div>
     </div>` : ''}
 
     ${opts?.invoiceFooter ? `
     <div style="margin-top:${invoice.notes || opts?.defaultNotes ? '20px' : '28px'};padding-top:0;">
-      <p style="font-size:10px;color:${c.subtleFg};white-space:pre-line;line-height:1.75;">${opts.invoiceFooter}</p>
+      <div style="font-size:10px;color:${c.subtleFg};line-height:1.75;">${opts.invoiceFooter}</div>
     </div>` : ''}
   </div>
 
