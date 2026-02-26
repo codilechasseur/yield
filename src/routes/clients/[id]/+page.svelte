@@ -12,6 +12,9 @@
 	let editing = $state(false);
 	let saving = $state(false);
 	let editAddress = $state(data.client.address ?? '');
+	$effect(() => {
+		editAddress = data.client.address ?? '';
+	});
 
 	// Contacts state
 	let showAddContact = $state(false);
