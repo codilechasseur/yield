@@ -10,8 +10,8 @@ test.describe('Dashboard', () => {
 		await expect(page).toHaveURL('/');
 
 		// Stat card headings are always rendered regardless of data
-		await expect(page.getByText('Outstanding')).toBeVisible();
-		await expect(page.getByText('Overdue')).toBeVisible();
+		await expect(page.getByText('Outstanding').first()).toBeVisible();
+		await expect(page.getByText('Overdue').first()).toBeVisible();
 	});
 
 	test('page title includes Yield', async ({ page }) => {
@@ -35,7 +35,7 @@ test.describe('Invoices', () => {
 	test('navigating to New Invoice page loads the form', async ({ page }) => {
 		await page.goto('/invoices/new');
 		// Client selector is always visible on load (invoice number is behind "advanced" toggle)
-		await expect(page.getByLabel(/Client/i)).toBeVisible();
+		await expect(page.getByLabel('Client *', { exact: true })).toBeVisible();
 	});
 });
 

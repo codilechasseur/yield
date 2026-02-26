@@ -38,7 +38,8 @@ export default defineConfig({
 				reuseExistingServer: true,
 				timeout: 60_000,
 				env: {
-					PB_URL: process.env.PB_URL || 'http://localhost:8090'
+					PB_URL: process.env.PB_URL || 'http://localhost:8090',
+					...(process.env.APP_PASSWORD ? { APP_PASSWORD: process.env.APP_PASSWORD } : {})
 				}
 		  }
 });

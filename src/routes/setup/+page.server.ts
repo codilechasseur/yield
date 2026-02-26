@@ -6,14 +6,17 @@ import { getSmtpSettings } from '$lib/mail.server.js';
 
 export async function load() {
 	// If a password is already configured, setup is not needed.
+	let hasPassword = false;
 	try {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const records = await pb.collection('settings').getFullList({ requestKey: null });
-		if (records[0]?.app_password_hash) {
-			redirect(302, '/');
-		}
+		hasPassword = Boolean(records[0]?.app_password_hash);
 	} catch {
 		// DB may not be ready yet — show the setup page anyway
+	}
+
+	if (hasPassword) {
+		redirect(302, '/');
 	}
 
 	return {};

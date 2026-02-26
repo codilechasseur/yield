@@ -18,7 +18,7 @@ setup('authenticate', async ({ page }) => {
 
 	// Case 2: redirected to /login — password already configured, just log in
 	if (page.url().includes('/login')) {
-		await page.getByLabel(/Password/i).fill(TEST_PASSWORD);
+		await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD);
 		await page.getByRole('button', { name: /Sign in/i }).click();
 		await expect(page).toHaveURL('/');
 	}
