@@ -1,14 +1,18 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { LayoutDashboard, Users, FileText, PlusCircle, Settings, BarChart2, Landmark, LogOut, Menu, X } from 'lucide-svelte';
+	import { LayoutDashboard, Users, FileText, PlusCircle, Settings, BarChart2, Landmark, LogOut, Menu, X, Bug, Zap } from 'lucide-svelte';
+	import { debugState } from '$lib/debug.svelte.js';
+	import QuickAddItem from '$lib/components/QuickAddItem.svelte';
 
 	let { authEnabled = false }: { authEnabled?: boolean } = $props();
+
+	let quickAddOpen = $state(false);
 
 	const links = [
 		{ href: '/', label: 'Dashboard', icon: LayoutDashboard },
 		{ href: '/invoices', label: 'Invoices', icon: FileText },
 		{ href: '/reports', label: 'Reports', icon: BarChart2 },
-		{ href: '/taxes', label: 'Taxes Paid', icon: Landmark },
+		{ href: '/taxes', label: 'Taxes', icon: Landmark },
 		{ href: '/clients', label: 'Clients', icon: Users },
 		{ href: '/settings', label: 'Settings', icon: Settings }
 	];
@@ -59,16 +63,42 @@
 				{link.label}
 			</a>
 		{/each}
+		{#if debugState.enabled}
+			{@const active = $page.url.pathname === '/debug'}
+			<a
+				href="/debug"
+				aria-current={active ? 'page' : undefined}
+				class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative"
+				style={active
+					? 'background-color: var(--color-accent); color: var(--color-primary); font-weight: 600'
+					: 'color: var(--color-muted-foreground)'}
+			>
+				{#if active}
+					<span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full" aria-hidden="true" style="background-color: var(--color-primary)"></span>
+				{/if}
+				<Bug size={17} aria-hidden="true" />
+				Debug
+			</a>
+		{/if}
 	</nav>
 
 	<!-- Quick action -->
 	<div class="px-3 py-4 border-t" style="border-color: var(--color-border)">
+		<button
+			type="button"
+			onclick={() => quickAddOpen = true}
+			class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 mb-2"
+			style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+		>
+			<Zap size={16} aria-hidden="true" />
+			Quick Add Item
+		</button>
 		<a
 			href="/invoices/new"
 			class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-			style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+			style="background-color: var(--color-primary); color: var(--color-primary-foreground); opacity: 0.85"
 		>
-			<PlusCircle size={16} />
+			<PlusCircle size={16} aria-hidden="true" />
 			New Invoice
 		</a>
 
@@ -174,17 +204,44 @@
 					{link.label}
 				</a>
 			{/each}
+			{#if debugState.enabled}
+				{@const active = $page.url.pathname === '/debug'}
+				<a
+					href="/debug"
+					onclick={close}
+					aria-current={active ? 'page' : undefined}
+					class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors relative"
+					style={active
+						? 'background-color: var(--color-accent); color: var(--color-primary); font-weight: 600'
+						: 'color: var(--color-muted-foreground)'}
+				>
+					{#if active}
+						<span class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full" aria-hidden="true" style="background-color: var(--color-primary)"></span>
+					{/if}
+					<Bug size={18} aria-hidden="true" />
+					Debug
+				</a>
+			{/if}
 		</nav>
 
 		<!-- Drawer footer -->
 		<div class="px-3 py-4 border-t" style="border-color: var(--color-border)">
+			<button
+				type="button"
+				onclick={() => { close(); quickAddOpen = true; }}
+				class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium mb-2"
+				style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+			>
+				<Zap size={16} aria-hidden="true" />
+				Quick Add Item
+			</button>
 			<a
 				href="/invoices/new"
 				onclick={close}
 				class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium"
-				style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+				style="background-color: var(--color-primary); color: var(--color-primary-foreground); opacity: 0.85"
 			>
-				<PlusCircle size={16} />
+				<PlusCircle size={16} aria-hidden="true" />
 				New Invoice
 			</a>
 
@@ -204,3 +261,5 @@
 		</div>
 	</div>
 {/if}
+<!-- Quick Add Item dialog — rendered once, outside the sidebar DOM flow -->
+<QuickAddItem open={quickAddOpen} onclose={() => quickAddOpen = false} />

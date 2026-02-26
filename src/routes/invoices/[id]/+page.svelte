@@ -47,10 +47,13 @@
 	let showDeleteConfirm = $state(false);
 
 	// Contact recipients for send panel: set of contact IDs to include
-	let selectedContactIds = $state(new Set<string>(
-		// Pre-select contacts that have an email address
-		(data.contacts ?? []).filter((c) => c.email).map((c) => c.id)
-	));
+	let selectedContactIds: Set<string> = $state(new Set());
+	// Re-initialize whenever data.contacts changes (navigation / form action reload)
+	$effect(() => {
+		selectedContactIds = new Set<string>(
+			(data.contacts ?? []).filter((c) => c.email).map((c) => c.id)
+		);
+	});
 
 	function toggleContact(id: string) {
 		const next = new Set(selectedContactIds);
@@ -288,8 +291,6 @@
 	{/if}
 
 	<FormAlert message={form?.error} />
-	<FormAlert message={form?.sendError} />
-	<FormAlert message={form?.sendSuccess ? 'Invoice sent successfully.' : null} variant="success" />
 
 	<!-- Record Payment panel -->
 	{#if showPayment}
@@ -371,11 +372,17 @@
 				class="flex flex-col gap-3"
 				use:enhance={() => {
 					sendSubmitting = true;
-					return async ({ update }) => {
+					return async ({ update, result }) => {
 						sendSubmitting = false;
+						if (result.type === 'failure' && result.data?.sendError) {
+							addToast(String(result.data.sendError), 'error');
+							await update({ reset: false });
+							return;
+						}
 						showSend = false;
 						sendMessage = '';
 						extraRecipients = '';
+						addToast('Invoice sent successfully.');
 						await update();
 					};
 				}}

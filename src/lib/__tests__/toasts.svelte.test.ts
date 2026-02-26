@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { addToast, removeToast, clearToasts, toasts } from '../toasts.svelte.js';
+import { clearDebugLog, setDebugEnabled } from '../debug.svelte.js';
 
 beforeEach(() => {
 	clearToasts();
+	clearDebugLog();
+	setDebugEnabled(false);
 	vi.useFakeTimers();
 });
 

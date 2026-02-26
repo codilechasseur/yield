@@ -1,7 +1,8 @@
 import { fail } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
-import type { TaxPayment } from '$lib/types.js';
+import type { Invoice, InvoiceItem, TaxPayment } from '$lib/types.js';
+import { getSmtpSettings } from '$lib/mail.server.js';
 
 export async function load({ url }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -11,14 +12,56 @@ export async function load({ url }) {
 
 	const availableYears = Array.from({ length: 8 }, (_, i) => currentYear - i);
 
+	const emptyTaxPosition = { gstLiability: 0, incomeTaxLiability: 0 };
+
 	try {
-		const payments = await pb.collection('tax_payments').getFullList<TaxPayment>({
-			filter: `payment_date >= "${year}-01-01 00:00:00" && payment_date <= "${year}-12-31 23:59:59"`,
-			sort: '-payment_date'
-		});
-		return { payments, year, availableYears };
+		const settings = await getSmtpSettings(pb).catch(() => null);
+		const incomeTaxRate = settings?.income_tax_rate ?? 0;
+
+		const dateFilter = `invoice.issue_date >= "${year}-01-01 00:00:00" && invoice.issue_date <= "${year}-12-31 23:59:59"`;
+
+		const [payments, accrualItems] = await Promise.all([
+			pb.collection('tax_payments').getFullList<TaxPayment>({
+				filter: `payment_date >= "${year}-01-01 00:00:00" && payment_date <= "${year}-12-31 23:59:59"`,
+				sort: '-payment_date'
+			}),
+			pb
+				.collection('invoice_items')
+				.getFullList<InvoiceItem & { expand: { invoice: Invoice } }>({
+					filter: `invoice.status != "draft" && ${dateFilter}`,
+					expand: 'invoice',
+					sort: 'invoice.issue_date'
+				})
+		]);
+
+		function aggregateTax(
+			itemList: (InvoiceItem & { expand: { invoice: Invoice } })[]
+		): { gst: number; incomeTax: number } {
+			const invMap = new Map<string, { invoice: Invoice; subtotal: number }>();
+			for (const item of itemList) {
+				const inv = item.expand?.invoice;
+				if (!inv) continue;
+				if (!invMap.has(inv.id)) invMap.set(inv.id, { invoice: inv, subtotal: 0 });
+				invMap.get(inv.id)!.subtotal += item.quantity * item.unit_price;
+			}
+			let gst = 0, incomeTax = 0;
+			for (const { invoice: inv, subtotal: sub } of invMap.values()) {
+				gst += sub * ((inv.tax_percent ?? 0) / 100);
+				incomeTax += sub * (incomeTaxRate / 100);
+			}
+			return { gst, incomeTax };
+		}
+
+		const accrualTax = aggregateTax(accrualItems);
+
+		const taxPosition = {
+			gstLiability: accrualTax.gst,
+			incomeTaxLiability: accrualTax.incomeTax
+		};
+
+		return { payments, year, availableYears, incomeTaxRate, taxPosition };
 	} catch {
-		return { payments: [] as TaxPayment[], year, availableYears };
+		return { payments: [] as TaxPayment[], year, availableYears, incomeTaxRate: 0, taxPosition: emptyTaxPosition };
 	}
 }
 

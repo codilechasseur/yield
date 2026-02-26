@@ -76,7 +76,8 @@ export const actions = {
 				harvest_id: ''
 			});
 		} catch (e: unknown) {
-			return fail(500, { contactError: 'Failed to add contact' });
+			const msg = e instanceof Error ? e.message : 'Failed to add contact';
+			return fail(500, { contactError: msg });
 		}
 
 		return { contactSuccess: true };
@@ -104,7 +105,8 @@ export const actions = {
 
 			await pb.collection('contacts').update(contactId, { first_name, last_name, email, title, phone });
 		} catch (e: unknown) {
-			return fail(500, { contactError: 'Failed to update contact' });
+			const msg = e instanceof Error ? e.message : 'Failed to update contact';
+			return fail(500, { contactError: msg });
 		}
 
 		return { contactSuccess: true };
@@ -124,7 +126,8 @@ export const actions = {
 
 			await pb.collection('contacts').delete(contactId);
 		} catch (e: unknown) {
-			return fail(500, { contactError: 'Failed to delete contact' });
+			const msg = e instanceof Error ? e.message : 'Failed to delete contact';
+			return fail(500, { contactError: msg });
 		}
 
 		return { contactSuccess: true };

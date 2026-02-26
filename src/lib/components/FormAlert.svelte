@@ -14,7 +14,7 @@
 
 	let { message, variant = 'error', class: className = 'mb-4' }: Props = $props();
 
-	const colorVar = variant === 'error' ? 'var(--color-destructive)' : 'var(--color-success)';
+	const colorVar = $derived(variant === 'error' ? 'var(--color-destructive)' : 'var(--color-success)');
 </script>
 
 {#if message}

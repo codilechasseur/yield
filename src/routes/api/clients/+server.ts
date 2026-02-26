@@ -3,6 +3,18 @@ import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import type { Client } from '$lib/types.js';
 
+export async function GET() {
+	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	try {
+		const clients = await pb
+			.collection('clients')
+			.getFullList<Client>({ sort: 'name', filter: 'archived = false' });
+		return json({ clients });
+	} catch {
+		return json({ clients: [] });
+	}
+}
+
 export async function POST({ request }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 
