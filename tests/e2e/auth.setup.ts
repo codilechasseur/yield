@@ -10,7 +10,7 @@ setup('authenticate', async ({ page }) => {
 	// Case 1: redirected to /setup — no password configured yet
 	if (page.url().includes('/setup')) {
 		await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD);
-		await page.getByLabel('Confirm password').fill(TEST_PASSWORD);
+		await page.getByRole('textbox', { name: 'Confirm password' }).fill(TEST_PASSWORD);
 		await page.getByRole('button', { name: /Set password/i }).click();
 		// After setup we're redirected to /login
 		await expect(page).toHaveURL(/\/login/);
