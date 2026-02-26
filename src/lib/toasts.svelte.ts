@@ -1,3 +1,5 @@
+import { addDebugEntry } from '$lib/debug.svelte.js';
+
 export type ToastType = 'success' | 'error';
 
 export interface Toast {
@@ -6,59 +8,15 @@ export interface Toast {
 	type: ToastType;
 }
 
-export interface ToastDebugConfig {
-	/** Whether debug logging is active. */
-	enabled: boolean;
-	/**
-	 * Which toast types to log. Pass `'all'` (the default) to log every type,
-	 * or an array of specific types, e.g. `['error']`.
-	 */
-	filter: ToastType[] | 'all';
-}
-
 let list = $state<Toast[]>([]);
 let _next = 0;
-
-let _debug: ToastDebugConfig = { enabled: false, filter: 'all' };
-
-function _passesFilter(type: ToastType): boolean {
-	return _debug.filter === 'all' || _debug.filter.includes(type);
-}
-
-/**
- * Configure the toast debug logger.
- *
- * @example
- * // Log all toasts
- * setToastDebug(true);
- *
- * @example
- * // Log only errors
- * setToastDebug(true, ['error']);
- *
- * @example
- * // Disable logging
- * setToastDebug(false);
- */
-export function setToastDebug(enabled: boolean, filter: ToastType[] | 'all' = 'all'): void {
-	_debug = { enabled, filter };
-}
-
-/** Returns a snapshot of the current debug configuration. */
-export function getToastDebugConfig(): ToastDebugConfig {
-	return {
-		enabled: _debug.enabled,
-		filter: Array.isArray(_debug.filter) ? [..._debug.filter] : _debug.filter
-	};
-}
 
 export function addToast(message: string, type: ToastType = 'success', duration = 4000) {
 	const id = _next++;
 	list.push({ id, message, type });
 
-	if (_debug.enabled && _passesFilter(type)) {
-		console.debug(`[toast:${type}] (id=${id}) ${message}`);
-	}
+	// Feed into the central debug log (no-ops when debug is disabled)
+	addDebugEntry(`toast:${type}`, message);
 
 	setTimeout(() => {
 		const i = list.findIndex((t) => t.id === id);

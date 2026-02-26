@@ -13,6 +13,7 @@
 	let showForm = $state(false);
 	let submitting = $state(false);
 	let selectedIds = $state(new Set<string>());
+	let deleteClient = $state<{ id: string; name: string } | null>(null);
 	let bulkSubmitting = $state(false);
 	/** true = every client across ALL pages is selected (sent as bulkAll=1 to server) */
 	let selectAll = $state(false);
@@ -413,17 +414,14 @@
 										<ArchiveRestore size={13} aria-hidden="true" /> Restore
 										</button>
 									</form>
-								<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { await update(); if (result.type !== 'failure') addToast(`${client.name} deleted`); }}>
-										<input type="hidden" name="id" value={client.id} />
-										<button
-											type="submit"
-											onclick={(e) => { if (!confirm(`Permanently delete ${client.name}?`)) e.preventDefault(); }}
-											class="p-1.5 rounded transition-colors text-red-500 hover:bg-red-50"
-										aria-label="Permanently delete {client.name}"
-									>
-										<Trash2 size={13} aria-hidden="true" />
-										</button>
-									</form>
+								<button
+									type="button"
+									onclick={() => { deleteClient = { id: client.id, name: client.name }; }}
+									class="p-1.5 rounded transition-colors text-red-500 hover:bg-red-50"
+									aria-label="Permanently delete {client.name}"
+								>
+									<Trash2 size={13} aria-hidden="true" />
+								</button>
 								{:else}
 								<form method="POST" action="?/archive" use:enhance={() => async ({ update, result }) => { await update(); if (result.type !== 'failure') addToast(`${client.name} archived`); }}>
 										<input type="hidden" name="id" value={client.id} />
@@ -522,3 +520,36 @@
 	</div>
 {/if}
 </div>
+
+<!-- Delete client confirmation modal -->
+{#if deleteClient}
+	<div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.4)">
+		<div class="rounded-xl border shadow-xl p-5 max-w-sm w-full mx-4" style="background: var(--color-card); border-color: var(--color-border)">
+			<p class="font-semibold mb-1" style="color: var(--color-foreground)">Permanently delete {deleteClient.name}?</p>
+			<p class="text-sm mb-4" style="color: var(--color-muted-foreground)">This action cannot be undone.</p>
+			<div class="flex gap-2 justify-end">
+				<button onclick={() => (deleteClient = null)} class="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors" style="border-color: var(--color-border); color: var(--color-muted-foreground)">Cancel</button>
+				<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { const name = deleteClient?.name ?? ''; deleteClient = null; await update(); if (result.type !== 'failure') addToast(`${name} deleted`); }}>
+					<input type="hidden" name="id" value={deleteClient.id} />
+					<button type="submit" class="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
+				</form>
+			</div>
+		</div>
+	</div>
+{/if}
+<!-- Delete client confirmation modal -->
+{#if deleteClient}
+	<div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.4)">
+		<div class="rounded-xl border shadow-xl p-5 max-w-sm w-full mx-4" style="background: var(--color-card); border-color: var(--color-border)">
+			<p class="font-semibold mb-1" style="color: var(--color-foreground)">Permanently delete {deleteClient.name}?</p>
+			<p class="text-sm mb-4" style="color: var(--color-muted-foreground)">This action cannot be undone.</p>
+			<div class="flex gap-2 justify-end">
+				<button onclick={() => (deleteClient = null)} class="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors" style="border-color: var(--color-border); color: var(--color-muted-foreground)">Cancel</button>
+				<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { const name = deleteClient?.name ?? ''; deleteClient = null; await update(); if (result.type !== 'failure') addToast(`${name} deleted`); }}>
+					<input type="hidden" name="id" value={deleteClient.id} />
+					<button type="submit" class="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
+				</form>
+			</div>
+		</div>
+	</div>
+{/if}

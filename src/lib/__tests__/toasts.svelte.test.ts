@@ -1,16 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import {
-	addToast,
-	removeToast,
-	clearToasts,
-	toasts,
-	setToastDebug,
-	getToastDebugConfig
-} from '../toasts.svelte.js';
+import { addToast, removeToast, clearToasts, toasts } from '../toasts.svelte.js';
+import { clearDebugLog, setDebugEnabled } from '../debug.svelte.js';
 
 beforeEach(() => {
 	clearToasts();
-	setToastDebug(false);
+	clearDebugLog();
+	setDebugEnabled(false);
 	vi.useFakeTimers();
 });
 
@@ -106,90 +101,5 @@ describe('clearToasts', () => {
 	it('is safe to call when the list is already empty', () => {
 		expect(() => clearToasts()).not.toThrow();
 		expect(toasts.length).toBe(0);
-	});
-});
-
-describe('setToastDebug / getToastDebugConfig', () => {
-	it('is disabled by default', () => {
-		expect(getToastDebugConfig()).toEqual({ enabled: false, filter: 'all' });
-	});
-
-	it('enables logging and stores the config', () => {
-		setToastDebug(true);
-		expect(getToastDebugConfig()).toEqual({ enabled: true, filter: 'all' });
-	});
-
-	it('stores a custom filter when provided', () => {
-		setToastDebug(true, ['error']);
-		expect(getToastDebugConfig()).toEqual({ enabled: true, filter: ['error'] });
-	});
-
-	it('disables logging', () => {
-		setToastDebug(true);
-		setToastDebug(false);
-		expect(getToastDebugConfig().enabled).toBe(false);
-	});
-
-	it('logs every toast when enabled with filter "all"', () => {
-		const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-		setToastDebug(true, 'all');
-
-		addToast('Success!', 'success');
-		addToast('Failed!', 'error');
-
-		expect(spy).toHaveBeenCalledTimes(2);
-		expect(spy).toHaveBeenNthCalledWith(1, expect.stringContaining('[toast:success]'));
-		expect(spy).toHaveBeenNthCalledWith(1, expect.stringContaining('Success!'));
-		expect(spy).toHaveBeenNthCalledWith(2, expect.stringContaining('[toast:error]'));
-		expect(spy).toHaveBeenNthCalledWith(2, expect.stringContaining('Failed!'));
-	});
-
-	it('only logs matching types when a filter is set', () => {
-		const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-		setToastDebug(true, ['error']);
-
-		addToast('All good', 'success');
-		addToast('Oh no', 'error');
-
-		expect(spy).toHaveBeenCalledTimes(1);
-		expect(spy).toHaveBeenCalledWith(expect.stringContaining('[toast:error]'));
-		expect(spy).toHaveBeenCalledWith(expect.stringContaining('Oh no'));
-	});
-
-	it('does not log when debug is disabled', () => {
-		const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-		setToastDebug(false);
-
-		addToast('Silent', 'success');
-		addToast('Also silent', 'error');
-
-		expect(spy).not.toHaveBeenCalled();
-	});
-
-	it('does not log a success toast when filter is ["error"]', () => {
-		const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-		setToastDebug(true, ['error']);
-
-		addToast('All good', 'success');
-
-		expect(spy).not.toHaveBeenCalled();
-	});
-
-	it('includes the toast id and message in the log output', () => {
-		const spy = vi.spyOn(console, 'debug').mockImplementation(() => {});
-		setToastDebug(true);
-
-		addToast('Check me', 'success');
-		const id = toasts[0].id;
-
-		expect(spy).toHaveBeenCalledWith(expect.stringContaining(`id=${id}`));
-		expect(spy).toHaveBeenCalledWith(expect.stringContaining('Check me'));
-	});
-
-	it('returns a snapshot so mutations do not affect the internal config', () => {
-		setToastDebug(true, ['success']);
-		const cfg = getToastDebugConfig();
-		(cfg.filter as string[]).push('error');
-		expect(getToastDebugConfig().filter).toEqual(['success']);
 	});
 });

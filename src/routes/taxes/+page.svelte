@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Landmark, Trash2, PlusCircle } from 'lucide-svelte';
+	import { Landmark, Trash2, PlusCircle, Receipt, Calculator } from 'lucide-svelte';
 	import { addToast } from '$lib/toasts.svelte.js';
 	import FormAlert from '$lib/components/FormAlert.svelte';
 	import type { PageData, ActionData } from './$types.js';
@@ -34,24 +34,28 @@
 	);
 	const totalAll = $derived(totalIncomeTax + totalGst);
 
+	const gstBalance = $derived(Math.max(0, data.taxPosition.gstLiability - totalGst));
+	const itBalance = $derived(Math.max(0, data.taxPosition.incomeTaxLiability - totalIncomeTax));
+
 	// Default date for the form: today
 	const todayIso = new Date().toISOString().slice(0, 10);
 
 	let showForm = $state(false);
+	let deletePaymentId = $state<string | null>(null);
 
 </script>
 
 <svelte:head>
-	<title>Tax Payments — Yield</title>
+	<title>Taxes — Yield</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto">
 	<!-- Header -->
 	<div class="mb-6 flex items-start justify-between gap-4">
 		<div>
-			<h2 class="text-2xl font-bold" style="color: var(--color-foreground)">Tax Payments</h2>
+			<h2 class="text-2xl font-bold" style="color: var(--color-foreground)">Taxes</h2>
 			<p class="mt-1 text-sm" style="color: var(--color-muted-foreground)">
-				Self-reported income tax and GST/HST remittances sent to the government
+				Tax position from your invoices and payments remitted to the government
 			</p>
 		</div>
 		<button
@@ -190,6 +194,87 @@
 		</div>
 	{/if}
 
+	<!-- Tax Position -->
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+		<!-- GST/HST Position -->
+		<div
+			class="rounded-xl border overflow-hidden"
+			style="background-color: var(--color-card); border-color: var(--color-border)"
+		>
+			<div class="px-5 py-3 border-b flex items-center gap-2" style="border-color: var(--color-border)">
+				<Receipt size={15} style="color: var(--color-primary)" aria-hidden="true" />
+				<h3 class="font-semibold text-sm" style="color: var(--color-foreground)">GST/HST — {data.year}</h3>
+			</div>
+			<div class="divide-y" style="border-color: var(--color-border)">
+				<div class="px-5 py-3 flex items-center justify-between">
+					<div>
+						<p class="text-sm font-medium" style="color: var(--color-foreground)">Estimated liability</p>
+						<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">GST/HST on all invoiced revenue</p>
+					</div>
+					<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(data.taxPosition.gstLiability)}</p>
+				</div>
+				<div class="px-5 py-3 flex items-center justify-between">
+					<div>
+						<p class="text-sm font-medium" style="color: var(--color-foreground)">Remitted to CRA</p>
+						<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">From recorded payments below</p>
+					</div>
+					<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(totalGst)}</p>
+				</div>
+				<div class="px-5 py-3 flex items-center justify-between" style="background-color: var(--color-accent)">
+					<div>
+						<p class="text-sm font-semibold" style="color: var(--color-foreground)">Balance remaining</p>
+						<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Estimated still owed to CRA</p>
+					</div>
+					<p class="text-base font-bold tabular-nums" style="color: {gstBalance > 0 ? 'var(--color-warning, #b45309)' : 'var(--color-foreground)'}">
+						{fmt(gstBalance)}
+					</p>
+				</div>
+			</div>
+		</div>
+
+		<!-- Income Tax Position -->
+		<div
+			class="rounded-xl border overflow-hidden"
+			style="background-color: var(--color-card); border-color: var(--color-border)"
+		>
+			<div class="px-5 py-3 border-b flex items-center gap-2" style="border-color: var(--color-border)">
+				<Calculator size={15} style="color: var(--color-primary)" aria-hidden="true" />
+				<h3 class="font-semibold text-sm" style="color: var(--color-foreground)">Est. Income Tax — {data.year}</h3>
+			</div>
+			{#if data.incomeTaxRate <= 0}
+				<div class="px-5 py-8 text-center">
+					<p class="text-sm" style="color: var(--color-muted-foreground)">Configure an income tax rate in <a href="/settings" class="underline" style="color: var(--color-primary)">Settings</a> to see estimates.</p>
+				</div>
+			{:else}
+				<div class="divide-y" style="border-color: var(--color-border)">
+					<div class="px-5 py-3 flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium" style="color: var(--color-foreground)">Estimated liability</p>
+							<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">@ {data.incomeTaxRate}% on all invoiced revenue</p>
+						</div>
+						<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(data.taxPosition.incomeTaxLiability)}</p>
+					</div>
+					<div class="px-5 py-3 flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium" style="color: var(--color-foreground)">Paid to CRA</p>
+							<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">From recorded payments below</p>
+						</div>
+						<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(totalIncomeTax)}</p>
+					</div>
+					<div class="px-5 py-3 flex items-center justify-between" style="background-color: var(--color-accent)">
+						<div>
+							<p class="text-sm font-semibold" style="color: var(--color-foreground)">Balance remaining</p>
+							<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Estimated still owed to CRA</p>
+						</div>
+						<p class="text-base font-bold tabular-nums" style="color: {itBalance > 0 ? 'var(--color-warning, #b45309)' : 'var(--color-foreground)'}">
+							{fmt(itBalance)}
+						</p>
+					</div>
+				</div>
+			{/if}
+		</div>
+	</div>
+
 	<!-- Year summary cards -->
 	<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
 		<div
@@ -285,20 +370,15 @@
 								{payment.notes || '—'}
 							</td>
 							<td class="px-4 py-3 text-right">
-								<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { await update(); if (result.type !== 'failure') addToast('Payment deleted'); }}>
-									<input type="hidden" name="id" value={payment.id} />
 									<button
-										type="submit"
+										type="button"
 										class="p-1.5 rounded-md transition-colors hover:bg-red-50 hover:text-red-600"
 										style="color: var(--color-muted-foreground)"
 										aria-label="Delete payment"
-										onclick={(e) => {
-											if (!confirm('Delete this payment record?')) e.preventDefault();
-										}}
+										onclick={() => { deletePaymentId = payment.id; }}
 									>
 										<Trash2 size={14} aria-hidden="true" />
 									</button>
-								</form>
 							</td>
 						</tr>
 					{/each}
@@ -308,3 +388,20 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Delete payment confirmation modal -->
+{#if deletePaymentId}
+	<div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.4)">
+		<div class="rounded-xl border shadow-xl p-5 max-w-sm w-full mx-4" style="background: var(--color-card); border-color: var(--color-border)">
+			<p class="font-semibold mb-1" style="color: var(--color-foreground)">Delete this payment record?</p>
+			<p class="text-sm mb-4" style="color: var(--color-muted-foreground)">This action cannot be undone.</p>
+			<div class="flex gap-2 justify-end">
+				<button onclick={() => (deletePaymentId = null)} class="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors" style="border-color: var(--color-border); color: var(--color-muted-foreground)">Cancel</button>
+				<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { deletePaymentId = null; await update(); if (result.type !== 'failure') addToast('Payment deleted'); }}>
+					<input type="hidden" name="id" value={deletePaymentId} />
+					<button type="submit" class="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
+				</form>
+			</div>
+		</div>
+	</div>
+{/if}

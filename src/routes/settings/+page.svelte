@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
-	import { Sun, Moon, Monitor, Check, Lock, Save, Palette, Building2, FileText, Hash, Coins, Mail, Server, FileUp, Image, X } from 'lucide-svelte';
+	import { Sun, Moon, Monitor, Check, Lock, Save, Palette, Building2, FileText, Hash, Coins, Mail, Server, FileUp, Image, X, Bug } from 'lucide-svelte';
 	import Tip from '$lib/components/Tip.svelte';
 	import RichTextarea from '$lib/components/RichTextarea.svelte';
 	import FormAlert from '$lib/components/FormAlert.svelte';
 	import { addToast } from '$lib/toasts.svelte.js';
+	import { debugState, setDebugEnabled } from '$lib/debug.svelte.js';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -13,7 +14,7 @@
 	type Theme = 'light' | 'system' | 'dark';
 
 	let current = $state<Theme>(
-		data.smtp?.brand_theme as Theme
+		(untrack(() => data.smtp?.brand_theme) as Theme)
 			?? ((typeof localStorage !== 'undefined'
 				? (localStorage.getItem('yield-theme') as Theme)
 				: null) ?? 'system')
@@ -135,6 +136,7 @@
 	// ── Security / import / reset state ───────────────────────────────────
 	let passwordSaving = $state(false);
 	let showNewPass    = $state(false);
+	let showRemovePasswordConfirm = $state(false);
 	let testSending    = $state(false);
 	let testTo         = $state('');
 	let importing      = $state(false);
@@ -172,12 +174,13 @@
 	}
 
 	// ── Scrollspy ─────────────────────────────────────────────────────────
-	type Section = 'appearance' | 'invoices' | 'email' | 'security';
+	type Section = 'appearance' | 'invoices' | 'email' | 'security' | 'debug';
 	const sections: { id: Section; label: string }[] = [
 		{ id: 'appearance', label: 'Appearance' },
 		{ id: 'invoices',   label: 'Invoices' },
 		{ id: 'email',      label: 'Email' },
-		{ id: 'security',   label: 'Security & Data' }
+		{ id: 'security',   label: 'Security & Data' },
+		{ id: 'debug',      label: 'Debug' }
 	];
 	let activeSection = $state<Section>('appearance');
 
@@ -481,18 +484,29 @@
 						</div>
 
 						<!-- Hide company name toggle — only shown when a logo is uploaded -->
-						<label class="flex items-center gap-2.5 mb-5 cursor-pointer w-fit">
-							<input
-								type="checkbox"
-								name="logo_hide_company_name"
-								bind:checked={hideCompanyName}
-								form="settings-form"
-								class="rounded border"
-								style="accent-color: var(--color-primary); width:15px; height:15px;"
-							/>
-							<span class="text-sm" style="color: var(--color-foreground)">Hide company name on PDFs</span>
+						<input type="hidden" name="logo_hide_company_name" form="settings-form" value={hideCompanyName ? 'on' : 'off'} />
+						<div class="flex items-center gap-3 mb-5">
+							<button
+								id="hide-company-name"
+								type="button"
+								role="switch"
+								aria-label="Hide company name on PDFs"
+								aria-checked={hideCompanyName}
+								onclick={() => hideCompanyName = !hideCompanyName}
+								class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+								style={hideCompanyName
+									? 'background-color: var(--color-primary); outline-color: var(--color-primary)'
+									: 'background-color: var(--color-muted); outline-color: var(--color-primary)'}
+							>
+								<span
+									aria-hidden="true"
+									class="pointer-events-none inline-block size-5 rounded-full shadow-sm ring-0 transition-transform"
+									style="background-color: white; transform: translateX({hideCompanyName ? '20px' : '0px'})"
+								></span>
+							</button>
+							<label for="hide-company-name" class="text-sm cursor-pointer" style="color: var(--color-foreground)">Hide company name on PDFs</label>
 							<Tip tip="Use this when your logo already contains your company name, to avoid showing it twice on invoices." />
-						</label>
+						</div>
 					{/if}
 
 					<FormAlert message={logoError || null} class="mb-3" />
@@ -880,17 +894,28 @@
 						</div>
 
 						<!-- SSL toggle -->
-						<label class="flex items-center gap-2.5 text-sm cursor-pointer select-none" style="color: var(--color-foreground)">
-							<input
-								name="smtp_secure"
-								type="checkbox"
-								bind:checked={smtpSecure}
-								form="settings-form"
-								class="w-4 h-4 rounded"
-								style="accent-color: var(--color-primary)"
-							/>
-							Use SSL/TLS (port 465)
-						</label>
+						<input type="hidden" name="smtp_secure" form="settings-form" value={smtpSecure ? 'on' : 'off'} />
+						<div class="flex items-center gap-3">
+							<button
+								id="smtp-secure"
+								type="button"
+								role="switch"
+								aria-label="Use SSL/TLS (port 465)"
+								aria-checked={smtpSecure}
+								onclick={() => smtpSecure = !smtpSecure}
+								class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+								style={smtpSecure
+									? 'background-color: var(--color-primary); outline-color: var(--color-primary)'
+									: 'background-color: var(--color-muted); outline-color: var(--color-primary)'}
+							>
+								<span
+									aria-hidden="true"
+									class="pointer-events-none inline-block size-5 rounded-full shadow-sm ring-0 transition-transform"
+									style="background-color: white; transform: translateX({smtpSecure ? '20px' : '0px'})"
+								></span>
+							</button>
+							<label for="smtp-secure" class="text-sm cursor-pointer" style="color: var(--color-foreground)">Use SSL/TLS (port 465)</label>
+						</div>
 					</div>
 
 					<!-- Test email (separate form — cannot nest inside global form) -->
@@ -1003,16 +1028,16 @@
 					</form>
 
 					{#if data.hasPassword}
-						<form method="POST" action="?/removePassword" class="mt-3">
+						<div class="mt-3">
 							<button
-								type="submit"
+								type="button"
 								class="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-80"
 								style="border-color: var(--color-destructive); color: var(--color-destructive)"
-								onclick={(e) => { if (!confirm('Remove password protection? The app will be publicly accessible.')) e.preventDefault(); }}
+								onclick={() => (showRemovePasswordConfirm = true)}
 							>
 								Remove password
 							</button>
-						</form>
+						</div>
 					{/if}
 				</div>
 
@@ -1224,6 +1249,78 @@
 				</details>
 
 			</section>
+
+			<!-- ════════════════════════════════════════════════════════
+			     DEBUG
+			     ════════════════════════════════════════════════════════ -->
+			<section id="debug" class="scroll-mt-6 space-y-6">
+				<h3 class="text-base font-semibold" style="color: var(--color-foreground)">Debug</h3>
+
+				<div class="rounded-xl border p-4 md:p-5" style="background-color: var(--color-card); border-color: var(--color-border)">
+					<div class="flex items-center gap-2 mb-1">
+						<Bug size={16} style="color: var(--color-primary)" aria-hidden="true" />
+						<h4 class="font-semibold" style="color: var(--color-foreground)">Debug logging</h4>
+					</div>
+					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">
+						Captures toasts, JavaScript errors, and unhandled promise rejections. View the live log on the dedicated Debug page.
+					</p>
+
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<!-- Toggle -->
+						<div class="flex items-center gap-3">
+							<button
+								id="debug-enabled"
+								type="button"
+								role="switch"
+								aria-label="Enable debug mode"
+								aria-checked={debugState.enabled}
+								onclick={() => setDebugEnabled(!debugState.enabled)}
+								class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+								style={debugState.enabled
+									? 'background-color: var(--color-primary); outline-color: var(--color-primary)'
+									: 'background-color: var(--color-muted); outline-color: var(--color-primary)'}
+							>
+								<span
+									aria-hidden="true"
+									class="pointer-events-none inline-block size-5 rounded-full shadow-sm ring-0 transition-transform"
+									style="background-color: white; transform: translateX({debugState.enabled ? '20px' : '0px'})"
+								></span>
+							</button>
+							<label for="debug-enabled" class="text-sm font-medium" style="color: var(--color-foreground)">
+								{debugState.enabled ? 'Enabled' : 'Disabled'}
+							</label>
+						</div>
+
+						<!-- Link to debug page -->
+						{#if debugState.enabled}
+							<a
+								href="/debug"
+								class="flex items-center gap-1.5 text-sm font-medium underline-offset-2 hover:underline transition-opacity hover:opacity-80"
+								style="color: var(--color-primary)"
+							>
+								<Bug size={14} aria-hidden="true" />
+								View debug log
+							</a>
+						{/if}
+					</div>
+				</div>
+			</section>
 		</div>
 	</div>
 </div>
+
+<!-- Remove password confirmation modal -->
+{#if showRemovePasswordConfirm}
+	<div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.4)">
+		<div class="rounded-xl border shadow-xl p-5 max-w-sm w-full mx-4" style="background: var(--color-card); border-color: var(--color-border)">
+			<p class="font-semibold mb-1" style="color: var(--color-foreground)">Remove password protection?</p>
+			<p class="text-sm mb-4" style="color: var(--color-muted-foreground)">The app will be publicly accessible.</p>
+			<div class="flex gap-2 justify-end">
+				<button onclick={() => (showRemovePasswordConfirm = false)} class="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors" style="border-color: var(--color-border); color: var(--color-muted-foreground)">Cancel</button>
+				<form method="POST" action="?/removePassword">
+					<button type="submit" class="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors">Remove password</button>
+				</form>
+			</div>
+		</div>
+	</div>
+{/if}

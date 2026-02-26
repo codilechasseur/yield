@@ -17,6 +17,7 @@
 	let showAddContact = $state(false);
 	let contactSaving = $state(false);
 	let editingContact = $state<Contact | null>(null);
+	let deleteContactId = $state<string | null>(null);
 
 	function handleContactResult() {
 		if (form?.contactError) {
@@ -342,29 +343,15 @@
 									>
 										<Pencil size={13} />
 									</button>
-									<form
-										method="POST"
-										action="?/deleteContact"
-										use:enhance={() => async ({ update, result }) => {
-											await update();
-											if (result.type !== 'failure' && result.type !== 'error') {
-												addToast('Contact removed');
-											} else {
-												addToast(form?.contactError ?? 'Failed to remove contact', 'error');
-											}
-										}}
-									>
-										<input type="hidden" name="contact_id" value={contact.id} />
-										<button
-											type="submit"
-											aria-label="Delete contact"
-											class="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-											style="color: var(--color-destructive, #dc2626)"
-											onclick={(e) => { if (!confirm('Delete this contact?')) e.preventDefault(); }}
-										>
-											<Trash2 size={13} />
-										</button>
-									</form>
+									<button
+									type="button"
+									aria-label="Delete contact"
+									class="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+									style="color: var(--color-destructive, #dc2626)"
+									onclick={() => { deleteContactId = contact.id; }}
+								>
+									<Trash2 size={13} />
+								</button>
 								</div>
 							</div>
 						{/if}
@@ -413,3 +400,20 @@
 		{/if}
 	</div>
 </div>
+
+<!-- Delete contact confirmation modal -->
+{#if deleteContactId}
+	<div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.4)">
+		<div class="rounded-xl border shadow-xl p-5 max-w-sm w-full mx-4" style="background: var(--color-card); border-color: var(--color-border)">
+			<p class="font-semibold mb-1" style="color: var(--color-foreground)">Delete this contact?</p>
+			<p class="text-sm mb-4" style="color: var(--color-muted-foreground)">This action cannot be undone.</p>
+			<div class="flex gap-2 justify-end">
+				<button onclick={() => (deleteContactId = null)} class="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors" style="border-color: var(--color-border); color: var(--color-muted-foreground)">Cancel</button>
+				<form method="POST" action="?/deleteContact" use:enhance={() => async ({ update, result }) => { deleteContactId = null; await update(); if (result.type !== 'failure' && result.type !== 'error') { addToast('Contact removed'); } else { addToast(form?.contactError ?? 'Failed to remove contact', 'error'); } }}>
+					<input type="hidden" name="contact_id" value={deleteContactId} />
+					<button type="submit" class="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
+				</form>
+			</div>
+		</div>
+	</div>
+{/if}
