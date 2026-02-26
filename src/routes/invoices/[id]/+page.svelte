@@ -291,8 +291,6 @@
 	{/if}
 
 	<FormAlert message={form?.error} />
-	<FormAlert message={form?.sendError} />
-	<FormAlert message={form?.sendSuccess ? 'Invoice sent successfully.' : null} variant="success" />
 
 	<!-- Record Payment panel -->
 	{#if showPayment}
@@ -374,11 +372,17 @@
 				class="flex flex-col gap-3"
 				use:enhance={() => {
 					sendSubmitting = true;
-					return async ({ update }) => {
+					return async ({ update, result }) => {
 						sendSubmitting = false;
+						if (result.type === 'failure' && result.data?.sendError) {
+							addToast(String(result.data.sendError), 'error');
+							await update({ reset: false });
+							return;
+						}
 						showSend = false;
 						sendMessage = '';
 						extraRecipients = '';
+						addToast('Invoice sent successfully.');
 						await update();
 					};
 				}}

@@ -39,13 +39,6 @@
 
 	let showForm = $state(false);
 
-	// Reset form state after success
-	$effect(() => {
-		if (form?.createSuccess) {
-			showForm = false;
-			addToast('Payment recorded');
-		}
-	});
 </script>
 
 <svelte:head>
@@ -99,7 +92,7 @@
 				Record a Payment
 			</h3>
 			<FormAlert message={form?.createError} class="mb-3" />
-			<form method="POST" action="?/create" use:enhance class="flex flex-col gap-4">
+			<form method="POST" action="?/create" use:enhance={() => async ({ update, result }) => { await update(); if (result.type !== 'failure') { showForm = false; addToast('Payment recorded'); } }} class="flex flex-col gap-4">
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
 						<label
