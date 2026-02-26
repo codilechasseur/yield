@@ -11,7 +11,7 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let editing = $state(false);
 	let saving = $state(false);
-	let editAddress = $state(data.client.address ?? '');
+	let editAddress = $state('');
 	$effect(() => {
 		editAddress = data.client.address ?? '';
 	});

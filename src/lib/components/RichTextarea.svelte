@@ -201,9 +201,6 @@
 		border-bottom-right-radius: 0 !important;
 	}
 
-	.rich-editor {
-	}
-
 	.rich-editor:empty::before {
 		content: attr(data-placeholder);
 		color: var(--color-muted-foreground);
