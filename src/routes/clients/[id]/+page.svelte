@@ -18,16 +18,15 @@
 	let contactSaving = $state(false);
 	let editingContact = $state<Contact | null>(null);
 
-	$effect(() => {
-		if (form?.contactSuccess) {
+	function handleContactResult() {
+		if (form?.contactError) {
+			addToast(form.contactError, 'error');
+		} else if (form?.contactSuccess) {
 			showAddContact = false;
 			editingContact = null;
 			addToast('Contact saved');
 		}
-		if (form?.contactError) {
-			addToast(form.contactError, 'error');
-		}
-	});
+	}
 
 	function contactDisplayName(c: Contact): string {
 		const full = [c.first_name, c.last_name].filter(Boolean).join(' ');
@@ -183,7 +182,8 @@
 						contactSaving = true;
 						return async ({ update }) => {
 							contactSaving = false;
-							await update();
+							await update({ reset: false });
+							handleContactResult();
 						};
 					}}
 					class="grid grid-cols-1 sm:grid-cols-2 gap-3"
@@ -254,7 +254,8 @@
 									contactSaving = true;
 									return async ({ update }) => {
 										contactSaving = false;
-										await update();
+										await update({ reset: false });
+										handleContactResult();
 									};
 								}}
 								class="px-6 py-4 grid grid-cols-1 sm:grid-cols-2 gap-3"
@@ -344,9 +345,13 @@
 									<form
 										method="POST"
 										action="?/deleteContact"
-										use:enhance={() => async ({ update }) => {
+										use:enhance={() => async ({ update, result }) => {
 											await update();
-											addToast('Contact removed');
+											if (result.type !== 'failure' && result.type !== 'error') {
+												addToast('Contact removed');
+											} else {
+												addToast(form?.contactError ?? 'Failed to remove contact', 'error');
+											}
 										}}
 									>
 										<input type="hidden" name="contact_id" value={contact.id} />

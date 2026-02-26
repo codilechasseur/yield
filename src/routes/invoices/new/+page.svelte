@@ -5,7 +5,7 @@
 	import DatePicker from '$lib/components/DatePicker.svelte';
 	import RichTextarea from '$lib/components/RichTextarea.svelte';
 	import QuickAddClient from '$lib/components/QuickAddClient.svelte';
-	import FormAlert from '$lib/components/FormAlert.svelte';
+	import { addToast } from '$lib/toasts.svelte.js';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -100,14 +100,21 @@
 
 	<h2 class="text-2xl font-bold mb-6" style="color: var(--color-foreground)">New Invoice</h2>
 
-	<FormAlert message={form?.error} />
-
 	<form
 		method="POST"
 		use:enhance={({ formData }) => {
 			formData.set('items', JSON.stringify(items.map(({ description, quantity, unit_price }) => ({ description, quantity, unit_price }))));
 			submitting = true;
-			return async ({ update }) => { submitting = false; await update(); };
+			return async ({ update, result }) => {
+				submitting = false;
+				await update();
+				if (result.type === 'failure' || result.type === 'error') {
+					const err = result.type === 'failure'
+						? (result.data as { error?: string } | undefined)?.error
+						: 'An unexpected error occurred';
+					addToast(err ?? 'Failed to create invoice', 'error');
+				}
+			};
 		}}
 		class="space-y-6"
 	>

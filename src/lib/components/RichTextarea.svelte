@@ -91,7 +91,7 @@
 		{ label: 'Divider', icon: Minus,  action: applyHRule },
 	];
 
-	const minHeight = `calc(${rows} * 1.6em + 0.5rem)`;
+	const minHeight = $derived(`calc(${rows} * 1.6em + 0.5rem)`);
 </script>
 
 <div class="rich-textarea-root">

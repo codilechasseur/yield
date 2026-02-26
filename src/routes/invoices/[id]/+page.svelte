@@ -47,10 +47,13 @@
 	let showDeleteConfirm = $state(false);
 
 	// Contact recipients for send panel: set of contact IDs to include
-	let selectedContactIds = $state(new Set<string>(
-		// Pre-select contacts that have an email address
-		(data.contacts ?? []).filter((c) => c.email).map((c) => c.id)
-	));
+	let selectedContactIds: Set<string> = $state(new Set());
+	// Re-initialize whenever data.contacts changes (navigation / form action reload)
+	$effect(() => {
+		selectedContactIds = new Set<string>(
+			(data.contacts ?? []).filter((c) => c.email).map((c) => c.id)
+		);
+	});
 
 	function toggleContact(id: string) {
 		const next = new Set(selectedContactIds);
