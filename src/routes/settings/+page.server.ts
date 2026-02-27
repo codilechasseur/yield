@@ -1,10 +1,20 @@
 import { fail } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
-import type { InvoiceStatus } from '$lib/types.js';
+import type { InvoiceStatus, Backup } from '$lib/types.js';
 import { getSmtpSettings, sendInvoiceEmail, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, buildLogoUrl } from '$lib/mail.server.js';
 import type { SmtpSettings } from '$lib/mail.server.js';
 import { hashPassword, invalidatePasswordCache } from '$lib/auth.server.js';
+
+/** Authenticate as PocketBase superuser (required for backup operations). */
+async function getAdminPb(): Promise<PocketBase> {
+	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const email = env.PB_ADMIN_EMAIL;
+	const password = env.PB_ADMIN_PASSWORD;
+	if (!email || !password) throw new Error('PB_ADMIN_EMAIL / PB_ADMIN_PASSWORD are not set');
+	await pb.collection('_superusers').authWithPassword(email, password);
+	return pb;
+}
 
 export async function load() {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -16,7 +26,21 @@ export async function load() {
 		const r = await pb.collection('clients').getList(1, 1);
 		clientCount = r.totalItems;
 	} catch { /* ignore — collections may not exist yet */ }
-	return { smtp, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, hasPassword, clientCount, logoUrl };
+
+	// Load existing backups (requires admin creds — gracefully degrade if not set)
+	let backups: Backup[] = [];
+	let backupsError: string | null = null;
+	try {
+		const adminPb = await getAdminPb();
+		const raw = await adminPb.backups.getFullList();
+		backups = raw
+			.map((b) => ({ key: b.key, size: b.size, modified: b.modified }))
+			.sort((a, b) => b.modified.localeCompare(a.modified));
+	} catch (e) {
+		backupsError = (e as Error).message;
+	}
+
+	return { smtp, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, hasPassword, clientCount, logoUrl, backups, backupsError };
 }
 
 export const actions = {
@@ -593,26 +617,51 @@ export const actions = {
 	resetData: async () => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 
-		try {
-			// Delete in dependency order: items → invoices → clients → contacts
-			const deleteAll = async (collection: string) => {
-				let page = 1;
-				while (true) {
-					const res = await pb.collection(collection).getList(page, 200);
-					if (res.items.length === 0) break;
-					await Promise.all(res.items.map((r) => pb.collection(collection).delete(r.id)));
-					if (res.items.length < 200) break;
-				}
-			};
+		// Delete in dependency order: items → invoices → contacts → clients
+		// Each collection is wrapped individually — if a collection doesn't exist on this
+		// instance (e.g. contacts on an older install) it's silently skipped.
+		const deleteAll = async (collection: string) => {
+			let page = 1;
+			while (true) {
+				const res = await pb.collection(collection).getList(page, 200);
+				if (res.items.length === 0) break;
+				await Promise.all(res.items.map((r) => pb.collection(collection).delete(r.id)));
+				if (res.items.length < 200) break;
+			}
+		};
 
-			await deleteAll('invoice_items');
-			await deleteAll('invoices');
-			await deleteAll('contacts');
-			await deleteAll('clients');
-		} catch (e) {
-			return fail(500, { resetError: 'Reset failed: ' + (e as Error).message });
+		for (const col of ['invoice_items', 'invoices', 'contacts', 'clients']) {
+			try {
+				await deleteAll(col);
+			} catch {
+				// collection may not exist on this instance — skip and continue
+			}
 		}
 
 		return { resetSuccess: true };
+	},
+
+	createBackup: async () => {
+		try {
+			const pb = await getAdminPb();
+			// Empty basename → PocketBase auto-generates a timestamped filename
+			await pb.backups.create('');
+			return { backupCreated: true };
+		} catch (e) {
+			return fail(500, { backupError: (e as Error).message });
+		}
+	},
+
+	deleteBackup: async ({ request }) => {
+		const fd = await request.formData();
+		const key = fd.get('key')?.toString();
+		if (!key) return fail(400, { backupError: 'Missing backup key' });
+		try {
+			const pb = await getAdminPb();
+			await pb.backups.delete(key);
+			return { backupDeleted: true };
+		} catch (e) {
+			return fail(500, { backupError: (e as Error).message });
+		}
 	}
 };

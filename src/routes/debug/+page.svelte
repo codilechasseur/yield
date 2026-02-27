@@ -4,7 +4,8 @@
 		debugState,
 		setDebugEnabled,
 		debugLog,
-		clearDebugLog
+		clearDebugLog,
+		addDebugEntry
 	} from '$lib/debug.svelte.js';
 	import type { DebugEntryType } from '$lib/debug.svelte.js';
 
@@ -17,8 +18,38 @@
 		{ value: 'toast:success',        label: 'Toast: success' },
 		{ value: 'toast:error',          label: 'Toast: error' },
 		{ value: 'js-error',             label: 'JS error' },
-		{ value: 'unhandled-rejection',  label: 'Unhandled rejection' }
+		{ value: 'unhandled-rejection',  label: 'Unhandled rejection' },
+		{ value: 'server:error',         label: 'Server error' }
 	];
+
+	// ── Server error polling ─────────────────────────────────────────────
+	// When debug is enabled, poll the server-error ring buffer every 5 s so
+	// that exceptions thrown during server load functions and actions show up
+	// in the log alongside client-side events.
+	let _lastServerId = -1;
+
+	async function fetchServerErrors() {
+		try {
+			const res = await fetch(`/api/debug/server-errors?after=${_lastServerId}`);
+			if (!res.ok) return;
+			const entries: Array<{ id: number; message: string; stack?: string; url?: string; timestamp: string }> = await res.json();
+			for (const e of entries) {
+				const detail = [e.stack, e.url ? `route: ${e.url}` : undefined].filter(Boolean).join('\n') || undefined;
+				addDebugEntry('server:error', e.message, detail);
+				if (e.id > _lastServerId) _lastServerId = e.id;
+			}
+		} catch {
+			// silently ignore — server may be temporarily unreachable
+		}
+	}
+
+	$effect(() => {
+		if (!debugState.enabled) return;
+		// Fetch immediately then poll every 5 s
+		fetchServerErrors();
+		const id = setInterval(fetchServerErrors, 5000);
+		return () => clearInterval(id);
+	});
 
 	const filteredLog = $derived(
 		activeFilter === 'all'
@@ -37,6 +68,8 @@
 				return 'background-color: color-mix(in srgb, orange 20%, transparent); color: darkorange';
 			case 'unhandled-rejection':
 				return 'background-color: color-mix(in srgb, var(--color-destructive) 15%, transparent); color: var(--color-destructive)';
+			case 'server:error':
+				return 'background-color: color-mix(in srgb, purple 15%, transparent); color: purple';
 		}
 	}
 
@@ -46,6 +79,7 @@
 			case 'toast:error':         return 'toast ✗';
 			case 'js-error':            return 'js error';
 			case 'unhandled-rejection': return 'rejection';
+			case 'server:error':        return 'server err';
 		}
 	}
 </script>

@@ -98,3 +98,9 @@ export interface DashboardStats {
 	chartData: ChartPeriod[];       // yearly, e.g. "2024"
 	chartDataByMonth: ChartPeriod[]; // monthly, e.g. "2024-03"
 }
+
+export interface Backup {
+	key: string;
+	size: number;
+	modified: string; // ISO date string
+}

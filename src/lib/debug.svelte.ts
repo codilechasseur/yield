@@ -8,7 +8,7 @@
  * survives page reloads.
  */
 
-export type DebugEntryType = 'toast:success' | 'toast:error' | 'js-error' | 'unhandled-rejection';
+export type DebugEntryType = 'toast:success' | 'toast:error' | 'js-error' | 'unhandled-rejection' | 'server:error';
 
 export interface DebugEntry {
 	id: number;

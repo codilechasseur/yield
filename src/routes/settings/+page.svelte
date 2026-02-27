@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
-	import { Sun, Moon, Monitor, Check, Lock, Save, Palette, Building2, FileText, Hash, Coins, Mail, Server, FileUp, Image, X, Bug } from 'lucide-svelte';
+	import { Sun, Moon, Monitor, Check, Lock, Save, Palette, Building2, FileText, Hash, Coins, Mail, Server, FileUp, Image, X, Bug, HardDrive, Download, Trash2 } from 'lucide-svelte';
 	import Tip from '$lib/components/Tip.svelte';
 	import RichTextarea from '$lib/components/RichTextarea.svelte';
 	import FormAlert from '$lib/components/FormAlert.svelte';
@@ -39,6 +39,16 @@
 
 	// ── Global save state ─────────────────────────────────────────────────
 	let saving = $state(false);
+
+	// ── Backup state ──────────────────────────────────────────────────────
+	let creatingBackup = $state(false);
+	let deletingBackup = $state<string | null>(null);
+
+	function formatBytes(n: number): string {
+		if (n < 1024) return `${n} B`;
+		if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+		return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+	}
 
 	// Field state (fed into the single global form)
 	let taxPercent      = $state<number>(untrack(() => data.smtp?.default_tax_percent ?? 5));
@@ -174,12 +184,13 @@
 	}
 
 	// ── Scrollspy ─────────────────────────────────────────────────────────
-	type Section = 'appearance' | 'invoices' | 'email' | 'security' | 'debug';
+	type Section = 'appearance' | 'invoices' | 'email' | 'security' | 'backup' | 'debug';
 	const sections: { id: Section; label: string }[] = [
 		{ id: 'appearance', label: 'Appearance' },
 		{ id: 'invoices',   label: 'Invoices' },
 		{ id: 'email',      label: 'Email' },
 		{ id: 'security',   label: 'Security & Data' },
+		{ id: 'backup',     label: 'Backups' },
 		{ id: 'debug',      label: 'Debug' }
 	];
 	let activeSection = $state<Section>('appearance');
@@ -980,18 +991,19 @@
 							: '🔓 No password set — app is publicly accessible.'}
 					</p>
 
-					<FormAlert message={form?.passwordSuccess ? 'Password saved.' : null} variant="success" />
-					<FormAlert message={form?.passwordRemoved ? 'Password protection removed.' : null} variant="success" />
-					<FormAlert message={form?.passwordError} />
-
 					<form
 						method="POST"
 						action="?/setPassword"
 						class="flex flex-col sm:flex-row sm:items-end gap-3"
 						use:enhance={() => {
 							passwordSaving = true;
-							return async ({ update }) => {
+							return async ({ update, result }) => {
 								passwordSaving = false;
+								if (result.type === 'success') {
+									addToast('Password saved.');
+								} else if (result.type === 'failure') {
+									addToast((result.data as any)?.passwordError ?? 'Failed to save password.', 'error');
+								}
 								await update({ reset: true });
 							};
 						}}
@@ -1167,12 +1179,7 @@
 					<!-- Reset panel -->
 						{#if data.clientCount > 0}
 							<div class="mt-8 pt-6 border-t" style="border-color: var(--color-border)">
-								{#if form?.resetSuccess}
-									<div class="p-4 rounded-lg text-sm" style="background-color: var(--color-accent); color: var(--color-foreground)">
-										All data has been deleted. Reload the page to import a fresh dataset.
-									</div>
-								{:else}
-									<details class="rounded-lg border overflow-hidden" style="border-color: var(--color-destructive)" ontoggle={(e) => resetOpen = (e.target as HTMLDetailsElement).open}>
+															<details class="rounded-lg border overflow-hidden" style="border-color: var(--color-destructive)" ontoggle={(e) => resetOpen = (e.target as HTMLDetailsElement).open}>
 										<summary
 											class="flex items-center justify-between px-4 py-3 cursor-pointer list-none select-none text-sm font-medium"
 											style="color: var(--color-destructive); background-color: color-mix(in srgb, var(--color-destructive) 8%, transparent)"
@@ -1192,7 +1199,6 @@
 												⚠ This will permanently delete all clients, invoices, and line items. There is no undo.
 											</p>
 
-<FormAlert message={form?.resetError} class="" />
 
 											<div class="space-y-2">
 												{#each [
@@ -1222,11 +1228,13 @@
 												action="?/resetData"
 												use:enhance={() => {
 													resetting = true;
-													return async ({ update }) => {
+													return async ({ update, result }) => {
 														resetting = false;
 														resetCheck1 = false;
 														resetCheck2 = false;
 														resetCheck3 = false;
+														if (result.type === 'success') addToast('All data deleted.');
+														else if (result.type === 'failure') addToast((result.data as any)?.resetError ?? 'Reset failed.', 'error');
 														await update();
 													};
 												}}
@@ -1242,7 +1250,6 @@
 											</form>
 										</div>
 									</details>
-								{/if}
 							</div>
 						{/if}
 					</div>
@@ -1317,7 +1324,17 @@
 			<p class="text-sm mb-4" style="color: var(--color-muted-foreground)">The app will be publicly accessible.</p>
 			<div class="flex gap-2 justify-end">
 				<button onclick={() => (showRemovePasswordConfirm = false)} class="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors" style="border-color: var(--color-border); color: var(--color-muted-foreground)">Cancel</button>
-				<form method="POST" action="?/removePassword">
+				<form method="POST" action="?/removePassword" use:enhance={() => {
+					return async ({ update, result }) => {
+						showRemovePasswordConfirm = false;
+						if (result.type === 'success') {
+							addToast('Password protection removed.');
+						} else if (result.type === 'failure') {
+							addToast((result.data as any)?.passwordError ?? 'Failed to remove password.', 'error');
+						}
+						await update();
+					};
+				}}>
 					<button type="submit" class="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors">Remove password</button>
 				</form>
 			</div>

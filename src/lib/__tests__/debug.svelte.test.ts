@@ -118,8 +118,9 @@ describe('addDebugEntry', () => {
 		addDebugEntry('toast:error', 'b');
 		addDebugEntry('js-error', 'c');
 		addDebugEntry('unhandled-rejection', 'd');
+		addDebugEntry('server:error', 'e');
 		const types = debugLog.map(e => e.type);
-		expect(types).toEqual(['toast:success', 'toast:error', 'js-error', 'unhandled-rejection']);
+		expect(types).toEqual(['toast:success', 'toast:error', 'js-error', 'unhandled-rejection', 'server:error']);
 	});
 });
 
