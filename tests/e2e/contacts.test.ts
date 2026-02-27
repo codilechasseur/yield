@@ -110,6 +110,9 @@ test.describe('Client Contacts', () => {
 
 		await page.getByRole('button', { name: /Delete contact/i }).last().click();
 
+		// Confirm deletion in the modal that appears
+		await page.getByRole('button', { name: /^Delete$/i }).click();
+
 		// The contact should be removed from the list
 		await expect(page.getByText('Throwaway Contact')).not.toBeVisible({ timeout: 15000 });
 	});
