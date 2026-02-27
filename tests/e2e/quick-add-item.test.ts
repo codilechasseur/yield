@@ -16,6 +16,7 @@ test.describe('Quick Add Item', () => {
 	let invoiceId: string;
 
 	test.beforeAll(async ({ browser }) => {
+		test.setTimeout(90_000); // client + invoice creation can be slow in CI
 		// Create a client via the UI
 		const page = await browser.newPage();
 		await page.goto('/clients');
@@ -31,8 +32,11 @@ test.describe('Quick Add Item', () => {
 		await page.waitForLoadState('networkidle');
 		await page.getByLabel('Client *', { exact: true }).selectOption({ label: CLIENT_NAME });
 		await page.getByRole('button', { name: /Create Invoice/i }).click();
-		// Use a negative lookahead so we don't match /invoices/new (the current URL)
-		await page.waitForURL(/\/invoices\/(?!new)[^/?]+/);
+		// Wait until the URL changes away from /invoices/new to /invoices/{id}
+		await page.waitForURL(
+			(url) => url.pathname.startsWith('/invoices/') && url.pathname !== '/invoices/new',
+			{ timeout: 30_000 }
+		);
 		invoiceId = page.url().split('/').pop()!;
 
 		await page.close();
