@@ -1258,6 +1258,129 @@
 			</section>
 
 			<!-- ════════════════════════════════════════════════════════
+			     BACKUPS
+			     ════════════════════════════════════════════════════════ -->
+			<section id="backup" class="scroll-mt-6 space-y-6">
+				<h3 class="text-base font-semibold" style="color: var(--color-foreground)">Backups</h3>
+
+				<div class="rounded-xl border p-4 md:p-5" style="background-color: var(--color-card); border-color: var(--color-border)">
+					<div class="flex items-center gap-2 mb-1">
+						<HardDrive size={16} style="color: var(--color-primary)" aria-hidden="true" />
+						<h4 class="font-semibold" style="color: var(--color-foreground)">Database backups</h4>
+					</div>
+					<p class="text-sm mb-4" style="color: var(--color-muted-foreground)">
+						Create a full backup of your PocketBase database. Backups are stored on the server and can be downloaded or deleted here.
+					</p>
+
+					{#if data.backupsError}
+						<p class="text-sm rounded-lg px-3 py-2 mb-4" style="background: var(--color-destructive-muted, #fef2f2); color: var(--color-destructive, #dc2626)">
+							{data.backupsError}
+						</p>
+					{/if}
+
+					<form
+						method="POST"
+						action="?/createBackup"
+						use:enhance={() => {
+							creatingBackup = true;
+							return async ({ update, result }) => {
+								creatingBackup = false;
+								if (result.type === 'success') {
+									addToast('Backup created');
+								} else if (result.type === 'failure') {
+									addToast((result.data as any)?.backupError ?? 'Failed to create backup', 'error');
+								}
+								await update();
+							};
+						}}
+					>
+						<button
+							type="submit"
+							disabled={creatingBackup}
+							class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+							style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+						>
+							<HardDrive size={14} aria-hidden="true" />
+							{creatingBackup ? 'Creating…' : 'Create backup now'}
+						</button>
+					</form>
+
+					{#if data.backups && data.backups.length > 0}
+						<div class="mt-5 overflow-x-auto">
+							<table class="w-full text-sm">
+								<thead>
+									<tr style="border-bottom: 1px solid var(--color-border)">
+										<th scope="col" class="text-left py-2 pr-4 font-medium" style="color: var(--color-muted-foreground)">Filename</th>
+										<th scope="col" class="text-left py-2 pr-4 font-medium" style="color: var(--color-muted-foreground)">Size</th>
+										<th scope="col" class="text-left py-2 pr-4 font-medium" style="color: var(--color-muted-foreground)">Created</th>
+										<th scope="col" class="text-right py-2 font-medium" style="color: var(--color-muted-foreground)">Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each data.backups as backup (backup.key)}
+										<tr style="border-bottom: 1px solid var(--color-border)">
+											<td class="py-2 pr-4" style="color: var(--color-foreground)">{backup.key}</td>
+											<td class="py-2 pr-4" style="color: var(--color-muted-foreground)">
+												{backup.size < 1024 * 1024
+													? `${(backup.size / 1024).toFixed(1)} KB`
+													: `${(backup.size / (1024 * 1024)).toFixed(1)} MB`}
+											</td>
+											<td class="py-2 pr-4" style="color: var(--color-muted-foreground)">
+												{new Date(backup.modified).toLocaleString()}
+											</td>
+											<td class="py-2 text-right">
+												<div class="flex items-center justify-end gap-2">
+													<a
+														href="/api/backup/{encodeURIComponent(backup.key)}"
+														download={backup.key}
+														class="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-70"
+														style="color: var(--color-primary); border-color: var(--color-border)"
+													>
+														<Download size={12} aria-hidden="true" />
+														Download
+													</a>
+													<form
+														method="POST"
+														action="?/deleteBackup"
+														use:enhance={() => {
+															deletingBackup = backup.key;
+															return async ({ update, result }) => {
+																deletingBackup = null;
+																if (result.type === 'success') {
+																	addToast('Backup deleted');
+																} else if (result.type === 'failure') {
+																	addToast((result.data as any)?.backupError ?? 'Failed to delete backup', 'error');
+																}
+																await update();
+															};
+														}}
+													>
+														<input type="hidden" name="key" value={backup.key} />
+														<button
+															type="submit"
+															disabled={deletingBackup === backup.key}
+															aria-label="Delete backup {backup.key}"
+															class="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-70 disabled:opacity-40"
+															style="color: var(--color-destructive, #dc2626); border-color: var(--color-border)"
+														>
+															<Trash2 size={12} aria-hidden="true" />
+															Delete
+														</button>
+													</form>
+												</div>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					{:else if !data.backupsError}
+						<p class="mt-4 text-sm" style="color: var(--color-muted-foreground)">No backups yet. Click "Create backup now" to create your first one.</p>
+					{/if}
+				</div>
+			</section>
+
+			<!-- ════════════════════════════════════════════════════════
 			     DEBUG
 			     ════════════════════════════════════════════════════════ -->
 			<section id="debug" class="scroll-mt-6 space-y-6">

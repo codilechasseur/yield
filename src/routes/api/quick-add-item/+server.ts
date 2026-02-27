@@ -56,7 +56,10 @@ export async function POST({ request }) {
 			if (nextNum !== null && nextNum > 0) {
 				number = format.replace('{number}', String(nextNum));
 			} else {
-				number = `INV-${today.replace(/-/g, '')}-001`;
+				// Use a millisecond-resolution timestamp suffix to avoid collisions
+				// when no sequential counter is configured (e.g. clean test database).
+				const suffix = Date.now().toString().slice(-6);
+				number = `INV-${today.replace(/-/g, '')}-${suffix}`;
 			}
 
 			const dueDate = new Date(Date.now() + 30 * 86_400_000).toISOString().split('T')[0];
