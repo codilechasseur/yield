@@ -1,5 +1,6 @@
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
+import { pushServerError } from '$lib/server-error-log.server.js';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import {
@@ -90,4 +91,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	return resolve(event);
+};
+
+/**
+ * Capture unhandled server errors into the ring buffer so the debug page
+ * can surface them client-side.
+ */
+export const handleError: HandleServerError = ({ error, event }) => {
+	const message =
+		error instanceof Error ? error.message : String(error ?? 'Unknown server error');
+	const stack = error instanceof Error ? error.stack : undefined;
+	pushServerError(message, stack, event.url?.pathname);
+	console.error('[yield:server-error]', message, stack ?? '');
+	// Return a generic safe message — never leak stack traces to the browser
+	return { message };
 };

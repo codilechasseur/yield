@@ -31,7 +31,8 @@ test.describe('Quick Add Item', () => {
 		await page.waitForLoadState('networkidle');
 		await page.getByLabel('Client *', { exact: true }).selectOption({ label: CLIENT_NAME });
 		await page.getByRole('button', { name: /Create Invoice/i }).click();
-		await page.waitForURL(/\/invoices\/[^?]+/);
+		// Use a negative lookahead so we don't match /invoices/new (the current URL)
+		await page.waitForURL(/\/invoices\/(?!new)[^/?]+/);
 		invoiceId = page.url().split('/').pop()!;
 
 		await page.close();

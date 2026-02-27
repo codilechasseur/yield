@@ -84,6 +84,6 @@ test.describe('Reports and Taxes', () => {
 
 	test('taxes page loads', async ({ page }) => {
 		await page.goto('/taxes');
-		await expect(page.getByRole('heading', { name: /Tax/i })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Taxes', exact: true })).toBeVisible();
 	});
 });

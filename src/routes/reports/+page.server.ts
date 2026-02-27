@@ -49,8 +49,16 @@ export async function load({ url }) {
 	const year = parseInt(url.searchParams.get('year') ?? String(currentYear), 10);
 	const basis = (url.searchParams.get('basis') ?? 'cash') as 'cash' | 'accrual';
 
-	// Available years: current year back 7 years
-	const availableYears = Array.from({ length: 8 }, (_, i) => currentYear - i);
+	// Available years: derived from actual invoice issue_dates, always including current year
+	const invoiceDates = await pb
+		.collection('invoices')
+		.getFullList<{ issue_date: string }>({ fields: 'issue_date' })
+		.catch(() => [] as { issue_date: string }[]);
+	const yearSet = new Set<number>([currentYear]);
+	for (const inv of invoiceDates) {
+		if (inv.issue_date) yearSet.add(new Date(inv.issue_date).getFullYear());
+	}
+	const availableYears = Array.from(yearSet).sort((a, b) => b - a);
 
 	try {
 		// Load income tax rate from settings
