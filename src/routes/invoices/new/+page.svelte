@@ -107,13 +107,15 @@
 			submitting = true;
 			return async ({ update, result }) => {
 				submitting = false;
-				await update();
 				if (result.type === 'failure' || result.type === 'error') {
 					const err = result.type === 'failure'
 						? (result.data as { error?: string } | undefined)?.error
 						: 'An unexpected error occurred';
 					addToast(err ?? 'Failed to create invoice', 'error');
+				} else {
+					addToast('Invoice created');
 				}
+				await update();
 			};
 		}}
 		class="space-y-6"

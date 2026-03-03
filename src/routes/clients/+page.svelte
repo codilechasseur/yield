@@ -142,8 +142,11 @@
 						action={data.showArchived ? '?/bulkUnarchive' : '?/bulkArchive'}
 						use:enhance={() => {
 							bulkSubmitting = true;
-							return async ({ update }) => {
+							return async ({ update, result }) => {
 								bulkSubmitting = false;
+								if (result.type !== 'failure' && result.type !== 'error') {
+									addToast(data.showArchived ? 'Clients restored' : 'Clients archived');
+								}
 								clearSelection();
 								await update();
 								window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -220,8 +223,11 @@
 				action="?/create"
 				use:enhance={() => {
 					submitting = true;
-					return async ({ update }) => {
+					return async ({ update, result }) => {
 						submitting = false;
+						if (result.type !== 'failure' && result.type !== 'error') {
+							addToast('Client created');
+						}
 						showForm = false;
 						await update();
 					};

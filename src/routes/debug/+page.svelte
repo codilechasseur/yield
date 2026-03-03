@@ -15,8 +15,8 @@
 
 	const filterPills: { value: Filter; label: string }[] = [
 		{ value: 'all',                  label: 'All' },
-		{ value: 'toast:success',        label: 'Toast: success' },
-		{ value: 'toast:error',          label: 'Toast: error' },
+		{ value: 'toast:success',        label: 'Success' },
+		{ value: 'toast:error',          label: 'Error' },
 		{ value: 'js-error',             label: 'JS error' },
 		{ value: 'unhandled-rejection',  label: 'Unhandled rejection' },
 		{ value: 'server:error',         label: 'Server error' }
@@ -75,8 +75,8 @@
 
 	function badgeLabel(type: DebugEntryType): string {
 		switch (type) {
-			case 'toast:success':       return 'toast ✓';
-			case 'toast:error':         return 'toast ✗';
+			case 'toast:success':       return 'success';
+			case 'toast:error':         return 'error';
 			case 'js-error':            return 'js error';
 			case 'unhandled-rejection': return 'rejection';
 			case 'server:error':        return 'server err';

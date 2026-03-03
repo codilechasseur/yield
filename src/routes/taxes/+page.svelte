@@ -397,7 +397,7 @@
 			<p class="text-sm mb-4" style="color: var(--color-muted-foreground)">This action cannot be undone.</p>
 			<div class="flex gap-2 justify-end">
 				<button onclick={() => (deletePaymentId = null)} class="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors" style="border-color: var(--color-border); color: var(--color-muted-foreground)">Cancel</button>
-				<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { deletePaymentId = null; await update(); if (result.type !== 'failure') addToast('Payment deleted'); }}>
+				<form method="POST" action="?/delete" use:enhance={() => async ({ update, result }) => { deletePaymentId = null; if (result.type === 'failure') { addToast((result.data as any)?.deleteError ?? 'Failed to delete payment', 'error'); } else { addToast('Payment deleted'); } await update(); }}>
 					<input type="hidden" name="id" value={deletePaymentId} />
 					<button type="submit" class="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
 				</form>

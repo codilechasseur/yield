@@ -241,7 +241,7 @@
 
 						<!-- Mark as Draft -->
 						{#if invoice.status !== 'draft'}
-							<form method="POST" action="?/updateStatus" use:enhance={() => async ({ update, result }) => { showActionMenu = false; await update(); if (result.type !== 'failure') addToast('Moved to draft'); }}>
+							<form method="POST" action="?/updateStatus" use:enhance={() => async ({ update, result }) => { showActionMenu = false; if (result.type === 'failure') { addToast((result.data as any)?.error ?? 'Failed to update status', 'error'); } else { addToast('Moved to draft'); } await update(); }}>
 								<input type="hidden" name="status" value="draft" />
 								<button type="submit" class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-muted transition-colors" style="color: var(--color-foreground)">
 									<FileText size={14} /> Mark as Draft
@@ -250,7 +250,7 @@
 						{/if}
 						<!-- Mark as Written Off -->
 						{#if invoice.status !== 'written_off'}
-							<form method="POST" action="?/updateStatus" use:enhance={() => async ({ update, result }) => { showActionMenu = false; await update(); if (result.type !== 'failure') addToast('Marked as written off'); }}>
+							<form method="POST" action="?/updateStatus" use:enhance={() => async ({ update, result }) => { showActionMenu = false; if (result.type === 'failure') { addToast((result.data as any)?.error ?? 'Failed to update status', 'error'); } else { addToast('Marked as written off'); } await update(); }}>
 								<input type="hidden" name="status" value="written_off" />
 								<button type="submit" class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-muted transition-colors" style="color: var(--color-muted-foreground)">
 									<FileText size={14} /> Mark as Written Off
@@ -307,9 +307,14 @@
 				class="flex flex-wrap items-end gap-3"
 				use:enhance={() => {
 					paymentSubmitting = true;
-					return async ({ update }) => {
+					return async ({ update, result }) => {
 						paymentSubmitting = false;
-						showPayment = false;
+						if (result.type === 'failure' || result.type === 'error') {
+							addToast((result.type === 'failure' ? (result.data as any)?.error : undefined) ?? 'Failed to record payment', 'error');
+						} else {
+							addToast('Payment recorded');
+							showPayment = false;
+						}
 						await update();
 					};
 				}}
@@ -648,9 +653,14 @@
 				class="flex-1 flex items-start gap-2"
 				use:enhance={() => {
 					noteSubmitting = true;
-					return async ({ update }) => {
+					return async ({ update, result }) => {
 						noteSubmitting = false;
-						noteText = '';
+						if (result.type === 'failure' || result.type === 'error') {
+							addToast((result.type === 'failure' ? (result.data as any)?.error : undefined) ?? 'Failed to add note', 'error');
+						} else {
+							addToast('Note added');
+							noteText = '';
+						}
 						await update();
 					};
 				}}
@@ -675,7 +685,7 @@
 				</button>
 			</form>
 
-			<form method="POST" action="?/logEmail" use:enhance>
+			<form method="POST" action="?/logEmail" use:enhance={() => async ({ update, result }) => { if (result.type !== 'failure' && result.type !== 'error') addToast('Email logged'); await update(); }}>
 				<button
 					type="submit"
 					class="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors hover:bg-muted"

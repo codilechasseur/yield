@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { ArrowLeft, Plus, Trash2 } from 'lucide-svelte';
+	import { addToast } from '$lib/toasts.svelte.js';
 	import DatePicker from '$lib/components/DatePicker.svelte';
 	import RichTextarea from '$lib/components/RichTextarea.svelte';
 	import QuickAddClient from '$lib/components/QuickAddClient.svelte';
@@ -73,7 +74,13 @@
 		use:enhance={({ formData }) => {
 			formData.set('items', JSON.stringify(items.map(({ description, quantity, unit_price }) => ({ description, quantity, unit_price }))));
 			submitting = true;
-			return async ({ update }) => { submitting = false; await update(); };
+			return async ({ update, result }) => {
+				submitting = false;
+				if (result.type !== 'failure' && result.type !== 'error') {
+					addToast('Invoice saved');
+				}
+				await update();
+			};
 		}}
 		class="space-y-6"
 	>
