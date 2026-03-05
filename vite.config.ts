@@ -1,11 +1,20 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
-import pkg from './package.json';
+import { execSync } from 'child_process';
 
-export default defineConfig({
+function getAppVersion(command: string): string {
+	if (command === 'serve') return 'dev';
+	try {
+		return execSync('git describe --tags --always', { encoding: 'utf8' }).trim();
+	} catch {
+		return 'dev';
+	}
+}
+
+export default defineConfig(({ command }) => ({
 	define: {
-		__APP_VERSION__: JSON.stringify(pkg.version)
+		__APP_VERSION__: JSON.stringify(getAppVersion(command))
 	},
 	plugins: [tailwindcss(), sveltekit()],
 	test: {
@@ -18,4 +27,4 @@ export default defineConfig({
 			include: ['src/lib/**']
 		}
 	}
-});
+}));

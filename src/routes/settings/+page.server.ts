@@ -30,6 +30,7 @@ export async function load() {
 	// Load existing backups (requires admin creds — gracefully degrade if not set)
 	let backups: Backup[] = [];
 	let backupsError: string | null = null;
+	let backupsMissingCreds = false;
 	try {
 		const adminPb = await getAdminPb();
 		const raw = await adminPb.backups.getFullList();
@@ -37,10 +38,15 @@ export async function load() {
 			.map((b) => ({ key: b.key, size: b.size, modified: b.modified }))
 			.sort((a, b) => b.modified.localeCompare(a.modified));
 	} catch (e) {
-		backupsError = (e as Error).message;
+		const msg = (e as Error).message;
+		if (msg.includes('PB_ADMIN_EMAIL') || msg.includes('PB_ADMIN_PASSWORD')) {
+			backupsMissingCreds = true;
+		} else {
+			backupsError = msg;
+		}
 	}
 
-	return { smtp, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, hasPassword, clientCount, logoUrl, backups, backupsError };
+	return { smtp, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, hasPassword, clientCount, logoUrl, backups, backupsError, backupsMissingCreds };
 }
 
 export const actions = {

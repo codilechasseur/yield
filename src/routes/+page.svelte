@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { DollarSign, AlertCircle, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
 	import { STATUS_COLORS, formatCurrency } from '$lib/pocketbase.js';
 	import type { PageData } from './$types.js';
 
@@ -60,7 +61,7 @@
 	const cH = H - PT - PB;
 
 	// Chart state
-	let viewMode: 'year' | 'month' = $state('year');
+	let viewMode: 'year' | 'month' = $state('month');
 	let monthViewYear: number = $state(currentYear);
 	let hoverIdx: number | null = $state(null);
 
@@ -69,6 +70,15 @@
 	const allYears = $derived([...new Set(stats.chartData.map((d) => Number(d.period)))].sort((a, b) => a - b));
 	const minYear = $derived(allYears[0] ?? currentYear);
 	const maxYear = $derived(allYears[allYears.length - 1] ?? currentYear);
+
+	function barUrl(period: string): string {
+		if (viewMode === 'year') {
+			return `/invoices?year=${period}`;
+		}
+		const year = period.slice(0, 4);
+		const month = parseInt(period.slice(5));
+		return `/invoices?year=${year}&month=${month}`;
+	}
 
 	const visibleData = $derived(
 		viewMode === 'year'
@@ -197,15 +207,15 @@
 					<!-- Toggle -->
 					<div class="flex rounded-lg overflow-hidden border text-xs font-medium" style="border-color: var(--color-border)">
 						<button
-							onclick={() => { viewMode = 'year'; hoverIdx = null; }}
-							class="px-3 py-1.5 transition-colors"
-							style="background-color: {viewMode === 'year' ? 'var(--color-primary)' : 'transparent'}; color: {viewMode === 'year' ? 'white' : 'var(--color-muted-foreground)'}"
-						>Year</button>
-						<button
 							onclick={() => { viewMode = 'month'; hoverIdx = null; }}
 							class="px-3 py-1.5 transition-colors"
 							style="background-color: {viewMode === 'month' ? 'var(--color-primary)' : 'transparent'}; color: {viewMode === 'month' ? 'white' : 'var(--color-muted-foreground)'}"
 						>Month</button>
+						<button
+							onclick={() => { viewMode = 'year'; hoverIdx = null; }}
+							class="px-3 py-1.5 transition-colors"
+							style="background-color: {viewMode === 'year' ? 'var(--color-primary)' : 'transparent'}; color: {viewMode === 'year' ? 'white' : 'var(--color-muted-foreground)'}"
+						>Year</button>
 					</div>
 				</div>
 			</div>
@@ -242,15 +252,6 @@
 						{@const paidH = (d.paid / maxVal) * cH}
 						{@const unpaidH = barH - paidH}
 						{@const isHovered = hoverIdx === i}
-
-						<!-- Hit area — invisible wide rect for easy hover -->
-						<!-- svelte-ignore a11y_no_static_element_interactions -->
-						<rect
-							x={PL + i * slotW} y={PT}
-							width={slotW} height={cH}
-							fill="transparent"
-							onmouseenter={() => { hoverIdx = i; }}
-						/>
 
 						<!-- Full bar background = total invoiced (desaturated) -->
 						{#if barH > 0.5}
@@ -293,9 +294,8 @@
 							font-weight={isHovered ? 'bold' : 'normal'}
 						>{periodLabel(d.period, viewMode)}</text>
 					{/each}
-					{/key}
 
-					<!-- Tooltip -->
+					<!-- Tooltip — pointer-events:none so it never blocks the hit areas below -->
 					{#if hoverIdx !== null}
 						{@const td = visibleData[hoverIdx]}
 						{@const outstanding = td.invoiced - td.paid}
@@ -304,7 +304,7 @@
 						{@const rawTx = bx + bw / 2 - ttW / 2}
 						{@const tx = Math.min(Math.max(rawTx, PL), W - PR - ttW)}
 						{@const ty = Math.max(PT + cH - barH - ttH - 8, PT + 2)}
-						<g>
+						<g style="pointer-events: none">
 							<rect
 								x={tx} y={ty}
 								width={ttW} height={ttH}
@@ -329,6 +329,25 @@
 							>{formatCurrency(outstanding)}</text>
 						</g>
 					{/if}
+
+					<!-- Hit areas rendered last so they sit on top in z-order,
+					     ensuring pointer cursor + events work over the full column -->
+					{#each visibleData as d, i}
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<rect
+							x={PL + i * slotW} y={PT}
+							width={slotW} height={cH}
+							fill="transparent"
+							style="cursor: pointer"
+							tabindex="0"
+							role="link"
+							aria-label="View invoices for {periodLabel(d.period, viewMode)}"
+							onmouseenter={() => { hoverIdx = i; }}
+							onclick={() => goto(barUrl(d.period))}
+							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') goto(barUrl(d.period)); }}
+						/>
+					{/each}
+					{/key}
 				</svg>
 			</div>
 		</div>

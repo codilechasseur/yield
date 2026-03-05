@@ -1272,7 +1272,11 @@
 						Create a full backup of your PocketBase database. Backups are stored on the server and can be downloaded or deleted here.
 					</p>
 
-					{#if data.backupsError}
+{#if data.backupsMissingCreds}
+					<p class="text-sm rounded-lg px-3 py-2 mb-4" style="background: var(--color-muted, #f8fafc); color: var(--color-muted-foreground)">
+						Backup management requires superuser credentials. Set the <code>PB_ADMIN_EMAIL</code> and <code>PB_ADMIN_PASSWORD</code> environment variables to enable this feature.
+					</p>
+				{:else if data.backupsError}
 						<p class="text-sm rounded-lg px-3 py-2 mb-4" style="background: var(--color-destructive-muted, #fef2f2); color: var(--color-destructive, #dc2626)">
 							{data.backupsError}
 						</p>
@@ -1296,7 +1300,7 @@
 					>
 						<button
 							type="submit"
-							disabled={creatingBackup}
+							disabled={creatingBackup || data.backupsMissingCreds}
 							class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
 							style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
 						>

@@ -40,7 +40,7 @@ export async function load() {
 		type InvoiceWithItems = Invoice & { expand: { client: Client; invoice_items_via_invoice?: InvoiceItem[] } };
 		const [allItems, recentRes, overdueRes] = await Promise.all([
 			pb.collection('invoice_items').getFullList<ItemWithInvoice>({ expand: 'invoice' }),
-			pb.collection('invoices').getList<InvoiceWithItems>(1, 5, {
+			pb.collection('invoices').getList<InvoiceWithItems>(1, 10, {
 				sort: '-issue_date',
 				expand: 'client,invoice_items_via_invoice'
 			}),
