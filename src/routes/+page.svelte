@@ -115,7 +115,7 @@
 			<div class="flex-1 min-w-0">
 				<p class="text-sm font-semibold" style="color: var(--color-foreground)">Welcome to Yield</p>
 				<p class="text-sm mt-0.5" style="color: var(--color-muted-foreground)">
-					No data yet. Head to <a href="/settings#import" class="font-medium underline underline-offset-2" style="color: var(--color-primary)">Settings → Data Import</a>
+					No data yet. Head to <a href="/settings/system#import" class="font-medium underline underline-offset-2" style="color: var(--color-primary)">System Settings → Data Import</a>
 					to import from Harvest, or create your first <a href="/clients" class="font-medium underline underline-offset-2" style="color: var(--color-primary)">client</a>
 					and <a href="/invoices/new" class="font-medium underline underline-offset-2" style="color: var(--color-primary)">invoice</a> manually.
 				</p>

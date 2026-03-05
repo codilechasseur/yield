@@ -87,8 +87,8 @@
 			{ label: 'Revenue (pre-tax)', value: fmt(data.totals.subtotal), icon: TrendingUp },
 			{ label: 'GST/HST Collected', value: fmt(data.totals.gstCollected), icon: Receipt },
 			{ label: 'Total Invoiced', value: fmt(data.totals.total), icon: Wallet },
-			{ label: 'Est. Income Tax', value: data.incomeTaxRate > 0 ? fmt(data.totals.estimatedIncomeTax) : 'Set rate →', icon: Calculator }
-		] as card}
+						{ label: 'Est. Income Tax', value: data.incomeTaxRate > 0 ? fmt(data.totals.estimatedIncomeTax) : 'Set rate →', icon: Calculator, href: data.incomeTaxRate <= 0 ? '/settings#income-tax-rate' : undefined }
+	] as card}
 			{@const Icon = card.icon}
 			<div
 				class="rounded-xl p-5 border"
@@ -100,7 +100,11 @@
 						<Icon size={18} style="color: var(--color-primary)" />
 					</div>
 				</div>
-				<p class="text-lg sm:text-2xl font-semibold break-all" style="color: var(--color-foreground)">{card.value}</p>
+				{#if card.href}
+					<a href={card.href} class="text-lg sm:text-2xl font-semibold break-all hover:underline" style="color: var(--color-primary)">{card.value}</a>
+				{:else}
+					<p class="text-lg sm:text-2xl font-semibold break-all" style="color: var(--color-foreground)">{card.value}</p>
+				{/if}
 			</div>
 		{/each}
 	</div>
@@ -269,7 +273,7 @@
 			<li><strong>Revenue by Client</strong> — shows how income is distributed across clients for the selected year.</li>
 			<li><strong>Revenue (pre-tax)</strong> — report as business income for income tax purposes.</li>
 			<li><strong>GST/HST Collected</strong> — amount to remit to CRA each period (derived from your invoices' tax % field).</li>
-			<li><strong>Est. Income Tax</strong> — estimated personal income tax based on your configured effective rate ({data.incomeTaxRate > 0 ? `${data.incomeTaxRate}%` : 'not set — configure in Settings'}). This is a rough estimate; deductions and credits are not accounted for.</li>
+			<li><strong>Est. Income Tax</strong> — estimated personal income tax based on your configured effective rate ({#if data.incomeTaxRate > 0}{data.incomeTaxRate}%{:else}not set — <a href="/settings#income-tax-rate" class="underline" style="color: var(--color-primary)">configure it in Settings</a>{/if}). This is a rough estimate; deductions and credits are not accounted for.</li>
 			<li>Use <strong>Cash basis</strong> if you remit GST only on <em>paid</em> invoices (default for most small businesses).</li>
 			<li>Use <strong>Accrual basis</strong> if you remit GST on <em>invoiced</em> amounts regardless of payment.</li>
 			<li>Input tax credits (ITCs) from your business expenses are not tracked here — deduct them separately.</li>

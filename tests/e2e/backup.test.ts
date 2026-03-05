@@ -4,9 +4,9 @@ import { test, expect } from '@playwright/test';
 // When PB_ADMIN_EMAIL / PB_ADMIN_PASSWORD are set the tests exercise the full create/download/delete flow.
 // When admin credentials are not configured the page shows a helpful error message.
 
-test.describe('Backups section on Settings', () => {
-	test('Backups section is visible on the Settings page', async ({ page }) => {
-		await page.goto('/settings');
+test.describe('Backups section on System Settings', () => {
+	test('Backups section is visible on the System Settings page', async ({ page }) => {
+		await page.goto('/settings/system');
 		// Sidebar link
 		await expect(page.getByRole('button', { name: 'Backups' })).toBeVisible();
 		// Section heading
@@ -14,12 +14,12 @@ test.describe('Backups section on Settings', () => {
 	});
 
 	test('"Create backup now" button is present', async ({ page }) => {
-		await page.goto('/settings');
+		await page.goto('/settings/system');
 		await expect(page.getByRole('button', { name: /Create backup now/i })).toBeVisible();
 	});
 
 	test('create backup, verify it appears, then delete it', async ({ page }) => {
-		await page.goto('/settings');
+		await page.goto('/settings/system');
 
 		// If admin creds are missing the error message is shown instead — skip in that case.
 		const errorBanner = page.locator('text=PB_ADMIN_EMAIL');
@@ -55,7 +55,7 @@ test.describe('Backups section on Settings', () => {
 	});
 
 	test('backup download link points to /api/backup/...', async ({ page }) => {
-		await page.goto('/settings');
+		await page.goto('/settings/system');
 
 		const errorBanner = page.locator('text=PB_ADMIN_EMAIL');
 		if (await errorBanner.isVisible()) {

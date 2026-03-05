@@ -119,15 +119,14 @@ test.describe('Client Contacts', () => {
 
 	test('contacts with email are selectable in invoice send panel', async ({ page }) => {
 		// Configure fake SMTP via direct POST to settings action (ensures it's always saved)
-		await page.goto('/settings');
+		await page.goto('/settings/system');
 		await page.waitForLoadState('networkidle');
-		// Use a unique value to ensure isDirty=true regardless of current state
+		// Use a unique value to ensure the form is dirty
 		const uniqueSmtpHost = `smtp-test-${Date.now()}.example.com`;
 		await page.getByLabel('SMTP Host').fill(uniqueSmtpHost);
 		await page.getByLabel('From Email').fill('invoices@example.com');
-		// The save button text is 'Save' when dirty, 'Saved' when clean
-		await expect(page.getByRole('button', { name: 'Save' }).first()).toBeEnabled({ timeout: 5000 });
-		await page.getByRole('button', { name: 'Save' }).first().click();
+		await expect(page.getByRole('button', { name: 'Save SMTP settings' })).toBeEnabled({ timeout: 5000 });
+		await page.getByRole('button', { name: 'Save SMTP settings' }).click();
 		await page.waitForLoadState('networkidle');
 
 		await page.goto(clientUrl);

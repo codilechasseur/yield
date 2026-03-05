@@ -99,7 +99,7 @@
 			</div>
 			<p class="text-sm" style="color: var(--color-muted-foreground)">
 				Captures toast notifications, JavaScript errors, and unhandled promise rejections in real time.
-				Enable logging in <a href="/settings#debug" class="underline hover:opacity-80 transition-opacity">Settings → Debug</a>.
+				Enable logging in <a href="/settings/system#debug" class="underline hover:opacity-80 transition-opacity">System Settings → Debug</a>.
 			</p>
 		</div>
 	</div>

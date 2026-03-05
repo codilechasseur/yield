@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { LayoutDashboard, Users, FileText, PlusCircle, Settings, BarChart2, Landmark, LogOut, Menu, X, Bug, Zap } from 'lucide-svelte';
+	import { LayoutDashboard, Users, FileText, PlusCircle, Settings, BarChart2, Landmark, LogOut, Menu, X, Bug, Zap, Server } from 'lucide-svelte';
 	import { debugState } from '$lib/debug.svelte.js';
 	import QuickAddItem from '$lib/components/QuickAddItem.svelte';
 
@@ -14,7 +14,8 @@
 		{ href: '/reports', label: 'Reports', icon: BarChart2 },
 		{ href: '/taxes', label: 'Taxes', icon: Landmark },
 		{ href: '/clients', label: 'Clients', icon: Users },
-		{ href: '/settings', label: 'Settings', icon: Settings }
+		{ href: '/settings', label: 'Settings', icon: Settings, exact: true },
+		{ href: '/settings/system', label: 'System', icon: Server }
 	];
 
 	let drawerOpen = $state(false);
@@ -47,7 +48,7 @@
 	<!-- Nav links -->
 	<nav aria-label="Main" class="flex-1 px-2 py-4 space-y-0.5">
 		{#each links as link}
-			{@const active = $page.url.pathname === link.href || ($page.url.pathname.startsWith(link.href) && link.href !== '/')}
+			{@const active = link.exact ? $page.url.pathname === link.href : $page.url.pathname === link.href || ($page.url.pathname.startsWith(link.href) && link.href !== '/')}
 			<a
 				href={link.href}
 				aria-current={active ? 'page' : undefined}
@@ -187,7 +188,7 @@
 		<!-- Links -->
 		<nav aria-label="Main" class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
 			{#each links as link}
-				{@const active = $page.url.pathname === link.href || ($page.url.pathname.startsWith(link.href) && link.href !== '/')}
+				{@const active = link.exact ? $page.url.pathname === link.href : $page.url.pathname === link.href || ($page.url.pathname.startsWith(link.href) && link.href !== '/')}
 				<a
 					href={link.href}
 					onclick={close}
