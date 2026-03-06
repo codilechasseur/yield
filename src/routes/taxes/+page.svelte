@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Landmark, Trash2, PlusCircle, Receipt, Calculator } from 'lucide-svelte';
+	import { Landmark, Trash2, Plus, Receipt, Calculator } from 'lucide-svelte';
 	import { addToast } from '$lib/toasts.svelte.js';
 	import FormAlert from '$lib/components/FormAlert.svelte';
 	import type { PageData, ActionData } from './$types.js';
@@ -51,7 +51,7 @@
 
 <div class="max-w-5xl mx-auto">
 	<!-- Header -->
-	<div class="mb-6 flex items-start justify-between gap-4">
+	<div class="mb-6 flex items-center justify-between gap-4">
 		<div>
 			<h2 class="text-2xl font-bold" style="color: var(--color-foreground)">Taxes</h2>
 			<p class="mt-1 text-sm" style="color: var(--color-muted-foreground)">
@@ -60,10 +60,10 @@
 		</div>
 		<button
 			onclick={() => (showForm = !showForm)}
-			class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 shrink-0"
+			class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
 			style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
 		>
-			<PlusCircle size={15} />
+			<Plus size={16} />
 			Record Payment
 		</button>
 	</div>

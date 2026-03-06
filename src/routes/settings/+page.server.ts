@@ -172,13 +172,11 @@ export const actions = {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const fd = await request.formData();
 		const brand_hue = parseFloat(fd.get('brand_hue')?.toString() ?? '250') || 250;
-		const rawTheme = fd.get('brand_theme')?.toString() ?? '';
-		const brand_theme = ['light', 'dark', 'system'].includes(rawTheme) ? rawTheme : undefined;
 
 		try {
 			const existing = await getSmtpSettings(pb);
 			const payload: Record<string, unknown> = { brand_hue };
-			if (brand_theme) payload.brand_theme = brand_theme;
+
 			if (existing?.id) {
 				await pb.collection('settings').update(existing.id, payload);
 			} else {
@@ -240,6 +238,23 @@ export const actions = {
 		return { logoRemoved: true };
 	},
 
+	saveLogoSettings: async ({ request }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const fd = await request.formData();
+		const logo_hide_company_name = fd.get('logo_hide_company_name') === 'on';
+		try {
+			const existing = await getSmtpSettings(pb);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, { logo_hide_company_name });
+			} else {
+				await pb.collection('settings').create({ logo_hide_company_name });
+			}
+		} catch (e) {
+			return fail(500, { logoError: 'Failed to save: ' + (e as Error).message });
+		}
+		return { logoHideSuccess: true };
+	},
+
 	saveAll: async ({ request }) => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const fd = await request.formData();
@@ -265,7 +280,6 @@ export const actions = {
 			default_currency: fd.get('default_currency')?.toString().trim() || 'CAD',
 			// Appearance
 			brand_hue: parseFloat(fd.get('brand_hue')?.toString() ?? '250') || 250,
-			brand_theme: (['light', 'dark', 'system'].includes(fd.get('brand_theme')?.toString() ?? '') ? fd.get('brand_theme')!.toString() : 'system'),
 			// Logo
 			logo_hide_company_name: fd.get('logo_hide_company_name') === 'on',
 		};

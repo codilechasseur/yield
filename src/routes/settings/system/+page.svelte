@@ -41,45 +41,37 @@
 	let creatingBackup = $state(false);
 	let deletingBackup = $state<string | null>(null);
 
-	// ── Scrollspy ─────────────────────────────────────────────────────────
-	type Section = 'smtp' | 'security' | 'data' | 'backup' | 'debug';
-	const sections: { id: Section; label: string }[] = [
-		{ id: 'smtp',     label: 'SMTP' },
-		{ id: 'security', label: 'Security' },
-		{ id: 'data',     label: 'Data' },
-		{ id: 'backup',   label: 'Backups' },
-		{ id: 'debug',    label: 'Debug' }
-	];
-	let activeSection = $state<Section>('smtp');
-
-	$effect(() => {
-		const observers = sections.map(({ id }) => {
-			const el = document.getElementById(id);
-			if (!el) return null;
-			const obs = new IntersectionObserver(
-				([entry]) => { if (entry.isIntersecting) activeSection = id as Section; },
-				{ rootMargin: '-15% 0px -75% 0px' }
-			);
-			obs.observe(el);
-			return obs;
-		});
-
-		function onScroll() {
-			if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 80) {
-				activeSection = sections[sections.length - 1].id;
-			}
-		}
-		window.addEventListener('scroll', onScroll, { passive: true });
-
-		return () => {
-			observers.forEach(o => o?.disconnect());
-			window.removeEventListener('scroll', onScroll);
-		};
+	// ── Dirty tracking ─────────────────────────────────────────────────────────
+	let smtpSavedSnapshot = $state({
+		smtpHost:      data.smtp?.smtp_host ?? '',
+		smtpPort:      data.smtp?.smtp_port || 587,
+		smtpUser:      data.smtp?.smtp_user ?? '',
+		smtpPass:      data.smtp?.smtp_pass ?? '',
+		smtpFromName:  data.smtp?.smtp_from_name ?? '',
+		smtpFromEmail: data.smtp?.smtp_from_email ?? '',
+		smtpSecure:    data.smtp?.smtp_secure ?? false,
 	});
 
-	function scrollTo(id: Section) {
-		document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	let smtpDirty = $derived(
+		smtpHost      !== smtpSavedSnapshot.smtpHost      ||
+		smtpPort      !== smtpSavedSnapshot.smtpPort      ||
+		smtpUser      !== smtpSavedSnapshot.smtpUser      ||
+		smtpPass      !== smtpSavedSnapshot.smtpPass      ||
+		smtpFromName  !== smtpSavedSnapshot.smtpFromName  ||
+		smtpFromEmail !== smtpSavedSnapshot.smtpFromEmail ||
+		smtpSecure    !== smtpSavedSnapshot.smtpSecure
+	);
+
+	function markSmtpClean() {
+		smtpSavedSnapshot.smtpHost      = smtpHost;
+		smtpSavedSnapshot.smtpPort      = smtpPort;
+		smtpSavedSnapshot.smtpUser      = smtpUser;
+		smtpSavedSnapshot.smtpPass      = smtpPass;
+		smtpSavedSnapshot.smtpFromName  = smtpFromName;
+		smtpSavedSnapshot.smtpFromEmail = smtpFromEmail;
+		smtpSavedSnapshot.smtpSecure    = smtpSecure;
 	}
+
 </script>
 
 <svelte:head>
@@ -102,55 +94,7 @@
 		<p class="mt-1 text-sm" style="color: var(--color-muted-foreground)">Server configuration, security, data, and backups.</p>
 	</div>
 
-	<!-- ── Mobile sticky section tabs ───────────────────────────────── -->
-	<div
-		class="sm:hidden sticky top-0 z-30 -mx-4 px-4 py-2 mb-8 flex gap-1 overflow-x-auto border-b"
-		style="background-color: var(--color-background); border-color: var(--color-border)"
-	>
-		{#each sections as s}
-			<button
-				type="button"
-				onclick={() => scrollTo(s.id)}
-				class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-				style={activeSection === s.id
-					? 'background-color: var(--color-accent); color: var(--color-primary)'
-					: 'color: var(--color-muted-foreground)'}
-			>{s.label}</button>
-		{/each}
-	</div>
-
-	<!-- ── Layout: sticky sidebar (sm+) + scrolling content ─────────── -->
-	<div class="sm:grid sm:grid-cols-[200px_1fr] sm:gap-10">
-
-		<!-- Floating sidebar (desktop only) -->
-		<aside
-			class="hidden sm:flex sm:flex-col sticky top-6 h-fit gap-0.5 rounded-2xl border p-3"
-			style="background-color: var(--color-card); border-color: var(--color-border); box-shadow: 0 4px 24px -4px color-mix(in srgb, var(--color-foreground) 8%, transparent)"
-		>
-			{#each sections as s}
-				<button
-					type="button"
-					onclick={() => scrollTo(s.id)}
-					class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-					style={activeSection === s.id
-						? 'background-color: var(--color-accent); color: var(--color-primary)'
-						: 'color: var(--color-muted-foreground)'}
-				>{s.label}</button>
-			{/each}
-			<div class="pt-2 mt-1 border-t" style="border-color: var(--color-border)">
-				<a
-					href="/settings"
-					class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
-					style="color: var(--color-muted-foreground)"
-				>
-					<ArrowLeft size={14} aria-hidden="true" />
-					Settings
-				</a>
-			</div>
-		</aside>
-
-		<!-- ── All system sections ───────────────────────────────────── -->
-		<div class="space-y-14 pb-24">
+	<div class="space-y-14 pb-24">
 
 			<!-- ════════════════════════════════════════════════════════
 			     SMTP
@@ -171,6 +115,7 @@
 					{/if}
 
 					<form
+						id="smtp-save-form"
 						method="POST"
 						action="?/saveSmtp"
 						class="space-y-4"
@@ -179,7 +124,7 @@
 							return async ({ update, result }) => {
 								smtpSaving = false;
 								await update({ reset: false });
-								if (result.type === 'success') addToast('SMTP settings saved');
+							if (result.type === 'success') { markSmtpClean(); addToast('SMTP settings saved'); }
 								else if (result.type === 'failure') addToast((result.data as any)?.smtpError ?? 'Failed to save SMTP settings', 'error');
 							};
 						}}
@@ -307,8 +252,10 @@
 							<button
 								type="submit"
 								disabled={smtpSaving}
-								class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-								style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+							class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+							style={smtpDirty
+								? 'background-color: var(--color-primary); color: var(--color-primary-foreground)'
+								: 'background-color: var(--color-muted); color: var(--color-muted-foreground); opacity: 0.6'}
 							>
 								<Save size={14} aria-hidden="true" />
 								{smtpSaving ? 'Saving…' : 'Save SMTP settings'}
@@ -378,6 +325,7 @@
 					</p>
 
 					<form
+						id="security-save-form"
 						method="POST"
 						action="?/setPassword"
 						class="flex flex-col sm:flex-row sm:items-end gap-3"
@@ -829,7 +777,6 @@
 					</div>
 				</div>
 			</section>
-		</div>
 	</div>
 </div>
 

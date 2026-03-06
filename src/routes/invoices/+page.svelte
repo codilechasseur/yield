@@ -77,7 +77,7 @@
 		</div>
 		<a
 			href="/invoices/new"
-			class="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+			class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
 			style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
 		>
 			<Plus size={16} /> New Invoice

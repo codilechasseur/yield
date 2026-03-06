@@ -12,12 +12,9 @@
 	const isLogin = $derived($page.url.pathname === '/login');
 
 	onMount(() => {
-		// DB is the source of truth — sync to localStorage and DOM on every page load.
-		const theme = data.brandTheme ?? 'system';
+		// Sync accent hue from DB (source of truth for brand colour).
 		const hue = String(data.brandHue ?? 250);
-		localStorage.setItem('yield-theme', theme);
 		localStorage.setItem('yield-hue', hue);
-		document.documentElement.setAttribute('data-theme', theme);
 		document.documentElement.style.setProperty('--hue', hue);
 	});
 </script>

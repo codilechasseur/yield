@@ -1,12 +1,26 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { LayoutDashboard, Users, FileText, PlusCircle, Settings, BarChart2, Landmark, LogOut, Menu, X, Bug, Zap, Server } from 'lucide-svelte';
+	import { LayoutDashboard, Users, FileText, PlusCircle, Settings, BarChart2, Landmark, LogOut, Menu, X, Bug, Zap, Sun, Moon, Monitor, Server } from 'lucide-svelte';
 	import { debugState } from '$lib/debug.svelte.js';
 	import QuickAddItem from '$lib/components/QuickAddItem.svelte';
 
 	let { authEnabled = false }: { authEnabled?: boolean } = $props();
 
 	let quickAddOpen = $state(false);
+
+	type Theme = 'light' | 'dark' | 'system';
+	let theme = $state<Theme>('system');
+
+	$effect(() => {
+		theme = (localStorage.getItem('yield-theme') as Theme) || 'system';
+	});
+
+	function cycleTheme() {
+		const next: Theme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+		theme = next;
+		localStorage.setItem('yield-theme', next);
+		document.documentElement.setAttribute('data-theme', next);
+	}
 
 	const links = [
 		{ href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -119,6 +133,23 @@
 	</div>
 </aside>
 
+<!-- ── Desktop theme toggle (fixed top-right) ─────────────────── -->
+<button
+	type="button"
+	onclick={cycleTheme}
+	aria-label={theme === 'dark' ? 'Dark theme (click for system)' : theme === 'light' ? 'Light theme (click for dark)' : 'System theme (click for light)'}
+	class="hidden md:flex fixed top-4 right-4 z-40 p-2 rounded-lg transition-colors hover:opacity-80"
+	style="color: var(--color-muted-foreground); background-color: var(--color-card); border: 1px solid var(--color-border)"
+>
+	{#if theme === 'dark'}
+		<Moon size={16} aria-hidden="true" />
+	{:else if theme === 'light'}
+		<Sun size={16} aria-hidden="true" />
+	{:else}
+		<Monitor size={16} aria-hidden="true" />
+	{/if}
+</button>
+
 <!-- ── Mobile top header ───────────────────────────────────────── -->
 <header
 	class="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 h-14"
@@ -145,6 +176,21 @@
 		</div>
 		<span class="font-bold text-base tracking-tight" style="color: var(--color-primary)">Yield</span>
 	</a>
+	<button
+		type="button"
+		onclick={cycleTheme}
+		aria-label={theme === 'dark' ? 'Dark theme (click for system)' : theme === 'light' ? 'Light theme (click for dark)' : 'System theme (click for light)'}
+		class="p-1.5 rounded-lg transition-colors hover:opacity-80"
+		style="color: var(--color-foreground)"
+	>
+		{#if theme === 'dark'}
+			<Moon size={20} aria-hidden="true" />
+		{:else if theme === 'light'}
+			<Sun size={20} aria-hidden="true" />
+		{:else}
+			<Monitor size={20} aria-hidden="true" />
+		{/if}
+	</button>
 </header>
 
 <!-- ── Mobile drawer ───────────────────────────────────────────── -->

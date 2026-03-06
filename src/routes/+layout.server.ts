@@ -7,7 +7,6 @@ export async function load({ locals }) {
 	const smtp = await getSmtpSettings(pb).catch(() => null);
 	return {
 		authEnabled: locals.authEnabled ?? false,
-		brandTheme: (smtp?.brand_theme as string) || 'system',
 		brandHue: smtp?.brand_hue ?? 250
 	};
 }
