@@ -82,14 +82,6 @@
 
 	<!-- ── Page header ──────────────────────────────────────────────── -->
 	<div class="mb-6">
-		<a
-			href="/settings"
-			class="inline-flex items-center gap-1.5 text-sm mb-3 transition-opacity hover:opacity-70"
-			style="color: var(--color-muted-foreground)"
-		>
-			<ArrowLeft size={14} aria-hidden="true" />
-			Settings
-		</a>
 		<h2 class="text-2xl font-bold" style="color: var(--color-foreground)">System Settings</h2>
 		<p class="mt-1 text-sm" style="color: var(--color-muted-foreground)">Server configuration, security, data, and backups.</p>
 	</div>

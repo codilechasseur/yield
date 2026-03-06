@@ -333,6 +333,9 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 			email_subject: r.email_subject ?? '',
 			email_body: r.email_body ?? '',
 			app_password_hash: r.app_password_hash ?? '',
+			invoice_number_format: r.invoice_number_format ?? '',
+			invoice_next_number: r.invoice_next_number ?? 0,
+			default_hourly_rate: r.default_hourly_rate ?? 0,
 			logo: r.logo ?? '',
 			logo_hide_company_name: r.logo_hide_company_name ?? false
 		};

@@ -182,6 +182,16 @@ describe('getSmtpSettings', () => {
 		const result = await getSmtpSettings(makePb([{ id: 's1', smtp_port: null }]));
 		expect(result?.smtp_port).toBe(587);
 	});
+
+	it('returns default_hourly_rate from the database record', async () => {
+		const result = await getSmtpSettings(makePb([{ id: 's1', default_hourly_rate: 125 }]));
+		expect(result?.default_hourly_rate).toBe(125);
+	});
+
+	it('defaults default_hourly_rate to 0 when absent', async () => {
+		const result = await getSmtpSettings(makePb([{ id: 's1' }]));
+		expect(result?.default_hourly_rate).toBe(0);
+	});
 });
 
 // ── sendInvoiceEmail – recipient addressing ───────────────────────────────────

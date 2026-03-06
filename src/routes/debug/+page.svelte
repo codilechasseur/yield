@@ -88,7 +88,7 @@
 	<title>Debug Log — Yield</title>
 </svelte:head>
 
-<div class="max-w-4xl mx-auto space-y-8">
+<div class="max-w-5xl mx-auto space-y-8">
 
 	<!-- Page header -->
 	<div class="flex items-start justify-between gap-4">
