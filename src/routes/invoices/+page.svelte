@@ -204,7 +204,7 @@
 		<div class="rounded-xl border overflow-x-auto" style="background: var(--color-card); border-color: var(--color-border)">
 		<table class="w-full min-w-175">
 				<thead>
-					<tr style="border-bottom: 1px solid var(--color-border)">
+					<tr style="border-bottom: 1px solid var(--color-border); background: color-mix(in oklch, var(--color-accent) 50%, var(--color-muted))">
 						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Number</th>
 						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Client</th>
 						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Issue Date</th>

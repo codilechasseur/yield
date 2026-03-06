@@ -541,7 +541,7 @@
 		<!-- Line items -->
 		<table class="w-full">
 			<thead>
-				<tr style="border-bottom: 1px solid var(--color-border); background: var(--color-muted)">
+				<tr style="border-bottom: 1px solid var(--color-border); background: color-mix(in oklch, var(--color-accent) 50%, var(--color-muted))">
 					<th scope="col" class="px-8 py-3 text-left text-xs font-medium uppercase tracking-wide w-full" style="color: var(--color-muted-foreground)">Description</th>
 				<th scope="col" class="px-3 py-3 text-center text-xs font-medium uppercase tracking-wide whitespace-nowrap" style="color: var(--color-muted-foreground)">Qty</th>
 				<th scope="col" class="px-3 py-3 text-center text-xs font-medium uppercase tracking-wide whitespace-nowrap" style="color: var(--color-muted-foreground)">Unit Price</th>
@@ -561,7 +561,7 @@
 		</table>
 
 		<!-- Totals -->
-		<div class="px-8 py-6 border-t" style="border-color: var(--color-border); background: var(--color-muted)">
+		<div class="px-8 py-6 border-t" style="border-color: var(--color-border); background: color-mix(in oklch, var(--color-accent) 50%, var(--color-muted))">
 			<div class="max-w-xs ml-auto space-y-2">
 				<div class="flex justify-between text-sm" style="color: var(--color-muted-foreground)">
 					<span>Subtotal</span>
@@ -593,7 +593,7 @@
 		{#if invoice.notes}
 			<div class="px-8 py-4 border-t" style="border-color: var(--color-border)">
 				<p class="text-xs font-medium uppercase tracking-wide mb-1" style="color: var(--color-muted-foreground)">Notes</p>
-				<div class="text-sm" style="color: var(--color-foreground)">{@html invoice.notes}</div>
+				<div class="text-sm" style="color: var(--color-foreground)">{@html invoice.notes.includes('<') ? invoice.notes : invoice.notes.replace(/\n/g, '<br>')}</div>
 			</div>
 		{/if}
 	</div>

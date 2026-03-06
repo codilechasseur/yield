@@ -371,7 +371,7 @@
 		<div class="overflow-x-auto">
 		<table class="w-full min-w-150">
 			<thead>
-				<tr style="border-bottom: 1px solid var(--color-border)">
+				<tr style="border-bottom: 1px solid var(--color-border); background: color-mix(in oklch, var(--color-accent) 50%, var(--color-muted))">
 					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Invoice</th>
 					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Client</th>
 					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Due Date</th>
@@ -434,7 +434,7 @@
 		<div class="overflow-x-auto">
 		<table class="w-full min-w-150">
 			<thead>
-				<tr style="border-bottom: 1px solid var(--color-border)">
+				<tr style="border-bottom: 1px solid var(--color-border); background: color-mix(in oklch, var(--color-accent) 50%, var(--color-muted))">
 					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Invoice</th>
 					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Client</th>
 					<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Due Date</th>

@@ -124,7 +124,7 @@
 			<div class="overflow-x-auto">
 			<table class="w-full text-sm">
 				<thead>
-					<tr class="border-b" style="border-color: var(--color-border)">
+					<tr class="border-b" style="border-color: var(--color-border); background: color-mix(in oklch, var(--color-accent) 50%, var(--color-muted))">
 						<th scope="col" class="px-6 py-3 text-left font-medium" style="color: var(--color-muted-foreground)">Client</th>
 						<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)"># Invoices</th>
 						<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Revenue (pre-tax)</th>
@@ -172,7 +172,7 @@
 		<div class="overflow-x-auto">
 		<table class="w-full text-sm min-w-150">
 			<thead>
-				<tr class="border-b" style="border-color: var(--color-border)">
+				<tr class="border-b" style="border-color: var(--color-border); background: color-mix(in oklch, var(--color-accent) 50%, var(--color-muted))">
 					<th scope="col" class="px-6 py-3 text-left font-medium" style="color: var(--color-muted-foreground)">Month</th>
 					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)"># Invoices</th>
 					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Revenue (pre-tax)</th>

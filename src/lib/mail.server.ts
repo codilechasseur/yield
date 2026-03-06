@@ -284,7 +284,7 @@ export function buildInvoiceHtml(
     ${invoice.notes || opts?.defaultNotes ? `
     <div style="margin-top:28px;padding:16px 20px;border:1px solid ${c.borderLight};">
       <p style="${lbl}margin-bottom:6px;">Notes</p>
-      <div style="font-size:12.5px;color:${c.mutedFg};line-height:1.7;">${invoice.notes || opts?.defaultNotes}</div>
+      <div style="font-size:12.5px;color:${c.mutedFg};line-height:1.7;">${(() => { const n = invoice.notes || opts?.defaultNotes || ''; return n.includes('<') ? n : n.replace(/\n/g, '<br>'); })()}</div>
     </div>` : ''}
 
     ${opts?.invoiceFooter ? `
