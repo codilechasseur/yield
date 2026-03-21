@@ -27,7 +27,12 @@
 	}
 
 	function closeDialog() {
-		dialogEl?.close();
+		if (!dialogEl || !dialogEl.open) return;
+		dialogEl.classList.add('closing');
+		dialogEl.addEventListener('animationend', () => {
+			dialogEl!.classList.remove('closing');
+			dialogEl!.close();
+		}, { once: true });
 	}
 
 	async function handleCreate() {
@@ -105,7 +110,7 @@
 <dialog
 	bind:this={dialogEl}
 	aria-labelledby="qac-title"
-	class="m-auto rounded-xl border shadow-xl w-full max-w-sm p-0 backdrop:bg-black/40"
+	class="m-auto rounded-xl border shadow-xl w-full max-w-sm p-0"
 	style="background: var(--color-card); border-color: var(--color-border)"
 >
 	<div class="flex items-center justify-between px-5 pt-5 pb-3">

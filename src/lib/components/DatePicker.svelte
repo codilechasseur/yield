@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { fly } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
 
 	interface Props {
 		value: string;   // YYYY-MM-DD
@@ -118,6 +120,7 @@
 
 	{#if open}
 		<div
+			transition:fly={{ y: -4, duration: 150, easing: cubicOut }}
 			role="dialog"
 			aria-label="Date picker"
 			aria-modal="true"

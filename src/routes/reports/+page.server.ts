@@ -21,10 +21,21 @@ export interface ClientSummary {
 	total: number;
 }
 
+export interface YearSummary {
+	year: number;
+	invoiceCount: number;
+	subtotal: number;
+	gstCollected: number;
+	total: number;
+	estimatedIncomeTax: number;
+}
+
 export interface ReportData {
 	year: number;
+	allTime: boolean;
 	availableYears: number[];
 	months: MonthSummary[];
+	years: YearSummary[];
 	totals: {
 		invoiceCount: number;
 		subtotal: number;
@@ -46,7 +57,9 @@ export async function load({ url }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 
 	const currentYear = new Date().getFullYear();
-	const year = parseInt(url.searchParams.get('year') ?? String(currentYear), 10);
+	const yearParam = url.searchParams.get('year');
+	const allTime = yearParam === 'all';
+	const year = allTime ? 0 : parseInt(yearParam ?? String(currentYear), 10);
 	const basis = (url.searchParams.get('basis') ?? 'cash') as 'cash' | 'accrual';
 
 	// Available years: derived from actual invoice issue_dates, always including current year
@@ -72,13 +85,15 @@ export async function load({ url }) {
 				? `invoice.status = "paid"`
 				: `invoice.status != "draft"`;
 
-		const dateFilter = `invoice.issue_date >= "${year}-01-01 00:00:00" && invoice.issue_date <= "${year}-12-31 23:59:59"`;
+		const dateFilter = allTime
+			? null
+			: `invoice.issue_date >= "${year}-01-01 00:00:00" && invoice.issue_date <= "${year}-12-31 23:59:59"`;
 
 		// Fetch all items whose parent invoice matches our criteria, with the invoice and client expanded
 		const items = await pb
 			.collection('invoice_items')
 			.getFullList<InvoiceItem & { expand: { invoice: Invoice & { expand?: { client?: Client } } } }>({
-				filter: `${statusFilter} && ${dateFilter}`,
+				filter: dateFilter ? `${statusFilter} && ${dateFilter}` : statusFilter,
 				expand: 'invoice,invoice.client',
 				sort: 'invoice.issue_date'
 			});
@@ -95,52 +110,74 @@ export async function load({ url }) {
 			invoiceMap.get(inv.id)!.items.push(item);
 		}
 
-		// Count all non-draft invoices per month (independent of cash/accrual basis)
+		// Count all non-draft invoices per month or year (independent of cash/accrual basis)
 		// so the "# Invoices" column reflects all issued invoices, not just paid ones.
 		const allIssuedInvoices = await pb
 			.collection('invoices')
 			.getFullList<Pick<Invoice, 'id' | 'issue_date'>>({
-				filter: `status != "draft" && ${dateFilter.replace(/invoice\./g, '')}`,
+				filter: dateFilter ? `status != "draft" && ${dateFilter.replace(/invoice\./g, '')}` : `status != "draft"`,
 				fields: 'id,issue_date'
 			})
 			.catch(() => [] as Pick<Invoice, 'id' | 'issue_date'>[]);
 		const monthCountMap = new Map<number, number>();
+		const yearCountMap = new Map<number, number>();
 		for (const inv of allIssuedInvoices) {
 			if (!inv.issue_date) continue;
-			const m = new Date(inv.issue_date).getMonth() + 1;
-			monthCountMap.set(m, (monthCountMap.get(m) ?? 0) + 1);
+			const d = new Date(inv.issue_date);
+			if (allTime) {
+				const y = d.getFullYear();
+				yearCountMap.set(y, (yearCountMap.get(y) ?? 0) + 1);
+			} else {
+				const m = d.getMonth() + 1;
+				monthCountMap.set(m, (monthCountMap.get(m) ?? 0) + 1);
+			}
 		}
 
-		// Aggregate by month (1-indexed)
+		// Aggregate by month (1-indexed) or by year (for all-time view)
 		const monthMap = new Map<number, MonthSummary>();
+		const yearMap = new Map<number, YearSummary>();
 		// Aggregate by client
 		const clientMap = new Map<string, ClientSummary>();
 
 		for (const { invoice, items: invItems } of invoiceMap.values()) {
 			const issueDate = new Date(invoice.issue_date);
 			const month = issueDate.getMonth() + 1; // 1–12
+			const invYear = issueDate.getFullYear();
 
 			const subtotal = invItems.reduce((s, i) => s + i.quantity * i.unit_price, 0);
 			const gst = subtotal * ((invoice.tax_percent ?? 0) / 100);
 			const total = subtotal + gst;
+			const estTax = subtotal * (incomeTaxRate / 100);
 
-			// Monthly aggregation
-			if (!monthMap.has(month)) {
-				monthMap.set(month, {
-					month,
-					label: MONTH_NAMES[month - 1],
-					invoiceCount: 0,
-					subtotal: 0,
-					gstCollected: 0,
-					total: 0,
-					estimatedIncomeTax: 0
-				});
+			if (allTime) {
+				// Yearly aggregation
+				if (!yearMap.has(invYear)) {
+					yearMap.set(invYear, { year: invYear, invoiceCount: 0, subtotal: 0, gstCollected: 0, total: 0, estimatedIncomeTax: 0 });
+				}
+				const ys = yearMap.get(invYear)!;
+				ys.subtotal += subtotal;
+				ys.gstCollected += gst;
+				ys.total += total;
+				ys.estimatedIncomeTax += estTax;
+			} else {
+				// Monthly aggregation
+				if (!monthMap.has(month)) {
+					monthMap.set(month, {
+						month,
+						label: MONTH_NAMES[month - 1],
+						invoiceCount: 0,
+						subtotal: 0,
+						gstCollected: 0,
+						total: 0,
+						estimatedIncomeTax: 0
+					});
+				}
+				const ms = monthMap.get(month)!;
+				ms.subtotal += subtotal;
+				ms.gstCollected += gst;
+				ms.total += total;
+				ms.estimatedIncomeTax += estTax;
 			}
-			const ms = monthMap.get(month)!;
-			ms.subtotal += subtotal;
-			ms.gstCollected += gst;
-			ms.total += total;
-			ms.estimatedIncomeTax += subtotal * (incomeTaxRate / 100);
 
 			// Client aggregation
 			const clientId = invoice.client ?? 'unknown';
@@ -154,8 +191,8 @@ export async function load({ url }) {
 			cs.total += total;
 		}
 
-		// Fill in all 12 months (zero for months with no data)
-		const months: MonthSummary[] = Array.from({ length: 12 }, (_, i) => {
+		// Fill in all 12 months (zero for months with no data); empty when all-time
+		const months: MonthSummary[] = allTime ? [] : Array.from({ length: 12 }, (_, i) => {
 			const m = i + 1;
 			const invoiceCount = monthCountMap.get(m) ?? 0;
 			const existing = monthMap.get(m);
@@ -173,13 +210,27 @@ export async function load({ url }) {
 			};
 		});
 
-		const totals = months.reduce(
-			(acc, m) => ({
-				invoiceCount: acc.invoiceCount + m.invoiceCount,
-				subtotal: acc.subtotal + m.subtotal,
-				gstCollected: acc.gstCollected + m.gstCollected,
-				total: acc.total + m.total,
-				estimatedIncomeTax: acc.estimatedIncomeTax + m.estimatedIncomeTax
+		// Build yearly summaries for all-time view
+		const allTimeYearKeys = new Set([...yearMap.keys(), ...yearCountMap.keys()]);
+		const years: YearSummary[] = allTime
+			? Array.from(allTimeYearKeys)
+				.sort((a, b) => a - b)
+				.map((y) => {
+					const ys = yearMap.get(y);
+					const invoiceCount = yearCountMap.get(y) ?? 0;
+					if (ys) return { ...ys, invoiceCount };
+					return { year: y, invoiceCount, subtotal: 0, gstCollected: 0, total: 0, estimatedIncomeTax: 0 };
+				})
+			: [];
+
+		const source = allTime ? years : months;
+		const totals = source.reduce(
+			(acc, row) => ({
+				invoiceCount: acc.invoiceCount + row.invoiceCount,
+				subtotal: acc.subtotal + row.subtotal,
+				gstCollected: acc.gstCollected + row.gstCollected,
+				total: acc.total + row.total,
+				estimatedIncomeTax: acc.estimatedIncomeTax + row.estimatedIncomeTax
 			}),
 			{ invoiceCount: 0, subtotal: 0, gstCollected: 0, total: 0, estimatedIncomeTax: 0 }
 		);
@@ -191,8 +242,10 @@ export async function load({ url }) {
 
 		return {
 			year,
+			allTime,
 			availableYears,
 			months,
+			years,
 			totals,
 			clientSummaries,
 			basis,
@@ -203,8 +256,9 @@ export async function load({ url }) {
 		console.error('Reports load error:', e);
 		return {
 			year,
+			allTime,
 			availableYears,
-			months: Array.from({ length: 12 }, (_, i) => ({
+			months: allTime ? [] : Array.from({ length: 12 }, (_, i) => ({
 				month: i + 1,
 				label: MONTH_NAMES[i],
 				invoiceCount: 0,
@@ -213,6 +267,7 @@ export async function load({ url }) {
 				total: 0,
 				estimatedIncomeTax: 0
 			})),
+			years: [],
 			totals: { invoiceCount: 0, subtotal: 0, gstCollected: 0, total: 0, estimatedIncomeTax: 0 },
 			clientSummaries: [],
 			basis,

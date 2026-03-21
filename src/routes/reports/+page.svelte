@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { BarChart2, TrendingUp, Wallet, Receipt, Calculator, Users, CalendarDays, PieChart } from 'lucide-svelte';
 	import type { PageData } from './$types.js';
 
@@ -39,7 +40,7 @@
 	<div class="mb-6">
 		<h2 class="text-2xl font-bold" style="color: var(--color-foreground)">Reports</h2>
 		<p class="mt-1 text-sm" style="color: var(--color-muted-foreground)">
-			Revenue breakdown, client summary, and tax figures for the selected year
+			Revenue breakdown, client summary, and tax figures for the {data.allTime ? 'entire history' : 'selected year'}
 		</p>
 	</div>
 
@@ -55,8 +56,9 @@
 				class="rounded-lg border px-3 py-1.5 text-sm"
 				style="background-color: var(--color-card); border-color: var(--color-border); color: var(--color-foreground)"
 			>
+				<option value="all" selected={data.allTime}>All time</option>
 				{#each data.availableYears as y}
-					<option value={y} selected={y === data.year}>{y}</option>
+					<option value={y} selected={!data.allTime && y === data.year}>{y}</option>
 				{/each}
 			</select>
 		</div>
@@ -85,8 +87,8 @@
 	<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
 		{#each [
 			{ label: 'Revenue (pre-tax)', value: fmt(data.totals.subtotal), icon: TrendingUp },
-			{ label: 'GST/HST Collected', value: fmt(data.totals.gstCollected), icon: Receipt },
 			{ label: 'Total Invoiced', value: fmt(data.totals.total), icon: Wallet },
+			{ label: 'GST/HST Collected', value: fmt(data.totals.gstCollected), icon: Receipt },
 						{ label: 'Est. Income Tax', value: data.incomeTaxRate > 0 ? fmt(data.totals.estimatedIncomeTax) : 'Set rate →', icon: Calculator, href: data.incomeTaxRate <= 0 ? '/settings#income-tax-rate' : undefined }
 	] as card}
 			{@const Icon = card.icon}
@@ -116,7 +118,7 @@
 	>
 		<div class="px-6 py-4 border-b flex items-center gap-2" style="border-color: var(--color-border)">
 			<Users size={16} style="color: var(--color-primary)" aria-hidden="true" />
-			<h3 class="font-semibold" style="color: var(--color-foreground)">Revenue by Client — {data.year}</h3>
+			<h3 class="font-semibold" style="color: var(--color-foreground)">Revenue by Client — {data.allTime ? 'All Time' : data.year}</h3>
 		</div>
 		{#if data.clientSummaries.length === 0}
 			<p class="px-6 py-8 text-sm text-center" style="color: var(--color-muted-foreground)">No data for this period.</p>
@@ -156,6 +158,80 @@
 		{/if}
 	</div>
 
+	{#if data.allTime}
+	<!-- Yearly Breakdown (all-time view) -->
+	<div
+		class="rounded-xl border overflow-hidden mb-6"
+		style="background-color: var(--color-card); border-color: var(--color-border)"
+	>
+		<div class="px-6 py-4 border-b flex items-center gap-2" style="border-color: var(--color-border)">
+			<CalendarDays size={16} style="color: var(--color-primary)" aria-hidden="true" />
+			<div>
+				<h3 class="font-semibold" style="color: var(--color-foreground)">Yearly Breakdown — All Time</h3>
+				<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Click a year to drill into its monthly report</p>
+			</div>
+		</div>
+		{#if data.years.length === 0}
+			<p class="px-6 py-8 text-sm text-center" style="color: var(--color-muted-foreground)">No data yet.</p>
+		{:else}
+		<div class="overflow-x-auto">
+		<table class="w-full text-sm min-w-150">
+			<thead>
+				<tr class="border-b" style="border-color: var(--color-border); background: color-mix(in oklch, var(--color-accent) 50%, var(--color-muted))">
+					<th scope="col" class="px-6 py-3 text-left font-medium" style="color: var(--color-muted-foreground)">Year</th>
+					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)"># Invoices</th>
+					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Revenue (pre-tax)</th>
+					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">GST/HST Collected</th>
+					<th scope="col" class="px-4 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Est. Income Tax</th>
+					<th scope="col" class="px-6 py-3 text-right font-medium" style="color: var(--color-muted-foreground)">Total Invoiced</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each data.years as y}
+					{@const href = `/reports?year=${y.year}&basis=${data.basis}`}
+					<tr
+						class="border-b transition-colors cursor-pointer hover:brightness-95"
+						style="border-color: var(--color-border)"
+						role="link"
+						tabindex="0"
+						aria-label="View {y.year} report"
+						onclick={() => goto(href)}
+						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goto(href); } }}
+					>
+						<td class="px-6 py-3 font-medium" style="color: var(--color-foreground)">{y.year}</td>
+						<td class="px-4 py-3 text-right tabular-nums" style="color: {y.invoiceCount === 0 ? 'var(--color-muted-foreground)' : 'var(--color-foreground)'}">
+							{y.invoiceCount === 0 ? '—' : y.invoiceCount}
+						</td>
+						<td class="px-4 py-3 text-right tabular-nums" style="color: {y.subtotal === 0 ? 'var(--color-muted-foreground)' : 'var(--color-foreground)'}">
+							{y.subtotal === 0 ? '—' : fmt(y.subtotal)}
+						</td>
+						<td class="px-4 py-3 text-right tabular-nums" style="color: {y.gstCollected === 0 ? 'var(--color-muted-foreground)' : 'var(--color-foreground)'}">
+							{y.gstCollected === 0 ? '—' : fmt(y.gstCollected)}
+						</td>
+						<td class="px-4 py-3 text-right tabular-nums" style="color: {y.estimatedIncomeTax === 0 ? 'var(--color-muted-foreground)' : 'var(--color-foreground)'}">
+							{data.incomeTaxRate <= 0 ? '—' : y.estimatedIncomeTax === 0 ? '—' : fmt(y.estimatedIncomeTax)}
+						</td>
+						<td class="px-6 py-3 text-right tabular-nums font-medium" style="color: {y.total === 0 ? 'var(--color-muted-foreground)' : 'var(--color-foreground)'}">
+							{y.total === 0 ? '—' : fmt(y.total)}
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+			<tfoot>
+				<tr style="background-color: var(--color-accent)">
+					<td class="px-6 py-3 font-semibold" style="color: var(--color-foreground)">Total (All Time)</td>
+					<td class="px-4 py-3 text-right tabular-nums font-semibold" style="color: var(--color-foreground)">{data.totals.invoiceCount}</td>
+					<td class="px-4 py-3 text-right tabular-nums font-semibold" style="color: var(--color-foreground)">{fmt(data.totals.subtotal)}</td>
+					<td class="px-4 py-3 text-right tabular-nums font-semibold" style="color: var(--color-foreground)">{fmt(data.totals.gstCollected)}</td>
+					<td class="px-4 py-3 text-right tabular-nums font-semibold" style="color: var(--color-foreground)">{data.incomeTaxRate > 0 ? fmt(data.totals.estimatedIncomeTax) : '—'}</td>
+					<td class="px-6 py-3 text-right tabular-nums font-semibold" style="color: var(--color-foreground)">{fmt(data.totals.total)}</td>
+				</tr>
+			</tfoot>
+		</table>
+		</div>
+		{/if}
+	</div>
+	{:else}
 	<!-- Monthly Table -->
 	<div
 		class="rounded-xl border overflow-hidden mb-6"
@@ -183,9 +259,15 @@
 				{#each data.months as m}
 					{@const isPast = !isCurrentYear || m.month < currentMonth}
 					{@const isCurrent = isCurrentYear && m.month === currentMonth}
+					{@const href = `/invoices?year=${data.year}&month=${m.month}`}
 					<tr
-						class="border-b transition-colors"
+						class="border-b transition-colors {m.invoiceCount > 0 ? 'cursor-pointer hover:brightness-95' : ''}"
 						style="border-color: var(--color-border); {isCurrent ? 'background-color: var(--color-accent)' : ''}"
+						role={m.invoiceCount > 0 ? 'link' : undefined}
+						tabindex={m.invoiceCount > 0 ? 0 : undefined}
+						aria-label={m.invoiceCount > 0 ? `View ${m.invoiceCount} invoice${m.invoiceCount === 1 ? '' : 's'} for ${m.label} ${data.year}` : undefined}
+						onclick={m.invoiceCount > 0 ? () => goto(href) : undefined}
+						onkeydown={m.invoiceCount > 0 ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goto(href); } } : undefined}
 					>
 						<td class="px-6 py-3 font-medium" style="color: var(--color-foreground)">
 							{m.label}
@@ -222,8 +304,10 @@
 				</tr>
 			</tfoot>
 		</table>			</div>	</div>
+	{/if}
 
-	<!-- Quarterly Summary -->
+	<!-- Quarterly Summary (only for single-year view) -->
+	{#if !data.allTime}
 	<div
 		class="rounded-xl border overflow-hidden"
 		style="background-color: var(--color-card); border-color: var(--color-border)"
@@ -265,6 +349,7 @@
 				{/each}
 			</tbody>
 		</table>			</div>	</div>
+	{/if}
 
 	<!-- Notes -->
 	<div class="mt-6 rounded-xl border p-5 text-sm space-y-1.5" style="background-color: var(--color-card); border-color: var(--color-border); color: var(--color-muted-foreground)">

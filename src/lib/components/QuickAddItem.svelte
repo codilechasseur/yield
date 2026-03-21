@@ -110,7 +110,12 @@
 	}
 
 	function closeDialog() {
-		onclose?.();
+		if (!dialogEl || !dialogEl.open) return;
+		dialogEl.classList.add('closing');
+		dialogEl.addEventListener('animationend', () => {
+			dialogEl!.classList.remove('closing');
+			dialogEl!.close(); // native close event → onNativeClose → onclose?.()
+		}, { once: true });
 	}
 
 	// Fired by the native <dialog> close event (Escape key, or programmatic close).
@@ -176,7 +181,7 @@
 	bind:this={dialogEl}
 	onclose={onNativeClose}
 	aria-labelledby="qai-title"
-	class="m-auto rounded-xl border shadow-xl w-full max-w-md p-0 backdrop:bg-black/40"
+	class="m-auto rounded-xl border shadow-xl w-full max-w-md p-0"
 	style="background: var(--color-card); border-color: var(--color-border)"
 >
 	<!-- Header -->

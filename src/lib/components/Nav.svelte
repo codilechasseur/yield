@@ -2,6 +2,8 @@
 	import { page } from '$app/stores';
 	import { LayoutDashboard, Users, FileText, PlusCircle, Settings, BarChart2, Landmark, LogOut, Menu, X, Bug, Zap, Sun, Moon, Monitor, Server } from 'lucide-svelte';
 	import { debugState } from '$lib/debug.svelte.js';
+	import { fly, fade } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
 	import QuickAddItem from '$lib/components/QuickAddItem.svelte';
 
 	let { authEnabled = false }: { authEnabled?: boolean } = $props();
@@ -197,6 +199,7 @@
 {#if drawerOpen}
 	<!-- Backdrop -->
 	<div
+		transition:fade={{ duration: 180 }}
 		class="md:hidden fixed inset-0 z-50"
 		style="background: rgba(0,0,0,0.4)"
 		onclick={close}
@@ -205,6 +208,7 @@
 
 	<!-- Panel -->
 	<div
+		transition:fly={{ x: -288, duration: 250, easing: cubicOut }}
 		id="mobile-nav-drawer"
 		role="dialog"
 		aria-modal="true"

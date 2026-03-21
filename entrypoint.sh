@@ -1,23 +1,13 @@
 #!/bin/sh
 # PocketBase entrypoint — auto-initialises admin + schema on first boot.
-# Subsequent boots skip init (sentinel file /pb/pb_data/.initialized).
+# On every subsequent boot the schema is re-applied (deleteMissing=false) so
+# that new collections added to pb_schema.json are created automatically on
+# existing installs when the image is updated.
 
 PB_URL="http://localhost:8090"
 SENTINEL="/pb/pb_data/.initialized"
 
-init() {
-  echo "[init] Waiting for PocketBase to become ready..."
-  until curl -sf "${PB_URL}/api/health" > /dev/null 2>&1; do sleep 1; done
-
-  if [ -f "$SENTINEL" ]; then
-    echo "[init] Already initialised — skipping."
-    return 0
-  fi
-
-  echo "[init] First boot — creating superuser..."
-  /pb/pocketbase superuser upsert "${PB_ADMIN_EMAIL}" "${PB_ADMIN_PASSWORD}" --dir=/pb/pb_data
-  echo "[init] Superuser created ✓"
-
+apply_schema() {
   echo "[init] Authenticating..."
   AUTH_RESP=$(curl -sf \
     -X POST "${PB_URL}/api/collections/_superusers/auth-with-password" \
@@ -31,7 +21,7 @@ init() {
 
   TOKEN=$(echo "$AUTH_RESP" | jq -r '.token')
 
-  echo "[init] Importing schema..."
+  echo "[init] Applying schema (deleteMissing=false)..."
   IMPORT=$(curl -s -o /dev/null -w "%{http_code}" \
     -X PUT "${PB_URL}/api/collections/import" \
     -H "Content-Type: application/json" \
@@ -39,12 +29,28 @@ init() {
     -d "{\"collections\":$(cat /pb/pb_schema.json),\"deleteMissing\":false}")
 
   if [ "$IMPORT" = "200" ] || [ "$IMPORT" = "204" ]; then
-    echo "[init] Schema imported ✓"
+    echo "[init] Schema applied ✓"
+  else
+    echo "[init] WARNING: Schema import returned HTTP ${IMPORT}."
+  fi
+}
+
+init() {
+  echo "[init] Waiting for PocketBase to become ready..."
+  until curl -sf "${PB_URL}/api/health" > /dev/null 2>&1; do sleep 1; done
+
+  if [ ! -f "$SENTINEL" ]; then
+    echo "[init] First boot — creating superuser..."
+    /pb/pocketbase superuser upsert "${PB_ADMIN_EMAIL}" "${PB_ADMIN_PASSWORD}" --dir=/pb/pb_data
+    echo "[init] Superuser created ✓"
+
+    apply_schema
+
     touch "$SENTINEL"
     echo "[init] Done — Yield is ready."
   else
-    echo "[init] ERROR: Schema import returned HTTP ${IMPORT}."
-    return 1
+    echo "[init] Applying schema updates for existing install..."
+    apply_schema
   fi
 }
 
