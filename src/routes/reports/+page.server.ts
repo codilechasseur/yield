@@ -95,6 +95,22 @@ export async function load({ url }) {
 			invoiceMap.get(inv.id)!.items.push(item);
 		}
 
+		// Count all non-draft invoices per month (independent of cash/accrual basis)
+		// so the "# Invoices" column reflects all issued invoices, not just paid ones.
+		const allIssuedInvoices = await pb
+			.collection('invoices')
+			.getFullList<Pick<Invoice, 'id' | 'issue_date'>>({
+				filter: `status != "draft" && ${dateFilter.replace(/invoice\./g, '')}`,
+				fields: 'id,issue_date'
+			})
+			.catch(() => [] as Pick<Invoice, 'id' | 'issue_date'>[]);
+		const monthCountMap = new Map<number, number>();
+		for (const inv of allIssuedInvoices) {
+			if (!inv.issue_date) continue;
+			const m = new Date(inv.issue_date).getMonth() + 1;
+			monthCountMap.set(m, (monthCountMap.get(m) ?? 0) + 1);
+		}
+
 		// Aggregate by month (1-indexed)
 		const monthMap = new Map<number, MonthSummary>();
 		// Aggregate by client
@@ -121,7 +137,6 @@ export async function load({ url }) {
 				});
 			}
 			const ms = monthMap.get(month)!;
-			ms.invoiceCount += 1;
 			ms.subtotal += subtotal;
 			ms.gstCollected += gst;
 			ms.total += total;
@@ -142,10 +157,15 @@ export async function load({ url }) {
 		// Fill in all 12 months (zero for months with no data)
 		const months: MonthSummary[] = Array.from({ length: 12 }, (_, i) => {
 			const m = i + 1;
-			return monthMap.get(m) ?? {
+			const invoiceCount = monthCountMap.get(m) ?? 0;
+			const existing = monthMap.get(m);
+			if (existing) {
+				return { ...existing, invoiceCount };
+			}
+			return {
 				month: m,
 				label: MONTH_NAMES[i],
-				invoiceCount: 0,
+				invoiceCount,
 				subtotal: 0,
 				gstCollected: 0,
 				total: 0,

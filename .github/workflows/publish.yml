@@ -8,6 +8,7 @@ env:
   REGISTRY: ghcr.io
   OWNER: codilechasseur
   APP_IMAGE: ghcr.io/codilechasseur/yield
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ─── Build the SvelteKit app once, natively, with the npm cache ───────────
