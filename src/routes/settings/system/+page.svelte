@@ -530,13 +530,13 @@
 
 									<div class="px-4 py-4 border-t space-y-4" style="border-color: var(--color-destructive)">
 										<p class="text-sm font-semibold" style="color: var(--color-destructive)">
-											⚠ This will permanently delete all clients, invoices, and line items. There is no undo.
+											⚠ This will permanently delete all data — clients, contacts, invoices, line items, taxes, and all settings (including SMTP config, logo, and app password). The app will return to its initial setup state. There is no undo.
 										</p>
 
 										<div class="space-y-2">
 											{#each [
-												{ label: 'I understand all client records will be permanently deleted.' },
-												{ label: 'I understand all invoices and line items will be permanently deleted.' },
+												{ label: 'I understand all clients, contacts, invoices, and line items will be permanently deleted.' },
+												{ label: 'I understand all taxes and settings (including SMTP, logo, and app password) will be permanently deleted.' },
 												{ label: 'I understand this cannot be undone and I have a backup if needed.' }
 											] as item, i}
 												<label class="flex items-start gap-3 cursor-pointer select-none">

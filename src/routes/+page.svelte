@@ -407,6 +407,56 @@
 	</div>
 	{/if}
 
+	<!-- Pending Estimates -->
+	{#if stats.pendingEstimates.length > 0}
+	<div
+		class="rounded-xl border overflow-hidden"
+		style="background-color: var(--color-card); border-color: var(--color-border)"
+	>
+		<div class="px-6 py-4 border-b flex items-center justify-between" style="border-color: var(--color-border)">
+			<h3 class="font-semibold" style="color: var(--color-foreground)">Pending Estimates</h3>
+			<a href="/estimates?status=sent" class="flex items-center gap-1 text-xs font-medium" style="color: var(--color-primary)">
+				View all <ArrowRight size={14} />
+			</a>
+		</div>
+		<div class="overflow-x-auto">
+			<table class="w-full min-w-120">
+				<thead>
+					<tr style="border-bottom: 1px solid var(--color-border); background: color-mix(in oklch, var(--color-accent) 50%, var(--color-muted))">
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Estimate</th>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Client</th>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Valid Until</th>
+						<th scope="col" class="px-6 py-3 text-left text-xs font-medium" style="color: var(--color-muted-foreground)">Status</th>
+						<th scope="col" class="px-6 py-3 text-right text-xs font-medium" style="color: var(--color-muted-foreground)">Total</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each stats.pendingEstimates as est}
+						{@const isExpired = est.status === 'sent' && !!est.expiry_date && new Date(est.expiry_date) < new Date()}
+						<tr class="hover:bg-muted/30 transition-colors" style="border-bottom: 1px solid var(--color-border)">
+							<td class="px-6 py-4">
+								<a href="/estimates/{est.id}" class="font-medium text-sm" style="color: var(--color-primary)">{est.number}</a>
+							</td>
+							<td class="px-6 py-4 text-sm" style="color: var(--color-foreground)">{est.expand?.client?.name ?? '—'}</td>
+							<td class="px-6 py-4 text-sm" style="color: {isExpired ? 'var(--color-destructive)' : 'var(--color-muted-foreground)'}">
+								{est.expiry_date ? formatDate(est.expiry_date) : '—'}
+							</td>
+							<td class="px-6 py-4">
+								<span class="{STATUS_COLORS[isExpired ? 'expired' : est.status] ?? 'status-badge status-draft'}">
+									{isExpired ? 'Expired' : est.status.replace(/\b\w/g, (c: string) => c.toUpperCase())}
+								</span>
+							</td>
+							<td class="px-6 py-4 text-right text-sm font-medium" style="color: var(--color-foreground)">
+								{formatCurrency(est.total, est.expand?.client?.currency)}
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	</div>
+	{/if}
+
 	<!-- Recent Invoices -->
 	<div
 		class="rounded-xl border overflow-hidden"

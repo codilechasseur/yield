@@ -6,7 +6,7 @@
 import nodemailer from 'nodemailer';
 import puppeteer from 'puppeteer';
 import type PocketBase from 'pocketbase';
-import type { Invoice, InvoiceItem, Client } from './types.js';
+import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem } from './types.js';
 import { env } from '$env/dynamic/private';
 
 // ---------------------------------------------------------------------------
@@ -41,6 +41,10 @@ export interface SmtpSettings {
 	invoice_number_format?: string;
 	/** The next invoice number to use when creating an invoice. Auto-increments after each creation. */
 	invoice_next_number?: number;
+	/** Estimate number format template, e.g. "EST-{number}". Use {number} as the placeholder. */
+	estimate_number_format?: string;
+	/** The next estimate number to use when creating an estimate. Auto-increments after each creation. */
+	estimate_next_number?: number;
 	/** Default hourly rate applied to new invoice line items. */
 	default_hourly_rate?: number;
 	/** Filename of the uploaded logo stored in PocketBase (empty string = no logo). */
@@ -89,19 +93,25 @@ function palette(hue: number) {
 		borderLight:  `oklch(0.93 0.004 ${h})`,
 		muted:        `oklch(0.965 0.003 ${h})`,
 		// status badges — neutral tones, color only for paid/overdue
-		draftBg:   `oklch(0.930 0.004 ${h})`,  draftFg: `oklch(0.38 0.012 ${h})`,
-		sentBg:    `oklch(0.930 0.004 ${h})`,  sentFg:  `oklch(0.32 0.012 ${h})`,
-		paidBg:    `oklch(0.915 0.08  145)`,   paidFg:  `oklch(0.30 0.16  145)`,
-		overdueBg: `oklch(0.930 0.06  20)`,    overdueFg:`oklch(0.38 0.18  20)`,
+		draftBg:    `oklch(0.930 0.004 ${h})`,  draftFg:    `oklch(0.38 0.012 ${h})`,
+		sentBg:     `oklch(0.930 0.004 ${h})`,  sentFg:     `oklch(0.32 0.012 ${h})`,
+		paidBg:     `oklch(0.915 0.08  145)`,   paidFg:     `oklch(0.30 0.16  145)`,
+		overdueBg:  `oklch(0.930 0.06  20)`,    overdueFg:  `oklch(0.38 0.18  20)`,
+		acceptedBg: `oklch(0.915 0.08  145)`,   acceptedFg: `oklch(0.28 0.18  145)`,
+		declinedBg: `oklch(0.930 0.06  20)`,    declinedFg: `oklch(0.38 0.18  20)`,
+		expiredBg:  `oklch(0.920 0.005 280)`,   expiredFg:  `oklch(0.40 0.015 280)`,
 	};
 }
 
 function statusBadgeStyle(status: string, c: ReturnType<typeof palette>): string {
 	const map: Record<string, { bg: string; fg: string }> = {
-		draft:   { bg: c.draftBg,   fg: c.draftFg },
-		sent:    { bg: c.sentBg,    fg: c.sentFg },
-		paid:    { bg: c.paidBg,    fg: c.paidFg },
-		overdue: { bg: c.overdueBg, fg: c.overdueFg },
+		draft:    { bg: c.draftBg,    fg: c.draftFg },
+		sent:     { bg: c.sentBg,     fg: c.sentFg },
+		paid:     { bg: c.paidBg,     fg: c.paidFg },
+		overdue:  { bg: c.overdueBg,  fg: c.overdueFg },
+		accepted: { bg: c.acceptedBg, fg: c.acceptedFg },
+		declined: { bg: c.declinedBg, fg: c.declinedFg },
+		expired:  { bg: c.expiredBg,  fg: c.expiredFg },
 	};
 	const colors = map[status] ?? { bg: c.draftBg, fg: c.draftFg };
 	return `background:${colors.bg};color:${colors.fg};padding:4px 14px;border-radius:9999px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;`;
@@ -307,6 +317,171 @@ export function buildInvoiceHtml(
 // Public API
 // ---------------------------------------------------------------------------
 
+/** Build a full A4 HTML document for a given estimate (used for PDF + preview). */
+export function buildEstimateHtml(
+	estimate: Estimate & { expand?: { client?: Client } },
+	items: EstimateItem[],
+	client: Client | null,
+	opts?: { estimateFooter?: string; companyName?: string; companyAddress?: string; defaultNotes?: string; brandHue?: number; logoUrl?: string; hideCompanyName?: boolean }
+): string {
+	const hue = opts?.brandHue || 250;
+	const c = palette(hue);
+	const currency = client?.currency ?? 'USD';
+	const companyName = opts?.companyName || 'Estimate';
+	const companyAddress = opts?.companyAddress || '';
+	const logoUrl = opts?.logoUrl || '';
+	const hideCompanyName = opts?.hideCompanyName ?? false;
+	const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+	const taxAmt = subtotal * (estimate.tax_percent / 100);
+	const total = subtotal + taxAmt;
+
+	const lbl = `font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};margin-bottom:5px;`;
+	const val = `font-size:13px;font-weight:500;color:${c.fg};line-height:1.4;`;
+
+	const itemRows = items.map((i, idx) => {
+		const rowBg = idx % 2 === 1 ? `background:${c.muted};` : '';
+		return `
+    <tr style="${rowBg}">
+      <td style="padding:12px 28px 12px 24px;font-size:13px;color:${c.fg};border-bottom:1px solid ${c.borderLight};">${i.description || '—'}</td>
+      <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${i.quantity}</td>
+      <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${fmtCurrency(i.unit_price, currency)}</td>
+      <td style="padding:12px 24px 12px 16px;font-size:13px;color:${c.fg};text-align:right;border-bottom:1px solid ${c.borderLight};font-weight:500;${rowBg}">${fmtCurrency(i.quantity * i.unit_price, currency)}</td>
+    </tr>`;
+	}).join('');
+
+	const rowLineStyle = `display:flex;justify-content:space-between;align-items:baseline;`;
+	const subtotalRow = `<div style="${rowLineStyle}margin-bottom:8px;">
+      <span style="font-size:12.5px;color:${c.mutedFg};">Subtotal</span>
+      <span style="font-size:12.5px;color:${c.mutedFg};">${fmtCurrency(subtotal, currency)}</span>
+    </div>`;
+	const taxRow = estimate.tax_percent > 0
+		? `<div style="${rowLineStyle}margin-bottom:8px;">
+        <span style="font-size:12.5px;color:${c.mutedFg};">Tax (${estimate.tax_percent}%)</span>
+        <span style="font-size:12.5px;color:${c.mutedFg};">${fmtCurrency(taxAmt, currency)}</span>
+      </div>` : '';
+
+	const statusLabel = estimate.status.replace(/_/g, ' ').replace(/\b\w/g, (ch: string) => ch.toUpperCase());
+	const metaHtml = `
+    <div>
+      <p style="${lbl}">Status</p>
+      <span style="${statusBadgeStyle(estimate.status, c)}">${statusLabel}</span>
+    </div>`;
+
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Estimate ${estimate.number}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: ${c.fg};
+      background: ${c.bg};
+      font-size: 14px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      font-synthesis: none;
+    }
+    @page { size: A4; margin: 0; }
+    table { width: 100%; border-collapse: collapse; }
+  </style>
+</head>
+<body>
+
+  <div style="height:4px;background:${c.accent};"></div>
+
+  <div style="padding:36px 44px 30px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid ${c.border};">
+    <div>
+      ${logoUrl ? `<img src="${logoUrl}" alt="${companyName} logo" style="max-height:56px;max-width:180px;width:auto;height:auto;display:block;object-fit:contain;${hideCompanyName ? '' : 'margin-bottom:8px;'}" />` : ''}
+      ${hideCompanyName ? '' : `<p style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;line-height:1.1;">${companyName}</p>`}
+      ${companyAddress ? `<div style="font-size:11px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${companyAddress}</div>` : ''}
+    </div>
+    <div style="text-align:right;">
+      <p style="font-size:10px;font-weight:600;color:${c.subtleFg};letter-spacing:0.14em;text-transform:uppercase;margin-bottom:4px;">Estimate</p>
+      <p style="font-size:17px;font-weight:600;color:${c.fg};letter-spacing:0.01em;">${estimate.number}</p>
+      ${estimate.issue_date ? `<p style="font-size:11px;color:${c.mutedFg};margin-top:6px;">Issued ${fmtDate(estimate.issue_date)}</p>` : ''}
+    </div>
+  </div>
+
+  <div style="padding:36px 44px 0;">
+    <div style="display:flex;gap:36px;margin-bottom:40px;">
+      <div style="flex:2;min-width:0;">
+        <p style="${lbl}">Prepared For</p>
+        ${client
+          ? `<p style="font-size:14px;font-weight:600;color:${c.fg};line-height:1.35;">${client.name}</p>
+             ${client.email    ? `<p style="font-size:12px;color:${c.mutedFg};margin-top:3px;">${client.email}</p>` : ''}
+             ${client.address  ? `<div style="font-size:12px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${client.address}</div>` : ''}`
+          : `<p style="color:${c.mutedFg};">—</p>`}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <p style="${lbl}">Valid Until</p>
+        <span style="${val}">${fmtDate(estimate.expiry_date)}</span>
+      </div>
+      <div style="flex:1;min-width:0;display:grid;grid-template-columns:1fr;gap:28px;align-content:start;">
+        ${metaHtml}
+      </div>
+    </div>
+
+    <div style="border:1px solid ${c.border};">
+      <table>
+        <thead>
+          <tr style="background:${c.muted};">
+            <th style="padding:10px 24px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:left;border-bottom:1px solid ${c.border};">Description</th>
+            <th style="padding:10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Qty</th>
+            <th style="padding:10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Unit Price</th>
+            <th style="padding:10px 24px 10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Amount</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+
+      <div style="display:flex;justify-content:flex-end;background:${c.muted};">
+        <div style="width:280px;padding:18px 24px 18px 20px;">
+          ${subtotalRow}
+          ${taxRow}
+          <div style="height:1px;background:${c.border};margin:8px 0 10px;"></div>
+          <div style="${rowLineStyle}margin-bottom:0;">
+            <span style="font-size:13.5px;font-weight:600;color:${c.fg};">Total</span>
+            <span style="font-size:13.5px;font-weight:600;color:${c.fg};">${fmtCurrency(total, currency)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid ${c.border};padding:16px 24px;display:flex;justify-content:space-between;align-items:center;background:${c.bg};">
+        <span style="font-size:10px;font-weight:600;color:${c.subtleFg};letter-spacing:0.12em;text-transform:uppercase;">Estimate Total</span>
+        <span style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;">${fmtCurrency(total, currency)}</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:0 44px 100px;">
+    ${estimate.notes || opts?.defaultNotes ? `
+    <div style="margin-top:28px;padding:16px 20px;border:1px solid ${c.borderLight};">
+      <p style="${lbl}margin-bottom:6px;">Notes</p>
+      <div style="font-size:12.5px;color:${c.mutedFg};line-height:1.7;">${(() => { const n = estimate.notes || opts?.defaultNotes || ''; return n.includes('<') ? n : n.replace(/\n/g, '<br>'); })()}</div>
+    </div>` : ''}
+    ${opts?.estimateFooter ? `
+    <div style="margin-top:${estimate.notes || opts?.defaultNotes ? '20px' : '28px'};">
+      <div style="font-size:10px;color:${c.subtleFg};line-height:1.75;">${opts.estimateFooter}</div>
+    </div>` : ''}
+  </div>
+
+  <div style="position:fixed;bottom:0;left:0;right:0;background:${c.muted};border-top:1px solid ${c.border};padding:10px 44px;display:flex;justify-content:space-between;align-items:center;">
+    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${companyName}</p>
+    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${estimate.number}</p>
+  </div>
+
+</body>
+</html>`;
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 /** Load (or return defaults for) SMTP settings from PocketBase. */
 export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | null> {
 	try {
@@ -335,6 +510,8 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 			app_password_hash: r.app_password_hash ?? '',
 			invoice_number_format: r.invoice_number_format ?? '',
 			invoice_next_number: r.invoice_next_number ?? 0,
+			estimate_number_format: r.estimate_number_format ?? '',
+			estimate_next_number: r.estimate_next_number ?? 0,
 			default_hourly_rate: r.default_hourly_rate ?? 0,
 			logo: r.logo ?? '',
 			logo_hide_company_name: r.logo_hide_company_name ?? false
@@ -354,6 +531,14 @@ export const DEFAULT_EMAIL_BODY =
 Please find attached invoice {invoice_number} for {total}.
 
 {due_date_line}Thank you for your business.`;
+
+export const DEFAULT_ESTIMATE_EMAIL_SUBJECT = 'Estimate {estimate_number}';
+export const DEFAULT_ESTIMATE_EMAIL_BODY =
+	`Hi {client_name},
+
+Please find attached estimate {estimate_number} for {total}.
+
+{expiry_date_line}Thank you for the opportunity — please let us know if you have any questions.`;
 
 /**
  * Replace {placeholder} tokens in a template string.
@@ -485,6 +670,120 @@ export async function sendInvoiceEmail({
 		attachments: [
 			{
 				filename: `invoice-${invoice.number}.pdf`,
+				content: pdfBuffer,
+				contentType: 'application/pdf'
+			}
+		]
+	});
+}
+
+interface SendEstimateEmailOptions {
+	pb: PocketBase;
+	estimateId: string;
+	toEmail: string | string[];
+	toName: string;
+	message?: string;
+}
+
+/**
+ * Generate a PDF for the given estimate and email it as an attachment.
+ * Throws on configuration or send error.
+ */
+export async function sendEstimateEmail({
+	pb,
+	estimateId,
+	toEmail,
+	toName,
+	message
+}: SendEstimateEmailOptions): Promise<void> {
+	const smtp = await getSmtpSettings(pb);
+	if (!smtp || !smtp.smtp_host) {
+		throw new Error('SMTP is not configured. Go to Settings → Email to set it up.');
+	}
+	if (!smtp.smtp_from_email) {
+		throw new Error('SMTP "from" email is not configured.');
+	}
+
+	const [estimate, items] = await Promise.all([
+		pb
+			.collection('estimates')
+			.getOne<Estimate & { expand?: { client?: Client } }>(estimateId, { expand: 'client' }),
+		pb
+			.collection('estimate_items')
+			.getFullList<EstimateItem>({ filter: `estimate = "${estimateId}"`, sort: 'created' })
+	]);
+	const client = estimate.expand?.client ?? null;
+
+	const logoUrl = buildLogoUrl(env.PB_URL || 'http://localhost:8090', smtp.id ?? '', smtp.logo);
+	const html = buildEstimateHtml(estimate, items, client, {
+		estimateFooter: smtp.invoice_footer,
+		companyName: smtp.company_name || smtp.smtp_from_name || undefined,
+		companyAddress: smtp.company_address || undefined,
+		defaultNotes: smtp.invoice_default_notes || undefined,
+		brandHue: smtp.brand_hue || 250,
+		logoUrl: logoUrl || undefined,
+		hideCompanyName: smtp.logo_hide_company_name
+	});
+
+	let pdfBuffer: Buffer;
+	const browser = await puppeteer.launch({
+		headless: true,
+		args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+	});
+	try {
+		const page = await browser.newPage();
+		await page.setContent(html, { waitUntil: 'networkidle0' });
+		const raw = await page.pdf({ format: 'A4', printBackground: true });
+		pdfBuffer = Buffer.from(raw);
+	} finally {
+		await browser.close();
+	}
+
+	const fromField = smtp.smtp_from_name
+		? `"${smtp.smtp_from_name}" <${smtp.smtp_from_email}>`
+		: smtp.smtp_from_email;
+
+	const currency = client?.currency ?? 'USD';
+	const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+	const total = subtotal * (1 + estimate.tax_percent / 100);
+
+	const companyName = smtp.company_name || smtp.smtp_from_name || '';
+	const vars: Record<string, string> = {
+		estimate_number: estimate.number,
+		client_name: toName || (client?.name ?? ''),
+		total: fmtCurrency(total, currency),
+		expiry_date: fmtDate(estimate.expiry_date),
+		issue_date: fmtDate(estimate.issue_date),
+		company_name: companyName,
+		expiry_date_line: estimate.expiry_date ? `Valid until: ${fmtDate(estimate.expiry_date)}\n\n` : ''
+	};
+
+	const subject = interpolateEmailTemplate(DEFAULT_ESTIMATE_EMAIL_SUBJECT, vars);
+	const bodyText = message
+		? message
+		: interpolateEmailTemplate(DEFAULT_ESTIMATE_EMAIL_BODY, vars);
+
+	const bodyHtml = bodyText
+		.split('\n')
+		.map((line) => (line.trim() === '' ? '<br>' : `<p style="margin:0 0 4px">${line}</p>`))
+		.join('\n');
+
+	const transporter = nodemailer.createTransport({
+		host: smtp.smtp_host,
+		port: smtp.smtp_port,
+		secure: smtp.smtp_secure,
+		auth: smtp.smtp_user ? { user: smtp.smtp_user, pass: smtp.smtp_pass } : undefined
+	});
+
+	await transporter.sendMail({
+		from: fromField,
+		to: Array.isArray(toEmail) ? toEmail.join(', ') : toEmail,
+		subject,
+		text: bodyText,
+		html: bodyHtml,
+		attachments: [
+			{
+				filename: `estimate-${estimate.number}.pdf`,
 				content: pdfBuffer,
 				contentType: 'application/pdf'
 			}

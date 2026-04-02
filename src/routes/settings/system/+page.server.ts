@@ -5,6 +5,7 @@ import type { InvoiceStatus, Backup } from '$lib/types.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
 import type { SmtpSettings } from '$lib/mail.server.js';
 import { hashPassword, invalidatePasswordCache } from '$lib/auth.server.js';
+import { pushServerError } from '$lib/server-error-log.server.js';
 
 /** Authenticate as PocketBase superuser (required for backup operations). */
 async function getAdminPb(): Promise<PocketBase> {
@@ -357,6 +358,10 @@ export const actions = {
 			}
 		}
 
+		for (const msg of importErrors) {
+			pushServerError(msg, undefined, '/settings/system (harvestImport)');
+		}
+
 		return {
 			importSuccess: true,
 			importStats: {
@@ -388,13 +393,16 @@ export const actions = {
 			}
 		};
 
-		for (const col of ['invoice_items', 'invoices', 'contacts', 'clients']) {
+		for (const col of ['invoice_items', 'invoices', 'contacts', 'clients', 'taxes', 'settings']) {
 			try {
 				await deleteAll(col);
 			} catch {
 				// collection may not exist on this instance — skip and continue
 			}
 		}
+
+		// settings (including app password) have been wiped — clear the in-memory cache
+		invalidatePasswordCache();
 
 		return { resetSuccess: true };
 	},

@@ -25,5 +25,8 @@ export const STATUS_COLORS: Record<string, string> = {
 	sent: 'status-badge status-sent',
 	paid: 'status-badge status-paid',
 	overdue: 'status-badge status-overdue',
-	written_off: 'status-badge status-written-off'
+	written_off: 'status-badge status-written-off',
+	accepted: 'status-badge status-accepted',
+	declined: 'status-badge status-declined',
+	expired: 'status-badge status-expired'
 };

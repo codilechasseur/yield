@@ -1,7 +1,7 @@
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import { calcSubtotal, calcTotal } from '$lib/pocketbase.js';
-import type { Client, Invoice, InvoiceItem, ChartPeriod } from '$lib/types.js';
+import type { Client, Invoice, InvoiceItem, ChartPeriod, Estimate, EstimateItem } from '$lib/types.js';
 
 interface ItemWithInvoice extends InvoiceItem {
 	expand?: { invoice?: Invoice };
@@ -38,7 +38,8 @@ export async function load() {
 		// Single fetch for ALL invoice_items + their invoices — used for charts + financial stats.
 		// Separate lightweight fetches for the list widgets.
 		type InvoiceWithItems = Invoice & { expand: { client: Client; invoice_items_via_invoice?: InvoiceItem[] } };
-		const [allItems, recentRes, overdueRes] = await Promise.all([
+		type EstimateWithClient = Estimate & { expand: { client: Client; estimate_items_via_estimate?: EstimateItem[] } };
+		const [allItems, recentRes, overdueRes, pendingEstimatesRes] = await Promise.all([
 			pb.collection('invoice_items').getFullList<ItemWithInvoice>({ expand: 'invoice' }),
 			pb.collection('invoices').getList<InvoiceWithItems>(1, 10, {
 				sort: '-issue_date',
@@ -48,7 +49,12 @@ export async function load() {
 				filter: 'status = "overdue"',
 				sort: 'due_date',
 				expand: 'client,invoice_items_via_invoice'
-			})
+			}),
+			pb.collection('estimates').getList<EstimateWithClient>(1, 5, {
+				filter: 'status = "draft" || status = "sent"',
+				sort: '-issue_date',
+				expand: 'client,estimate_items_via_estimate'
+			}).catch(() => ({ items: [], totalItems: 0 }))
 		]);
 		const addTotal = (inv: InvoiceWithItems) => {
 			const items = inv.expand?.invoice_items_via_invoice ?? [];
@@ -99,6 +105,12 @@ export async function load() {
 			.sort(([a], [b]) => a.localeCompare(b))
 			.map(([period, { invoiced, paid }]) => ({ period, invoiced, paid }));
 
+		const addEstimateTotal = (est: EstimateWithClient) => {
+			const items = est.expand?.estimate_items_via_estimate ?? [];
+			const sub = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+			return { ...est, total: calcTotal(sub, est.tax_percent ?? 0) };
+		};
+
 		return {
 			hasData: allItems.length > 0,
 			stats: {
@@ -109,7 +121,9 @@ export async function load() {
 				recentInvoices: recentRes.items.map(addTotal),
 				overdueInvoices: overdueRes.items.map(addTotal),
 				chartData,
-				chartDataByMonth
+				chartDataByMonth,
+				pendingEstimates: pendingEstimatesRes.items.map(addEstimateTotal),
+				pendingEstimatesCount: pendingEstimatesRes.totalItems
 			}
 		};
 	} catch (e) {
@@ -124,7 +138,9 @@ export async function load() {
 				recentInvoices: [],
 				overdueInvoices: [],
 				chartData: [],
-				chartDataByMonth: []
+				chartDataByMonth: [],
+				pendingEstimates: [],
+				pendingEstimatesCount: 0
 			}
 		};
 	}

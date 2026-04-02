@@ -53,6 +53,7 @@ async function run() {
   }
   console.log('Collections imported ✓');
   console.log('  → clients');
+  console.log('  → contacts');
   console.log('  → invoices');
   console.log('  → invoice_items');
   console.log('  → invoice_logs');

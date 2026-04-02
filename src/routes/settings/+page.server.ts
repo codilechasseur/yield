@@ -110,6 +110,26 @@ export const actions = {
 		return { invoiceNumberingSuccess: true };
 	},
 
+	saveEstimateNumbering: async ({ request }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const fd = await request.formData();
+		const estimate_number_format = fd.get('estimate_number_format')?.toString().trim() || 'EST-{number}';
+		const estimate_next_number = parseInt(fd.get('estimate_next_number')?.toString() ?? '1', 10) || 1;
+
+		try {
+			const existing = await getSmtpSettings(pb);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, { estimate_number_format, estimate_next_number });
+			} else {
+				await pb.collection('settings').create({ estimate_number_format, estimate_next_number });
+			}
+		} catch (e) {
+			return fail(500, { estimateNumberingError: 'Failed to save: ' + (e as Error).message });
+		}
+
+		return { estimateNumberingSuccess: true };
+	},
+
 	saveEmailTemplate: async ({ request }) => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const fd = await request.formData();

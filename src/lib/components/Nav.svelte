@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { LayoutDashboard, Users, FileText, PlusCircle, Settings, BarChart2, Landmark, LogOut, Menu, X, Bug, Zap, Sun, Moon, Monitor, Server } from 'lucide-svelte';
+	import { LayoutDashboard, Users, FileText, ClipboardList, PlusCircle, Settings, BarChart2, Landmark, LogOut, Menu, X, Bug, Zap, Sun, Moon, Monitor, Server } from 'lucide-svelte';
 	import { debugState } from '$lib/debug.svelte.js';
 	import { fly, fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
@@ -27,6 +27,7 @@
 	const links = [
 		{ href: '/', label: 'Dashboard', icon: LayoutDashboard },
 		{ href: '/invoices', label: 'Invoices', icon: FileText },
+		{ href: '/estimates', label: 'Estimates', icon: ClipboardList },
 		{ href: '/reports', label: 'Reports', icon: BarChart2 },
 		{ href: '/taxes', label: 'Taxes', icon: Landmark },
 		{ href: '/clients', label: 'Clients', icon: Users },

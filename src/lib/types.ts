@@ -104,3 +104,48 @@ export interface Backup {
 	size: number;
 	modified: string; // ISO date string
 }
+
+export type EstimateStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired';
+
+export interface Estimate {
+	id: string;
+	client: string;
+	expand?: { client?: Client };
+	number: string;
+	issue_date: string;
+	expiry_date: string;
+	status: EstimateStatus;
+	tax_percent: number;
+	notes: string;
+	/** ID of the invoice created from this estimate, if any. */
+	invoice?: string;
+	created: string;
+	updated: string;
+}
+
+export interface EstimateItem {
+	id: string;
+	estimate: string;
+	description: string;
+	quantity: number;
+	unit_price: number;
+	created: string;
+	updated: string;
+}
+
+export type EstimateLogAction =
+	| 'status_changed'
+	| 'note'
+	| 'edited'
+	| 'email_sent'
+	| 'estimate_created'
+	| 'converted_to_invoice';
+
+export interface EstimateLog {
+	id: string;
+	estimate: string;
+	action: EstimateLogAction;
+	detail: string;
+	occurred_at: string;
+	created: string;
+}

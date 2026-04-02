@@ -45,6 +45,8 @@
 	let invoiceFooter     = $state(untrack(() => data.smtp?.invoice_footer ?? ''));
 	let invoiceNumberFormat = $state(untrack(() => data.smtp?.invoice_number_format ?? 'INV-{number}'));
 	let invoiceNextNumber   = $state<number>(untrack(() => data.smtp?.invoice_next_number ?? 1));
+	let estimateNumberFormat = $state(untrack(() => data.smtp?.estimate_number_format ?? 'EST-{number}'));
+	let estimateNextNumber   = $state<number>(untrack(() => data.smtp?.estimate_next_number ?? 1));
 	let emailSubject      = $state(untrack(() => data.smtp?.email_subject ?? ''));
 	let emailBody         = $state(untrack(() => data.smtp?.email_body ?? ''));
 	let hideCompanyName   = $state<boolean>(untrack(() => data.smtp?.logo_hide_company_name ?? false));
@@ -94,6 +96,10 @@
 	let numberingSaved  = $state({ format: data.smtp?.invoice_number_format ?? 'INV-{number}', next: data.smtp?.invoice_next_number ?? 1 });
 	let numberingSaving = $state(false);
 	let numberingDirty  = $derived(invoiceNumberFormat !== numberingSaved.format || invoiceNextNumber !== numberingSaved.next);
+
+	let estNumberingSaved  = $state({ format: data.smtp?.estimate_number_format ?? 'EST-{number}', next: data.smtp?.estimate_next_number ?? 1 });
+	let estNumberingSaving = $state(false);
+	let estNumberingDirty  = $derived(estimateNumberFormat !== estNumberingSaved.format || estimateNextNumber !== estNumberingSaved.next);
 
 	let taxSaved   = $state({ tax: data.smtp?.default_tax_percent ?? 5, income: data.smtp?.income_tax_rate ?? 0, hourly: data.smtp?.default_hourly_rate ?? 0, currency: data.smtp?.default_currency ?? 'CAD' });
 	let taxSaving  = $state(false);
@@ -552,6 +558,79 @@
 					>
 						<Save size={14} aria-hidden="true" />
 						{numberingSaving ? 'Saving…' : 'Save'}
+					</button>
+				</div>
+			</form>
+		</div>
+
+		<!-- Estimate Numbering -->
+		<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
+			<div class="flex items-center gap-2 mb-1">
+				<Hash size={16} style="color: var(--color-primary)" aria-hidden="true" />
+				<h4 class="font-semibold" style="color: var(--color-foreground)">Estimate Numbering</h4>
+			</div>
+			<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">
+				Use <code class="font-mono text-xs">{'{number}'}</code> as the counter placeholder — e.g. <code class="font-mono text-xs">EST-{'{number}'}</code> produces <code class="font-mono text-xs">EST-42</code>.
+			</p>
+			<form
+				method="POST"
+				action="?/saveEstimateNumbering"
+				class="space-y-4"
+				use:enhance={() => {
+					estNumberingSaving = true;
+					return async ({ update, result }) => {
+						estNumberingSaving = false;
+						await update({ reset: false });
+						if (result.type === 'success') {
+							estNumberingSaved = { format: estimateNumberFormat, next: estimateNextNumber };
+							addToast('Estimate numbering saved');
+						} else if (result.type === 'failure') {
+							addToast((result.data as any)?.estimateNumberingError ?? 'Failed to save', 'error');
+						}
+					};
+				}}
+			>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div class="flex flex-col gap-1">
+						<label for="estimate-number-format" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Number Format</label>
+						<input
+							id="estimate-number-format"
+							name="estimate_number_format"
+							type="text"
+							placeholder="EST-{'{number}'}"
+							bind:value={estimateNumberFormat}
+							class="w-full px-3 py-2 rounded-lg border text-sm font-mono"
+							style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+						/>
+					</div>
+					<div class="flex flex-col gap-1">
+						<label for="estimate-next-number" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Next Number <Tip tip="Increments automatically when an estimate is created." /></label>
+						<input
+							id="estimate-next-number"
+							name="estimate_next_number"
+							type="number"
+							min="1"
+							step="1"
+							bind:value={estimateNextNumber}
+							class="w-full px-3 py-2 rounded-lg border text-sm"
+							style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+						/>
+					</div>
+				</div>
+				<div class="text-sm px-3 py-1.5 rounded-md inline-flex" style="background: var(--color-muted); color: var(--color-muted-foreground)">
+					Preview: <span class="font-mono font-semibold ml-2" style="color: var(--color-foreground)">{(estimateNumberFormat || 'EST-{number}').replace('{number}', String(estimateNextNumber || 1))}</span>
+				</div>
+				<div class="flex justify-end pt-1">
+					<button
+						type="submit"
+						disabled={estNumberingSaving}
+						class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+						style={estNumberingDirty
+							? 'background-color: var(--color-primary); color: var(--color-primary-foreground)'
+							: 'background-color: var(--color-muted); color: var(--color-muted-foreground); opacity: 0.6'}
+					>
+						<Save size={14} aria-hidden="true" />
+						{estNumberingSaving ? 'Saving…' : 'Save'}
 					</button>
 				</div>
 			</form>
