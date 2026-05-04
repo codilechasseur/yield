@@ -60,12 +60,13 @@ async function getPasswordHash(): Promise<string | null> {
 export const handle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 
-	// Always pass through the login/setup routes (and SvelteKit internals)
+	// Always pass through the login/setup routes, SvelteKit internals, and ACME challenge paths
 	if (
 		path.startsWith('/login') ||
 		path.startsWith('/setup') ||
 		path.startsWith('/__data') ||
-		path.startsWith('/_app/')
+		path.startsWith('/_app/') ||
+		path.startsWith('/.well-known/')
 	) {
 		event.locals.authEnabled = false;
 		event.locals.authed = false;
