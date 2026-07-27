@@ -16,6 +16,7 @@
 	let smtpPass      = $state(untrack(() => data.smtp?.smtp_pass ?? ''));
 	let smtpFromName  = $state(untrack(() => data.smtp?.smtp_from_name ?? ''));
 	let smtpFromEmail = $state(untrack(() => data.smtp?.smtp_from_email ?? ''));
+	let smtpReplyTo   = $state(untrack(() => data.smtp?.smtp_reply_to ?? ''));
 	let smtpSecure    = $state(untrack(() => data.smtp?.smtp_secure ?? false));
 	let showPass      = $state(false);
 	let smtpSaving    = $state(false);
@@ -49,6 +50,7 @@
 		smtpPass:      data.smtp?.smtp_pass ?? '',
 		smtpFromName:  data.smtp?.smtp_from_name ?? '',
 		smtpFromEmail: data.smtp?.smtp_from_email ?? '',
+		smtpReplyTo:   data.smtp?.smtp_reply_to ?? '',
 		smtpSecure:    data.smtp?.smtp_secure ?? false,
 	});
 
@@ -59,6 +61,7 @@
 		smtpPass      !== smtpSavedSnapshot.smtpPass      ||
 		smtpFromName  !== smtpSavedSnapshot.smtpFromName  ||
 		smtpFromEmail !== smtpSavedSnapshot.smtpFromEmail ||
+		smtpReplyTo   !== smtpSavedSnapshot.smtpReplyTo   ||
 		smtpSecure    !== smtpSavedSnapshot.smtpSecure
 	);
 
@@ -69,6 +72,7 @@
 		smtpSavedSnapshot.smtpPass      = smtpPass;
 		smtpSavedSnapshot.smtpFromName  = smtpFromName;
 		smtpSavedSnapshot.smtpFromEmail = smtpFromEmail;
+		smtpSavedSnapshot.smtpReplyTo   = smtpReplyTo;
 		smtpSavedSnapshot.smtpSecure    = smtpSecure;
 	}
 
@@ -213,6 +217,23 @@
 									class="px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2"
 									style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 								/>
+							</div>
+						</div>
+
+						<!-- reply-to -->
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div class="flex flex-col gap-1">
+								<label for="smtp-reply-to" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Reply-To Email <span class="font-normal">(optional)</span></label>
+								<input
+									id="smtp-reply-to"
+									name="smtp_reply_to"
+									type="email"
+									placeholder="you@example.com"
+									bind:value={smtpReplyTo}
+									class="px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2"
+									style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+								/>
+								<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Where client replies go. Set this if the From address can't receive mail.</p>
 							</div>
 						</div>
 

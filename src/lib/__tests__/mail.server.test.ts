@@ -196,7 +196,7 @@ describe('getSmtpSettings', () => {
 
 // ── sendInvoiceEmail – recipient addressing ───────────────────────────────────
 
-function makeSendMailPb() {
+function makeSendMailPb(settingsOverrides: Record<string, unknown> = {}) {
 	const smtpRecord = {
 		id: 'sett1',
 		smtp_host: 'smtp.example.com',
@@ -205,7 +205,8 @@ function makeSendMailPb() {
 		smtp_pass: 'pass',
 		smtp_from_email: 'from@example.com',
 		smtp_from_name: 'Sender',
-		smtp_secure: false
+		smtp_secure: false,
+		...settingsOverrides
 	};
 	const invoice = {
 		...baseInvoice,
@@ -263,6 +264,24 @@ describe('sendInvoiceEmail', () => {
 		const pb = makeSendMailPb();
 		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: ['solo@example.com'], toName: 'Solo' });
 		expect(sendMailSpy.mock.calls[0][0].to).toBe('solo@example.com');
+	});
+
+	it('applies the configured From name as `"Name" <email>`', async () => {
+		const pb = makeSendMailPb();
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'Alice' });
+		expect(sendMailSpy.mock.calls[0][0].from).toBe('"Sender" <from@example.com>');
+	});
+
+	it('sets Reply-To when configured', async () => {
+		const pb = makeSendMailPb({ smtp_reply_to: 'codi@example.com' });
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'Alice' });
+		expect(sendMailSpy.mock.calls[0][0].replyTo).toBe('codi@example.com');
+	});
+
+	it('omits Reply-To when not configured', async () => {
+		const pb = makeSendMailPb();
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'Alice' });
+		expect(sendMailSpy.mock.calls[0][0].replyTo).toBeUndefined();
 	});
 
 	it('attaches a PDF with the correct filename', async () => {

@@ -83,6 +83,9 @@ export async function load() {
 		for (const item of allItems) {
 			const inv = item.expand?.invoice;
 			if (!inv?.issue_date) continue;
+			// Drafts aren't issued and write-offs aren't collectible — including them
+			// would render as permanently "Outstanding" (invoiced − paid) in the chart.
+			if (inv.status === 'draft' || inv.status === 'written_off') continue;
 			const year = inv.issue_date.slice(0, 4);
 			const month = inv.issue_date.slice(0, 7); // "YYYY-MM"
 			const amount = item.quantity * item.unit_price * (1 + (inv.tax_percent ?? 0) / 100);

@@ -61,6 +61,7 @@ export const actions = {
 			smtp_pass: fd.get('smtp_pass')?.toString() ?? '',
 			smtp_from_name: fd.get('smtp_from_name')?.toString().trim() ?? '',
 			smtp_from_email: fd.get('smtp_from_email')?.toString().trim() ?? '',
+			smtp_reply_to: fd.get('smtp_reply_to')?.toString().trim() ?? '',
 			smtp_secure: fd.get('smtp_secure') === 'on'
 		};
 
@@ -103,6 +104,7 @@ export const actions = {
 			});
 			await transporter.sendMail({
 				from: fromField,
+				replyTo: smtp.smtp_reply_to || undefined,
 				to: testTo,
 				subject: 'Yield – SMTP test',
 				text: 'This is a test email from Yield. Your SMTP configuration is working correctly.'

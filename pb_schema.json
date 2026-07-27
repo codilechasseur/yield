@@ -444,6 +444,19 @@
       },
       {
         "hidden": false,
+        "id": "fld_set_srt",
+        "max": 0,
+        "min": 0,
+        "name": "smtp_reply_to",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
         "id": "fld_set_ssl",
         "name": "smtp_secure",
         "presentable": false,
