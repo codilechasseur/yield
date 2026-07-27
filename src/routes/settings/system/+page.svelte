@@ -29,6 +29,8 @@
 	let showRemovePasswordConfirm = $state(false);
 
 	// ── Data import / reset state ─────────────────────────────────────────
+	let harvestAccountId = $state(untrack(() => data.smtp?.harvest_account_id ?? ''));
+	let harvestToken     = $state(untrack(() => data.smtp?.harvest_token ?? ''));
 	let importing   = $state(false);
 	let importOpen  = $state(false);
 	let resetOpen   = $state(false);
@@ -438,8 +440,9 @@
 					<div class="px-4 md:px-6 pb-4 md:pb-6 pt-5 border-t" style="border-color: var(--color-border)">
 						<p class="text-sm mb-1" style="color: var(--color-muted-foreground)">
 							Enter your Harvest credentials below. Clients (with emails), invoices, and line items will be
-							created automatically. The import is idempotent — existing records are skipped, so it's safe
-							to re-run. Existing clients with a blank email will have their email backfilled.
+							created automatically. Safe to re-run: existing invoices have their status and paid amount
+							synced from Harvest, and existing clients with a blank email will have their email backfilled.
+							Credentials are saved after a successful import.
 						</p>
 						<p class="text-xs mb-5" style="color: var(--color-muted-foreground)">
 							Find your Account ID and Personal Access Token at
@@ -447,7 +450,7 @@
 						</p>
 
 						{#if form?.importSuccess}
-							{@const allSkipped = (form.importStats?.invCreated ?? 0) === 0 && (form.importStats?.invSkipped ?? 0) > 0}
+							{@const allSkipped = (form.importStats?.invCreated ?? 0) === 0 && (form.importStats?.invUpdated ?? 0) === 0 && (form.importStats?.invSkipped ?? 0) > 0}
 							<div class="mb-5 p-4 rounded-lg" style="background-color: {allSkipped ? 'color-mix(in srgb, var(--color-destructive) 10%, transparent)' : 'var(--color-accent)'}">
 								<p class="text-sm font-semibold mb-2" style="color: var(--color-foreground)">
 									{allSkipped ? 'Import finished — nothing was created' : 'Import complete ✓'}
@@ -457,6 +460,7 @@
 									<li>Contacts: {form.importStats?.contactsCreated} created, {form.importStats?.contactsSkipped} already existed</li>
 									<li>
 										Invoices: {form.importStats?.invCreated} created,
+										{form.importStats?.invUpdated} updated,
 										{form.importStats?.invSkipped} skipped{form.importStats?.invFailed
 											? `, ${form.importStats.invFailed} failed`
 											: ''}
@@ -502,6 +506,7 @@
 										type="text"
 										placeholder="123456"
 										required
+										bind:value={harvestAccountId}
 										class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2"
 										style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 									/>
@@ -516,6 +521,7 @@
 										type="password"
 										placeholder="your-token"
 										required
+										bind:value={harvestToken}
 										class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2"
 										style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 									/>

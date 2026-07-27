@@ -229,6 +229,18 @@ export const actions = {
 			return fail(400, { importError: (e as Error).message });
 		}
 
+		// Credentials worked — persist them so the next import doesn't require re-entry
+		try {
+			const pbSettings = new PocketBase(env.PB_URL || 'http://localhost:8090');
+			const existing = await getSmtpSettings(pbSettings);
+			const creds = { harvest_account_id: accountId, harvest_token: token };
+			if (existing?.id) {
+				await pbSettings.collection('settings').update(existing.id, creds);
+			} else {
+				await pbSettings.collection('settings').create(creds);
+			}
+		} catch { /* non-fatal — import proceeds even if credentials can't be saved */ }
+
 		// Build contact email map: harvest client id → primary email
 		const emailByClientId = new Map<number, string>();
 		for (const contact of harvestContacts) {
@@ -310,7 +322,7 @@ export const actions = {
 		}
 
 		// ── 3. Upsert invoices + line items ───────────────────────────────────────
-		let invCreated = 0, invFailed = 0;
+		let invCreated = 0, invUpdated = 0, invFailed = 0;
 		let skipMissingFields = 0, skipNoClient = 0, skipDuplicate = 0;
 
 		const mapState = (state: string): InvoiceStatus => {
@@ -326,11 +338,35 @@ export const actions = {
 			const pbClientId = clientIdMap.get(hi.client.id);
 			if (!pbClientId) { skipNoClient++; continue; }
 
+			let existing: { id: string; status: InvoiceStatus; paid_amount?: number } | null = null;
 			try {
-				await pb.collection('invoices').getFirstListItem(`number = "${hi.number}"`);
-				skipDuplicate++;
-				continue;
+				existing = await pb.collection('invoices').getFirstListItem(`number = "${hi.number}"`);
 			} catch { /* not found → create */ }
+
+			if (existing) {
+				// Sync status + paid amount from Harvest on re-import. Harvest has no
+				// "overdue" state (open invoices past due are just "open"), so keep a
+				// locally-set overdue status rather than downgrading it to "sent".
+				const mapped = mapState(hi.state ?? '');
+				const targetStatus =
+					existing.status === 'overdue' && mapped === 'sent' ? existing.status : mapped;
+				const targetPaid = hi.paid_amount ?? 0;
+				if (existing.status === targetStatus && (existing.paid_amount ?? 0) === targetPaid) {
+					skipDuplicate++;
+				} else {
+					try {
+						await pb.collection('invoices').update(existing.id, {
+							status: targetStatus,
+							paid_amount: targetPaid
+						});
+						invUpdated++;
+					} catch (e) {
+						importErrors.push(`Invoice #${hi.number} (update): ${(e as Error).message}`);
+						invFailed++;
+					}
+				}
+				continue;
+			}
 
 			try {
 				const invoice = await pb.collection('invoices').create({
@@ -372,6 +408,7 @@ export const actions = {
 				contactsCreated,
 				contactsSkipped,
 				invCreated,
+				invUpdated,
 				invSkipped: skipMissingFields + skipNoClient + skipDuplicate,
 				invFailed,
 				skipMissingFields,
