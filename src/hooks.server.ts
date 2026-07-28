@@ -1,6 +1,8 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
+import { building } from '$app/environment';
 import { pushServerError } from '$lib/server-error-log.server.js';
+import { startReminderScheduler } from '$lib/reminders.server.js';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import {
@@ -33,6 +35,9 @@ async function maybeProvisionEnvPassword(pb: PocketBase): Promise<void> {
 }
 
 let _envPasswordProvisioned = false;
+
+// Kick off the overdue/reminder sweep when the server starts (not during build/prerender)
+if (!building) startReminderScheduler();
 
 async function getPasswordHash(): Promise<string | null> {
 	const cached = getCachedPasswordHash();

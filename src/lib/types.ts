@@ -70,6 +70,19 @@ export interface InvoiceLog {
 	created: string;
 }
 
+export interface Expense {
+	id: string;
+	description: string;
+	/** Pre-tax amount of the expense. */
+	amount: number;
+	/** GST/HST paid on the expense (input tax credit). */
+	gst_paid: number;
+	expense_date: string;
+	notes: string;
+	created: string;
+	updated: string;
+}
+
 export type TaxPaymentType = 'income_tax' | 'gst';
 
 export interface TaxPayment {

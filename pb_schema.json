@@ -483,6 +483,27 @@
       },
       {
         "hidden": false,
+        "id": "fld_set_rme",
+        "name": "reminders_enabled",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "bool"
+      },
+      {
+        "hidden": false,
+        "id": "fld_set_rmd",
+        "max": null,
+        "min": 1,
+        "name": "reminder_days",
+        "onlyInt": true,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
+        "hidden": false,
         "id": "fld_set_ssl",
         "name": "smtp_secure",
         "presentable": false,

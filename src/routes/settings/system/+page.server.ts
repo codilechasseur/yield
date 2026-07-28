@@ -79,6 +79,27 @@ export const actions = {
 		return { smtpSuccess: true };
 	},
 
+	saveReminders: async ({ request }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const fd = await request.formData();
+
+		const reminders_enabled = fd.get('reminders_enabled') === 'on';
+		const reminder_days = Math.max(1, parseInt(fd.get('reminder_days')?.toString() ?? '7', 10) || 7);
+
+		try {
+			const existing = await getSmtpSettings(pb);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, { reminders_enabled, reminder_days });
+			} else {
+				await pb.collection('settings').create({ reminders_enabled, reminder_days });
+			}
+		} catch (e) {
+			return fail(500, { remindersError: 'Failed to save reminder settings: ' + (e as Error).message });
+		}
+
+		return { remindersSuccess: true };
+	},
+
 	testSmtp: async ({ request }) => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const fd = await request.formData();
@@ -432,7 +453,7 @@ export const actions = {
 			}
 		};
 
-		for (const col of ['invoice_items', 'invoices', 'contacts', 'clients', 'taxes', 'settings']) {
+		for (const col of ['invoice_items', 'invoice_logs', 'invoices', 'estimate_items', 'estimate_logs', 'estimates', 'contacts', 'clients', 'tax_payments', 'expenses', 'settings']) {
 			try {
 				await deleteAll(col);
 			} catch {

@@ -1,8 +1,34 @@
 import { fail } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
-import type { Invoice, InvoiceItem, TaxPayment } from '$lib/types.js';
+import type { Client, Expense, Invoice, InvoiceItem, TaxPayment } from '$lib/types.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
+
+export interface TaxMonthRow {
+	month: number; // 1–12
+	label: string;
+	revenue: number;
+	expenses: number;
+	gstCollected: number;
+	gstItc: number;
+	netGst: number;
+	estIncomeTax: number; // (revenue − expenses) × rate; can be negative in expense-heavy months
+}
+
+export interface TaxPosition {
+	revenue: number;
+	expenses: number;
+	incomeTaxBase: number;
+	incomeTaxLiability: number;
+	gstCollected: number;
+	gstItc: number;
+	gstLiability: number;
+}
+
+const MONTH_NAMES = [
+	'January', 'February', 'March', 'April', 'May', 'June',
+	'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 export async function load({ url }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -12,7 +38,18 @@ export async function load({ url }) {
 
 	const availableYears = Array.from({ length: 8 }, (_, i) => currentYear - i);
 
-	const emptyTaxPosition = { gstLiability: 0, incomeTaxLiability: 0 };
+	const empty = {
+		payments: [] as TaxPayment[],
+		year,
+		availableYears,
+		incomeTaxRate: 0,
+		taxPosition: {
+			revenue: 0, expenses: 0, incomeTaxBase: 0, incomeTaxLiability: 0,
+			gstCollected: 0, gstItc: 0, gstLiability: 0
+		} satisfies TaxPosition,
+		months: [] as TaxMonthRow[],
+		foreignRevenue: [] as { currency: string; amount: number }[]
+	};
 
 	try {
 		const settings = await getSmtpSettings(pb).catch(() => null);
@@ -20,48 +57,104 @@ export async function load({ url }) {
 
 		const dateFilter = `invoice.issue_date >= "${year}-01-01 00:00:00" && invoice.issue_date <= "${year}-12-31 23:59:59"`;
 
-		const [payments, accrualItems] = await Promise.all([
+		const [payments, accrualItems, expenses] = await Promise.all([
 			pb.collection('tax_payments').getFullList<TaxPayment>({
 				filter: `payment_date >= "${year}-01-01 00:00:00" && payment_date <= "${year}-12-31 23:59:59"`,
 				sort: '-payment_date'
 			}),
 			pb
 				.collection('invoice_items')
-				.getFullList<InvoiceItem & { expand: { invoice: Invoice } }>({
+				.getFullList<InvoiceItem & { expand: { invoice: Invoice & { expand?: { client?: Client } } } }>({
 					filter: `invoice.status != "draft" && ${dateFilter}`,
-					expand: 'invoice',
+					expand: 'invoice,invoice.client',
 					sort: 'invoice.issue_date'
+				}),
+			pb
+				.collection('expenses')
+				.getFullList<Expense>({
+					filter: `expense_date >= "${year}-01-01 00:00:00" && expense_date <= "${year}-12-31 23:59:59"`
 				})
+				.catch(() => [] as Expense[]) // collection may not exist before migrations run
 		]);
 
-		function aggregateTax(
-			itemList: (InvoiceItem & { expand: { invoice: Invoice } })[]
-		): { gst: number; incomeTax: number } {
-			const invMap = new Map<string, { invoice: Invoice; subtotal: number }>();
-			for (const item of itemList) {
-				const inv = item.expand?.invoice;
-				if (!inv) continue;
-				if (!invMap.has(inv.id)) invMap.set(inv.id, { invoice: inv, subtotal: 0 });
-				invMap.get(inv.id)!.subtotal += item.quantity * item.unit_price;
-			}
-			let gst = 0, incomeTax = 0;
-			for (const { invoice: inv, subtotal: sub } of invMap.values()) {
-				gst += sub * ((inv.tax_percent ?? 0) / 100);
-				incomeTax += sub * (incomeTaxRate / 100);
-			}
-			return { gst, incomeTax };
+		// Group items by invoice so per-invoice tax_percent applies once
+		const invMap = new Map<string, { invoice: Invoice & { expand?: { client?: Client } }; subtotal: number }>();
+		for (const item of accrualItems) {
+			const inv = item.expand?.invoice;
+			if (!inv) continue;
+			if (!invMap.has(inv.id)) invMap.set(inv.id, { invoice: inv, subtotal: 0 });
+			invMap.get(inv.id)!.subtotal += item.quantity * item.unit_price;
 		}
 
-		const accrualTax = aggregateTax(accrualItems);
+		// CAD invoices (or ones with no currency set) drive the tax numbers.
+		// Foreign-currency invoices are excluded — GST doesn't apply to zero-rated
+		// exports, and summing mixed currencies would produce meaningless totals —
+		// but they're surfaced so nothing disappears silently.
+		const monthRevenue = new Map<number, number>();
+		const monthGst = new Map<number, number>();
+		const foreign = new Map<string, number>();
+		let revenue = 0, gstCollected = 0;
 
-		const taxPosition = {
-			gstLiability: accrualTax.gst,
-			incomeTaxLiability: accrualTax.incomeTax
+		for (const { invoice: inv, subtotal: sub } of invMap.values()) {
+			const currency = inv.expand?.client?.currency || 'CAD';
+			if (currency !== 'CAD') {
+				foreign.set(currency, (foreign.get(currency) ?? 0) + sub);
+				continue;
+			}
+			const month = new Date(inv.issue_date).getMonth() + 1;
+			const gst = sub * ((inv.tax_percent ?? 0) / 100);
+			revenue += sub;
+			gstCollected += gst;
+			monthRevenue.set(month, (monthRevenue.get(month) ?? 0) + sub);
+			monthGst.set(month, (monthGst.get(month) ?? 0) + gst);
+		}
+
+		const monthExpenses = new Map<number, number>();
+		const monthItc = new Map<number, number>();
+		let totalExpenses = 0, gstItc = 0;
+		for (const exp of expenses) {
+			const month = new Date(exp.expense_date).getMonth() + 1;
+			totalExpenses += exp.amount;
+			gstItc += exp.gst_paid ?? 0;
+			monthExpenses.set(month, (monthExpenses.get(month) ?? 0) + exp.amount);
+			monthItc.set(month, (monthItc.get(month) ?? 0) + (exp.gst_paid ?? 0));
+		}
+
+		const months: TaxMonthRow[] = Array.from({ length: 12 }, (_, i) => {
+			const m = i + 1;
+			const rev = monthRevenue.get(m) ?? 0;
+			const exp = monthExpenses.get(m) ?? 0;
+			const gst = monthGst.get(m) ?? 0;
+			const itc = monthItc.get(m) ?? 0;
+			return {
+				month: m,
+				label: MONTH_NAMES[i],
+				revenue: rev,
+				expenses: exp,
+				gstCollected: gst,
+				gstItc: itc,
+				netGst: gst - itc,
+				estIncomeTax: (rev - exp) * (incomeTaxRate / 100)
+			};
+		}).filter((r) => r.revenue !== 0 || r.expenses !== 0);
+
+		const incomeTaxBase = Math.max(0, revenue - totalExpenses);
+		const taxPosition: TaxPosition = {
+			revenue,
+			expenses: totalExpenses,
+			incomeTaxBase,
+			incomeTaxLiability: incomeTaxBase * (incomeTaxRate / 100),
+			gstCollected,
+			gstItc,
+			gstLiability: Math.max(0, gstCollected - gstItc)
 		};
 
-		return { payments, year, availableYears, incomeTaxRate, taxPosition };
-	} catch {
-		return { payments: [] as TaxPayment[], year, availableYears, incomeTaxRate: 0, taxPosition: emptyTaxPosition };
+		const foreignRevenue = Array.from(foreign.entries()).map(([currency, amount]) => ({ currency, amount }));
+
+		return { ...empty, payments, incomeTaxRate, taxPosition, months, foreignRevenue, loadError: null as string | null };
+	} catch (e) {
+		// Never render $0 liabilities as if they were real — surface the failure instead.
+		return { ...empty, loadError: 'Could not load tax data: ' + (e as Error).message };
 	}
 }
 

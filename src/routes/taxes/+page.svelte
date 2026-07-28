@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Landmark, Trash2, Plus, Receipt, Calculator } from 'lucide-svelte';
+	import { Landmark, Trash2, Plus, Receipt, Calculator, AlertTriangle, CalendarDays } from 'lucide-svelte';
 	import { addToast } from '$lib/toasts.svelte.js';
 	import FormAlert from '$lib/components/FormAlert.svelte';
 	import type { PageData, ActionData } from './$types.js';
@@ -194,6 +194,33 @@
 		</div>
 	{/if}
 
+	{#if data.loadError}
+		<!-- Fail loudly: never show $0 liabilities when the data couldn't be loaded -->
+		<div
+			class="rounded-xl border p-8 text-center mb-6"
+			style="background-color: var(--color-card); border-color: var(--color-destructive)"
+		>
+			<AlertTriangle size={28} class="mx-auto mb-3" style="color: var(--color-destructive)" />
+			<p class="text-sm font-semibold mb-1" style="color: var(--color-foreground)">Tax data unavailable</p>
+			<p class="text-sm" style="color: var(--color-muted-foreground)">{data.loadError}</p>
+			<p class="text-xs mt-2" style="color: var(--color-muted-foreground)">The numbers on this page are hidden rather than shown as $0 — retry once the database is reachable.</p>
+		</div>
+	{:else}
+
+	{#if data.foreignRevenue.length > 0}
+		<div
+			class="rounded-lg border px-4 py-3 mb-6 text-sm flex items-start gap-2"
+			style="background-color: var(--color-card); border-color: var(--color-border); color: var(--color-muted-foreground)"
+		>
+			<AlertTriangle size={15} class="mt-0.5 shrink-0" style="color: var(--color-primary)" />
+			<span>
+				Excluded from these numbers:
+				{#each data.foreignRevenue as f, i}{i > 0 ? ', ' : ''}{new Intl.NumberFormat('en-CA', { style: 'currency', currency: f.currency }).format(f.amount)} invoiced in {f.currency}{/each}.
+				Foreign-currency invoices don't collect GST and aren't converted into the income tax estimate — talk to your accountant about how to report them.
+			</span>
+		</div>
+	{/if}
+
 	<!-- Tax Position -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
 		<!-- GST/HST Position -->
@@ -208,8 +235,22 @@
 			<div>
 				<div class="px-5 py-3 flex items-center justify-between">
 					<div>
-						<p class="text-sm font-medium" style="color: var(--color-foreground)">Estimated liability</p>
-						<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">GST/HST on all invoiced revenue</p>
+						<p class="text-sm font-medium" style="color: var(--color-foreground)">GST/HST collected</p>
+						<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">On invoiced revenue</p>
+					</div>
+					<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(data.taxPosition.gstCollected)}</p>
+				</div>
+				<div class="border-t px-5 py-3 flex items-center justify-between" style="border-color: var(--color-border)">
+					<div>
+						<p class="text-sm font-medium" style="color: var(--color-foreground)">Input tax credits</p>
+						<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">GST paid on <a href="/expenses" class="underline" style="color: var(--color-primary)">expenses</a></p>
+					</div>
+					<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">−{fmt(data.taxPosition.gstItc)}</p>
+				</div>
+				<div class="border-t px-5 py-3 flex items-center justify-between" style="border-color: var(--color-border)">
+					<div>
+						<p class="text-sm font-medium" style="color: var(--color-foreground)">Net liability</p>
+						<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Collected minus credits</p>
 					</div>
 					<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(data.taxPosition.gstLiability)}</p>
 				</div>
@@ -249,8 +290,15 @@
 				<div>
 					<div class="px-5 py-3 flex items-center justify-between">
 						<div>
+							<p class="text-sm font-medium" style="color: var(--color-foreground)">Taxable base</p>
+							<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">{fmt(data.taxPosition.revenue)} revenue − {fmt(data.taxPosition.expenses)} <a href="/expenses" class="underline" style="color: var(--color-primary)">expenses</a></p>
+						</div>
+						<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(data.taxPosition.incomeTaxBase)}</p>
+					</div>
+					<div class="border-t px-5 py-3 flex items-center justify-between" style="border-color: var(--color-border)">
+						<div>
 							<p class="text-sm font-medium" style="color: var(--color-foreground)">Estimated liability</p>
-							<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">@ {data.incomeTaxRate}% on all invoiced revenue</p>
+							<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">@ {data.incomeTaxRate}% of taxable base</p>
 						</div>
 						<p class="text-base font-semibold tabular-nums" style="color: var(--color-foreground)">{fmt(data.taxPosition.incomeTaxLiability)}</p>
 					</div>
@@ -305,6 +353,43 @@
 			<p class="text-lg sm:text-xl font-bold" style="color: var(--color-primary)">{fmt(totalAll)}</p>
 		</div>
 	</div>
+
+	<!-- Monthly breakdown -->
+	{#if data.months.length > 0}
+		<div class="rounded-xl border overflow-hidden mb-6" style="background-color: var(--color-card); border-color: var(--color-border)">
+			<div class="px-5 py-3 border-b flex items-center gap-2" style="border-color: var(--color-border)">
+				<CalendarDays size={15} style="color: var(--color-primary)" aria-hidden="true" />
+				<h3 class="font-semibold text-sm" style="color: var(--color-foreground)">Monthly Breakdown — {data.year}</h3>
+				<span class="text-xs ml-auto" style="color: var(--color-muted-foreground)">What to set aside each month</span>
+			</div>
+			<div class="overflow-x-auto">
+			<table class="w-full text-sm min-w-140">
+				<thead>
+					<tr style="background-color: var(--color-accent)">
+						<th class="text-left px-4 py-2.5 font-medium" style="color: var(--color-muted-foreground)">Month</th>
+						<th class="text-right px-4 py-2.5 font-medium" style="color: var(--color-muted-foreground)">Revenue</th>
+						<th class="text-right px-4 py-2.5 font-medium" style="color: var(--color-muted-foreground)">Expenses</th>
+						<th class="text-right px-4 py-2.5 font-medium" style="color: var(--color-muted-foreground)">Net GST</th>
+						<th class="text-right px-4 py-2.5 font-medium" style="color: var(--color-muted-foreground)">Est. Income Tax</th>
+						<th class="text-right px-4 py-2.5 font-medium" style="color: var(--color-muted-foreground)">Total Set-Aside</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each data.months as row, i}
+						<tr class="border-t" style="border-color: var(--color-border); background-color: {i % 2 === 1 ? 'var(--color-accent)' : 'var(--color-card)'}">
+							<td class="px-4 py-2.5 font-medium" style="color: var(--color-foreground)">{row.label}</td>
+							<td class="px-4 py-2.5 text-right font-mono" style="color: var(--color-foreground)">{fmt(row.revenue)}</td>
+							<td class="px-4 py-2.5 text-right font-mono" style="color: var(--color-muted-foreground)">{row.expenses ? `−${fmt(row.expenses)}` : '—'}</td>
+							<td class="px-4 py-2.5 text-right font-mono" style="color: var(--color-foreground)">{fmt(row.netGst)}</td>
+							<td class="px-4 py-2.5 text-right font-mono" style="color: {row.estIncomeTax < 0 ? 'var(--color-muted-foreground)' : 'var(--color-foreground)'}">{fmt(row.estIncomeTax)}</td>
+							<td class="px-4 py-2.5 text-right font-mono font-semibold" style="color: var(--color-foreground)">{fmt(row.netGst + row.estIncomeTax)}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Payments list -->
 	{#if data.payments.length === 0}
@@ -387,6 +472,8 @@
 			</div>
 		</div>
 	{/if}
+
+	{/if}<!-- /loadError else -->
 </div>
 
 <!-- Delete payment confirmation modal -->

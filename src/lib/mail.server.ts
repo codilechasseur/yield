@@ -57,6 +57,10 @@ export interface SmtpSettings {
 	harvest_account_id?: string;
 	/** Harvest Personal Access Token, saved on successful import. */
 	harvest_token?: string;
+	/** When true, overdue invoices get automatic reminder emails. */
+	reminders_enabled?: boolean;
+	/** Days between reminder emails for the same invoice. */
+	reminder_days?: number;
 }
 
 /**
@@ -523,7 +527,9 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 			logo: r.logo ?? '',
 			logo_hide_company_name: r.logo_hide_company_name ?? false,
 			harvest_account_id: r.harvest_account_id ?? '',
-			harvest_token: r.harvest_token ?? ''
+			harvest_token: r.harvest_token ?? '',
+			reminders_enabled: r.reminders_enabled ?? false,
+			reminder_days: r.reminder_days || 7
 		};
 	} catch {
 		return null;
