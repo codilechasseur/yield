@@ -57,4 +57,4 @@ init() {
 # Run init in background so PocketBase can start as the main (PID 1) process.
 init &
 
-exec /pb/pocketbase serve --http=0.0.0.0:8090 --dir=/pb/pb_data
+exec /pb/pocketbase serve --http=0.0.0.0:8090 --dir=/pb/pb_data --migrationsDir=/pb/pb_migrations

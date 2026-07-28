@@ -140,7 +140,7 @@ function spawnAttached(cmd, args, env = {}) {
 
   // 3. Start PocketBase
   log(`Starting PocketBase (data: ${PB_DATA})…`);
-  const pb = spawn(PB_BIN, ['serve', `--http=127.0.0.1:8090`, `--dir=${PB_DATA}`], {
+  const pb = spawn(PB_BIN, ['serve', `--http=127.0.0.1:8090`, `--dir=${PB_DATA}`, `--migrationsDir=${join(__dirname, 'pb_migrations')}`], {
     stdio: ['ignore', 'pipe', 'pipe']
   });
 

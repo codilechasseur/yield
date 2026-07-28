@@ -29,6 +29,8 @@ RUN case "${TARGETARCH}" in \
 
 # Schema and init entrypoint (auto-applied on first boot)
 COPY pb_schema.json /pb/pb_schema.json
+# JS migrations — auto-applied by PocketBase on serve start
+COPY pb_migrations /pb/pb_migrations
 COPY entrypoint.sh /pb/entrypoint.sh
 RUN chmod +x /pb/entrypoint.sh
 
