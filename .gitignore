@@ -8,10 +8,10 @@ node_modules
 /.svelte-kit
 /build
 
-# PocketBase binary, data, and auto-generated migrations
+# PocketBase binary and data (pb_migrations IS committed — it ships in the
+# pocketbase Docker image and applies on startup)
 /pocketbase
 /pb_data
-/pb_migrations
 
 # Caddy TLS state (if Caddy is run outside Docker)
 /.caddy
