@@ -61,7 +61,7 @@
 	const cH = H - PT - PB;
 
 	// Chart state
-	let viewMode: 'year' | 'month' = $state('month');
+	let viewMode = $state<'year' | 'month'>('month');
 	let monthViewYear: number = $state(currentYear);
 	let hoverIdx: number | null = $state(null);
 

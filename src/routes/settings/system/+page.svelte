@@ -50,7 +50,7 @@
 	let deletingBackup = $state<string | null>(null);
 
 	// ── Dirty tracking ─────────────────────────────────────────────────────────
-	let smtpSavedSnapshot = $state({
+	let smtpSavedSnapshot = $state(untrack(() => ({
 		smtpHost:      data.smtp?.smtp_host ?? '',
 		smtpPort:      data.smtp?.smtp_port || 587,
 		smtpUser:      data.smtp?.smtp_user ?? '',
@@ -59,7 +59,7 @@
 		smtpFromEmail: data.smtp?.smtp_from_email ?? '',
 		smtpReplyTo:   data.smtp?.smtp_reply_to ?? '',
 		smtpSecure:    data.smtp?.smtp_secure ?? false,
-	});
+	})));
 
 	let smtpDirty = $derived(
 		smtpHost      !== smtpSavedSnapshot.smtpHost      ||

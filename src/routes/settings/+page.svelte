@@ -85,27 +85,27 @@
 	}
 
 	// ── Per-section save state ────────────────────────────────────────────
-	let companySaved   = $state({ name: data.smtp?.company_name ?? '', address: data.smtp?.company_address ?? '' });
+	let companySaved   = $state(untrack(() => ({ name: data.smtp?.company_name ?? '', address: data.smtp?.company_address ?? '' })));
 	let companySaving  = $state(false);
 	let companyDirty   = $derived(companyName !== companySaved.name || companyAddress !== companySaved.address);
 
-	let notesSaved     = $state({ notes: data.smtp?.invoice_default_notes ?? '', footer: data.smtp?.invoice_footer ?? '' });
+	let notesSaved     = $state(untrack(() => ({ notes: data.smtp?.invoice_default_notes ?? '', footer: data.smtp?.invoice_footer ?? '' })));
 	let notesSaving    = $state(false);
 	let notesDirty     = $derived(defaultNotes !== notesSaved.notes || invoiceFooter !== notesSaved.footer);
 
-	let numberingSaved  = $state({ format: data.smtp?.invoice_number_format ?? 'INV-{number}', next: data.smtp?.invoice_next_number ?? 1 });
+	let numberingSaved  = $state(untrack(() => ({ format: data.smtp?.invoice_number_format ?? 'INV-{number}', next: data.smtp?.invoice_next_number ?? 1 })));
 	let numberingSaving = $state(false);
 	let numberingDirty  = $derived(invoiceNumberFormat !== numberingSaved.format || invoiceNextNumber !== numberingSaved.next);
 
-	let estNumberingSaved  = $state({ format: data.smtp?.estimate_number_format ?? 'EST-{number}', next: data.smtp?.estimate_next_number ?? 1 });
+	let estNumberingSaved  = $state(untrack(() => ({ format: data.smtp?.estimate_number_format ?? 'EST-{number}', next: data.smtp?.estimate_next_number ?? 1 })));
 	let estNumberingSaving = $state(false);
 	let estNumberingDirty  = $derived(estimateNumberFormat !== estNumberingSaved.format || estimateNextNumber !== estNumberingSaved.next);
 
-	let taxSaved   = $state({ tax: data.smtp?.default_tax_percent ?? 5, income: data.smtp?.income_tax_rate ?? 0, hourly: data.smtp?.default_hourly_rate ?? 0, currency: data.smtp?.default_currency ?? 'CAD' });
+	let taxSaved   = $state(untrack(() => ({ tax: data.smtp?.default_tax_percent ?? 5, income: data.smtp?.income_tax_rate ?? 0, hourly: data.smtp?.default_hourly_rate ?? 0, currency: data.smtp?.default_currency ?? 'CAD' })));
 	let taxSaving  = $state(false);
 	let taxDirty   = $derived(taxPercent !== taxSaved.tax || incomeTaxRate !== taxSaved.income || defaultHourlyRate !== taxSaved.hourly || defaultCurrency !== taxSaved.currency);
 
-	let emailSaved  = $state({ subject: data.smtp?.email_subject ?? '', body: data.smtp?.email_body ?? '' });
+	let emailSaved  = $state(untrack(() => ({ subject: data.smtp?.email_subject ?? '', body: data.smtp?.email_body ?? '' })));
 	let emailSaving = $state(false);
 	let emailDirty  = $derived(emailSubject !== emailSaved.subject || emailBody !== emailSaved.body);
 </script>
