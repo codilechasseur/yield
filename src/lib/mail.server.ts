@@ -23,6 +23,8 @@ export interface SmtpSettings {
 	smtp_from_email: string;
 	/** Reply-To address for outgoing mail. Useful when the From address is send-only. */
 	smtp_reply_to: string;
+	/** BCC address copied on all outgoing invoice/estimate/reminder emails (empty = off). */
+	smtp_bcc: string;
 	smtp_secure: boolean;
 	default_tax_percent?: number;
 	income_tax_rate?: number;
@@ -507,6 +509,7 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 			smtp_from_name: r.smtp_from_name ?? '',
 			smtp_from_email: r.smtp_from_email ?? '',
 			smtp_reply_to: r.smtp_reply_to ?? '',
+			smtp_bcc: r.smtp_bcc ?? '',
 			smtp_secure: r.smtp_secure ?? false,
 			default_tax_percent: r.default_tax_percent ?? 5,
 			income_tax_rate: r.income_tax_rate ?? 0,
@@ -680,6 +683,7 @@ export async function sendInvoiceEmail({
 	await transporter.sendMail({
 		from: fromField,
 		replyTo: smtp.smtp_reply_to || undefined,
+		bcc: smtp.smtp_bcc || undefined,
 		to: Array.isArray(toEmail) ? toEmail.join(', ') : toEmail,
 		subject,
 		text: bodyText,
@@ -796,6 +800,7 @@ export async function sendEstimateEmail({
 	await transporter.sendMail({
 		from: fromField,
 		replyTo: smtp.smtp_reply_to || undefined,
+		bcc: smtp.smtp_bcc || undefined,
 		to: Array.isArray(toEmail) ? toEmail.join(', ') : toEmail,
 		subject,
 		text: bodyText,

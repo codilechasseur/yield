@@ -17,6 +17,7 @@
 	let smtpFromName  = $state(untrack(() => data.smtp?.smtp_from_name ?? ''));
 	let smtpFromEmail = $state(untrack(() => data.smtp?.smtp_from_email ?? ''));
 	let smtpReplyTo   = $state(untrack(() => data.smtp?.smtp_reply_to ?? ''));
+	let smtpBcc       = $state(untrack(() => data.smtp?.smtp_bcc ?? ''));
 	let smtpSecure    = $state(untrack(() => data.smtp?.smtp_secure ?? false));
 	let showPass      = $state(false);
 	let smtpSaving    = $state(false);
@@ -58,6 +59,7 @@
 		smtpFromName:  data.smtp?.smtp_from_name ?? '',
 		smtpFromEmail: data.smtp?.smtp_from_email ?? '',
 		smtpReplyTo:   data.smtp?.smtp_reply_to ?? '',
+		smtpBcc:       data.smtp?.smtp_bcc ?? '',
 		smtpSecure:    data.smtp?.smtp_secure ?? false,
 	})));
 
@@ -69,6 +71,7 @@
 		smtpFromName  !== smtpSavedSnapshot.smtpFromName  ||
 		smtpFromEmail !== smtpSavedSnapshot.smtpFromEmail ||
 		smtpReplyTo   !== smtpSavedSnapshot.smtpReplyTo   ||
+		smtpBcc       !== smtpSavedSnapshot.smtpBcc       ||
 		smtpSecure    !== smtpSavedSnapshot.smtpSecure
 	);
 
@@ -80,6 +83,7 @@
 		smtpSavedSnapshot.smtpFromName  = smtpFromName;
 		smtpSavedSnapshot.smtpFromEmail = smtpFromEmail;
 		smtpSavedSnapshot.smtpReplyTo   = smtpReplyTo;
+		smtpSavedSnapshot.smtpBcc       = smtpBcc;
 		smtpSavedSnapshot.smtpSecure    = smtpSecure;
 	}
 
@@ -227,7 +231,7 @@
 							</div>
 						</div>
 
-						<!-- reply-to -->
+						<!-- reply-to + bcc -->
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 							<div class="flex flex-col gap-1">
 								<label for="smtp-reply-to" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Reply-To Email <span class="font-normal">(optional)</span></label>
@@ -241,6 +245,19 @@
 									style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 								/>
 								<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Where client replies go. Set this if the From address can't receive mail.</p>
+							</div>
+							<div class="flex flex-col gap-1">
+								<label for="smtp-bcc" class="text-xs font-medium" style="color: var(--color-muted-foreground)">BCC Email <span class="font-normal">(optional)</span></label>
+								<input
+									id="smtp-bcc"
+									name="smtp_bcc"
+									type="email"
+									placeholder="you@example.com"
+									bind:value={smtpBcc}
+									class="px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2"
+									style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+								/>
+								<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Gets a blind copy of every invoice, estimate, and reminder email — handy for verifying delivery.</p>
 							</div>
 						</div>
 

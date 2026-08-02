@@ -116,6 +116,7 @@ ${companyName}`;
 		await transporter.sendMail({
 			from: fromField,
 			replyTo: smtp.smtp_reply_to || undefined,
+		bcc: smtp.smtp_bcc || undefined,
 			to: client.email,
 			subject: `Reminder: Invoice ${inv.number} is past due`,
 			text: bodyText

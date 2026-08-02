@@ -457,6 +457,19 @@
       },
       {
         "hidden": false,
+        "id": "fld_set_sbcc",
+        "max": 0,
+        "min": 0,
+        "name": "smtp_bcc",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
         "id": "fld_set_hai",
         "max": 0,
         "min": 0,

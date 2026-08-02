@@ -62,6 +62,7 @@ export const actions = {
 			smtp_from_name: fd.get('smtp_from_name')?.toString().trim() ?? '',
 			smtp_from_email: fd.get('smtp_from_email')?.toString().trim() ?? '',
 			smtp_reply_to: fd.get('smtp_reply_to')?.toString().trim() ?? '',
+			smtp_bcc: fd.get('smtp_bcc')?.toString().trim() ?? '',
 			smtp_secure: fd.get('smtp_secure') === 'on'
 		};
 

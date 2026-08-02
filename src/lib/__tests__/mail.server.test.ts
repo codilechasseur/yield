@@ -285,6 +285,18 @@ describe('sendInvoiceEmail', () => {
 		expect(sendMailSpy.mock.calls[0][0].replyTo).toBeUndefined();
 	});
 
+	it('sets BCC when configured', async () => {
+		const pb = makeSendMailPb({ smtp_bcc: 'archive@example.com' });
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'Alice' });
+		expect(sendMailSpy.mock.calls[0][0].bcc).toBe('archive@example.com');
+	});
+
+	it('omits BCC when not configured', async () => {
+		const pb = makeSendMailPb();
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'Alice' });
+		expect(sendMailSpy.mock.calls[0][0].bcc).toBeUndefined();
+	});
+
 	it('attaches a PDF with the correct filename', async () => {
 		const pb = makeSendMailPb();
 		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'x@example.com', toName: 'X' });
