@@ -78,35 +78,43 @@ export async function load() {
 		);
 
 		// Build yearly chart data
-		const yearMap = new Map<string, { invoiced: number; paid: number }>();
-		const monthMap = new Map<string, { invoiced: number; paid: number }>();
+		const yearMap = new Map<string, { invoiced: number; paid: number; draft: number }>();
+		const monthMap = new Map<string, { invoiced: number; paid: number; draft: number }>();
 		for (const item of allItems) {
 			const inv = item.expand?.invoice;
 			if (!inv?.issue_date) continue;
-			// Drafts aren't issued and write-offs aren't collectible — including them
-			// would render as permanently "Outstanding" (invoiced − paid) in the chart.
-			if (inv.status === 'draft' || inv.status === 'written_off') continue;
+			// Write-offs aren't collectible — they'd render as permanently "Outstanding".
+			// Drafts aren't issued either, so they don't count toward invoiced/paid, but
+			// they're tracked separately and drawn as a hatched "pipeline" segment.
+			if (inv.status === 'written_off') continue;
 			const year = inv.issue_date.slice(0, 4);
 			const month = inv.issue_date.slice(0, 7); // "YYYY-MM"
 			const amount = item.quantity * item.unit_price * (1 + (inv.tax_percent ?? 0) / 100);
+			const isDraft = inv.status === 'draft';
 			const isPaid = inv.status === 'paid';
 
-			const ye = yearMap.get(year) ?? { invoiced: 0, paid: 0 };
-			ye.invoiced += amount;
-			if (isPaid) ye.paid += amount;
+			const ye = yearMap.get(year) ?? { invoiced: 0, paid: 0, draft: 0 };
+			if (isDraft) ye.draft += amount;
+			else {
+				ye.invoiced += amount;
+				if (isPaid) ye.paid += amount;
+			}
 			yearMap.set(year, ye);
 
-			const me = monthMap.get(month) ?? { invoiced: 0, paid: 0 };
-			me.invoiced += amount;
-			if (isPaid) me.paid += amount;
+			const me = monthMap.get(month) ?? { invoiced: 0, paid: 0, draft: 0 };
+			if (isDraft) me.draft += amount;
+			else {
+				me.invoiced += amount;
+				if (isPaid) me.paid += amount;
+			}
 			monthMap.set(month, me);
 		}
 		const chartData: ChartPeriod[] = Array.from(yearMap.entries())
 			.sort(([a], [b]) => a.localeCompare(b))
-			.map(([period, { invoiced, paid }]) => ({ period, invoiced, paid }));
+			.map(([period, { invoiced, paid, draft }]) => ({ period, invoiced, paid, draft }));
 		const chartDataByMonth: ChartPeriod[] = Array.from(monthMap.entries())
 			.sort(([a], [b]) => a.localeCompare(b))
-			.map(([period, { invoiced, paid }]) => ({ period, invoiced, paid }));
+			.map(([period, { invoiced, paid, draft }]) => ({ period, invoiced, paid, draft }));
 
 		const addEstimateTotal = (est: EstimateWithClient) => {
 			const items = est.expand?.estimate_items_via_estimate ?? [];

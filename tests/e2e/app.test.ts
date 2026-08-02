@@ -48,22 +48,26 @@ test.describe('Clients', () => {
 });
 
 test.describe('Navigation', () => {
+	// Scope to the sidebar — the dashboard chart also exposes "View invoices for <month>" links
+	const sidebar = (page: import('@playwright/test').Page) =>
+		page.getByRole('complementary', { name: 'Application sidebar' });
+
 	test('nav links are present on the dashboard', async ({ page }) => {
 		await page.goto('/');
 		// The nav should include links for main sections
-		await expect(page.getByRole('link', { name: /Invoices/i })).toBeVisible();
-		await expect(page.getByRole('link', { name: /Clients/i })).toBeVisible();
+		await expect(sidebar(page).getByRole('link', { name: 'Invoices', exact: true })).toBeVisible();
+		await expect(sidebar(page).getByRole('link', { name: 'Clients', exact: true })).toBeVisible();
 	});
 
 	test('clicking Invoices nav link navigates to /invoices', async ({ page }) => {
 		await page.goto('/');
-		await page.getByRole('link', { name: /Invoices/i }).first().click();
+		await sidebar(page).getByRole('link', { name: 'Invoices', exact: true }).click();
 		await expect(page).toHaveURL(/\/invoices/);
 	});
 
 	test('clicking Clients nav link navigates to /clients', async ({ page }) => {
 		await page.goto('/');
-		await page.getByRole('link', { name: /Clients/i }).first().click();
+		await sidebar(page).getByRole('link', { name: 'Clients', exact: true }).click();
 		await expect(page).toHaveURL(/\/clients/);
 	});
 });

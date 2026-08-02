@@ -99,6 +99,8 @@ export interface ChartPeriod {
 	period: string; // e.g. "2024"
 	invoiced: number;
 	paid: number;
+	/** Total of draft (not yet issued) invoices — shown as pipeline, excluded from revenue totals. */
+	draft: number;
 }
 
 export interface DashboardStats {

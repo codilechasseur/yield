@@ -85,7 +85,7 @@
 			? stats.chartData
 			: Array.from({ length: 12 }, (_, m) => {
 					const key = `${monthViewYear}-${String(m + 1).padStart(2, '0')}`;
-					return monthLookup.get(key) ?? { period: key, invoiced: 0, paid: 0 };
+					return monthLookup.get(key) ?? { period: key, invoiced: 0, paid: 0, draft: 0 };
 				})
 	);
 </script>
@@ -150,7 +150,7 @@
 
 	<!-- Revenue Chart -->
 	{#if stats.chartData.length > 0}
-		{@const maxVal = Math.max(...visibleData.map((d) => d.invoiced), 1)}
+		{@const maxVal = Math.max(...visibleData.map((d) => d.invoiced + d.draft), 1)}
 		{@const n = visibleData.length}
 		{@const slotW = cW / n}
 		{@const bw = slotW * 0.65}
@@ -176,6 +176,13 @@
 						<span class="flex items-center gap-1.5">
 							<span class="inline-block w-3 h-3 rounded-sm opacity-25" style="background-color: var(--color-primary)"></span>
 							Outstanding
+						</span>
+						<span class="flex items-center gap-1.5">
+							<span
+								class="inline-block w-3 h-3 rounded-sm"
+								style="background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--color-primary) 35%, transparent) 0 1.5px, color-mix(in srgb, var(--color-primary) 6%, transparent) 1.5px 4.5px)"
+							></span>
+							Draft
 						</span>
 					</div>
 
@@ -225,11 +232,19 @@
 				<svg
 					viewBox="0 0 {W} {H}"
 					role="img"
-					aria-label="Revenue chart showing invoiced vs paid amounts by {viewMode === 'year' ? 'year' : `month in ${monthViewYear}`}"
+					aria-label="Revenue chart showing invoiced, paid, and draft amounts by {viewMode === 'year' ? 'year' : `month in ${monthViewYear}`}"
 					class="w-full block"
 					style="aspect-ratio: {W} / {H}; max-height: 260px;"
 					onmouseleave={() => { hoverIdx = null; }}
 				>
+					<defs>
+						<!-- 45° hatch for draft (pipeline) segments — same primary hue as the
+						     other segments so the distinction is carried by texture, not color -->
+						<pattern id="draft-hatch" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
+							<rect width="5" height="5" fill="var(--color-primary)" opacity="0.06" />
+							<line x1="0" y1="0" x2="0" y2="5" stroke="var(--color-primary)" stroke-width="1.5" opacity="0.35" />
+						</pattern>
+					</defs>
 					<!-- Horizontal grid lines + Y-axis labels -->
 					{#each [0, 0.25, 0.5, 0.75, 1] as tick}
 						{@const ty = PT + cH * (1 - tick)}
@@ -251,6 +266,7 @@
 						{@const barH = (d.invoiced / maxVal) * cH}
 						{@const paidH = (d.paid / maxVal) * cH}
 						{@const unpaidH = barH - paidH}
+						{@const draftH = (d.draft / maxVal) * cH}
 						{@const isHovered = hoverIdx === i}
 
 						<!-- Full bar background = total invoiced (desaturated) -->
@@ -260,6 +276,19 @@
 								width={bw} height={barH}
 								fill="var(--color-primary)"
 								opacity={isHovered ? 0.35 : 0.22}
+								rx="3" ry="3"
+								class="bar-anim" style="animation-delay: {i * 35}ms"
+							/>
+						{/if}
+
+						<!-- Draft (pipeline) segment — hatched, stacked on top of the issued bar -->
+						{#if draftH > 0.5}
+							{@const gap = barH > 0.5 ? 2 : 0}
+							<rect
+								x={bx} y={PT + cH - barH - gap - draftH}
+								width={bw} height={draftH}
+								fill="url(#draft-hatch)"
+								opacity={isHovered ? 1 : 0.8}
 								rx="3" ry="3"
 								class="bar-anim" style="animation-delay: {i * 35}ms"
 							/>
@@ -299,15 +328,17 @@
 					{#if hoverIdx !== null}
 						{@const td = visibleData[hoverIdx]}
 						{@const outstanding = td.invoiced - td.paid}
-						{@const barH = (td.invoiced / maxVal) * cH}
+						{@const hasDraft = td.draft > 0}
+						{@const ttHi = hasDraft ? ttH + 17 : ttH}
+						{@const barH = ((td.invoiced + td.draft) / maxVal) * cH}
 						{@const bx = PL + hoverIdx * slotW + bGap}
 						{@const rawTx = bx + bw / 2 - ttW / 2}
 						{@const tx = Math.min(Math.max(rawTx, PL), W - PR - ttW)}
-						{@const ty = Math.max(PT + cH - barH - ttH - 8, PT + 2)}
+						{@const ty = Math.max(PT + cH - barH - ttHi - 8, PT + 2)}
 						<g style="pointer-events: none">
 							<rect
 								x={tx} y={ty}
-								width={ttW} height={ttH}
+								width={ttW} height={ttHi}
 								rx="5" ry="5"
 								fill="var(--color-popover, var(--color-card))"
 								stroke="var(--color-border)"
@@ -327,6 +358,10 @@
 							<text x={tx + ttW - 10} y={ty + 67} font-size="11" text-anchor="end"
 								fill={outstanding > 0 ? 'var(--color-destructive, #e53e3e)' : 'var(--color-muted-foreground)'}
 							>{formatCurrency(outstanding)}</text>
+							{#if hasDraft}
+								<text x={tx + 10} y={ty + 84} font-size="11" fill="var(--color-muted-foreground)">Draft</text>
+								<text x={tx + ttW - 10} y={ty + 84} font-size="11" text-anchor="end" fill="var(--color-muted-foreground)">{formatCurrency(td.draft)}</text>
+							{/if}
 						</g>
 					{/if}
 
