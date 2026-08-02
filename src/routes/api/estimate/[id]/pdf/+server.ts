@@ -53,7 +53,8 @@ export async function GET({ params }) {
 		});
 
 		const page = await browser.newPage();
-		await page.setContent(html, { waitUntil: 'networkidle0' });
+		await page.setContent(html, { waitUntil: 'load' });
+		await page.waitForNetworkIdle();
 
 		const pdfBuffer = await page.pdf({
 			format: 'A4',

@@ -23,7 +23,11 @@ export default defineConfig({
 			name: 'chromium',
 			use: {
 				...devices['Desktop Chrome'],
-				storageState: 'tests/e2e/.auth/user.json'
+				storageState: 'tests/e2e/.auth/user.json',
+				// Wide enough that the fixed theme toggle (top-right) doesn't overlap
+				// page-header action buttons and intercept clicks (overrides the
+				// 1280×720 default that comes with devices['Desktop Chrome']).
+				viewport: { width: 1600, height: 900 }
 			},
 			dependencies: ['setup']
 		}
@@ -39,7 +43,11 @@ export default defineConfig({
 				timeout: 60_000,
 				env: {
 					PB_URL: process.env.PB_URL || 'http://localhost:8090',
-					...(process.env.APP_PASSWORD ? { APP_PASSWORD: process.env.APP_PASSWORD } : {})
+					...(process.env.APP_PASSWORD ? { APP_PASSWORD: process.env.APP_PASSWORD } : {}),
+					...(process.env.PB_ADMIN_EMAIL ? { PB_ADMIN_EMAIL: process.env.PB_ADMIN_EMAIL } : {}),
+					...(process.env.PB_ADMIN_PASSWORD
+						? { PB_ADMIN_PASSWORD: process.env.PB_ADMIN_PASSWORD }
+						: {})
 				}
 		  }
 });

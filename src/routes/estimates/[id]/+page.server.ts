@@ -22,7 +22,7 @@ export async function load({ params }) {
 		]);
 
 		const client = estimate.expand?.client ?? null;
-		const currency = client?.currency ?? 'USD';
+		const currency = client?.currency || 'USD';
 
 		const contacts = client
 			? await pb.collection('contacts').getFullList<Contact>({
@@ -193,6 +193,7 @@ export const actions = {
 	convertToInvoice: async ({ params }) => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 
+		let newInvoiceId: string;
 		try {
 			const [estimate, items, settings] = await Promise.all([
 				pb.collection('estimates').getOne<Estimate>(params.id),
@@ -210,8 +211,11 @@ export const actions = {
 			if (nextNum !== null && nextNum > 0) {
 				invoiceNumber = format.replace('{number}', String(nextNum));
 			} else {
+				// Use a millisecond-resolution timestamp suffix to avoid collisions with
+				// the unique invoice-number index when no sequential counter is configured.
 				const today = new Date().toISOString().split('T')[0];
-				invoiceNumber = `INV-${today.replace(/-/g, '')}-001`;
+				const suffix = Date.now().toString().slice(-6);
+				invoiceNumber = `INV-${today.replace(/-/g, '')}-${suffix}`;
 			}
 
 			const today = new Date().toISOString().split('T')[0];
@@ -269,11 +273,14 @@ export const actions = {
 				}
 			}
 
-			return redirect(302, `/invoices/${invoice.id}`);
-		} catch (e) {
-			if (e instanceof Response) throw e; // re-throw redirects
+			newInvoiceId = invoice.id;
+		} catch {
 			return fail(500, { error: 'Failed to convert estimate to invoice' });
 		}
+
+		// Redirect outside the try/catch — SvelteKit's redirect() throws a control-flow
+		// object that must not be swallowed by the error handler.
+		return redirect(302, `/invoices/${newInvoiceId}`);
 	},
 
 	delete: async ({ params }) => {

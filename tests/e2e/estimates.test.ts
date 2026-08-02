@@ -34,17 +34,19 @@ test.describe('Estimates', () => {
 		await page.goto('/estimates/new');
 		await page.waitForLoadState('networkidle');
 
-		// Pick the client
-		await page.getByLabel(/Client/i).selectOption({ label: CLIENT_NAME });
+		// Pick the client (exact match — the quick-create form and dialog also have Client labels)
+		await page.getByLabel('Client', { exact: true }).selectOption({ label: CLIENT_NAME });
 
 		// Add a line item description
-		await page.getByLabel(/Item description/i).first().fill('Web design services');
+		await page.getByLabel(/^Description$/).first().fill('Web design services');
 
 		// Submit
 		await page.getByRole('button', { name: /Create Estimate/i }).click();
 
-		// Should redirect to the estimate detail page
-		await page.waitForURL(/\/estimates\/[^/]+$/);
+		// Should redirect to the estimate detail page (exclude /estimates/new itself)
+		await page.waitForURL(
+			(url) => /^\/estimates\/[^/]+$/.test(url.pathname) && !url.pathname.endsWith('/new')
+		);
 		estimateUrl = page.url();
 
 		await expect(page.getByText(CLIENT_NAME)).toBeVisible();
@@ -54,7 +56,7 @@ test.describe('Estimates', () => {
 	test('estimate detail page shows status badge', async ({ page }) => {
 		await page.goto(estimateUrl);
 		await page.waitForLoadState('networkidle');
-		await expect(page.getByText(/Draft/i).first()).toBeVisible();
+		await expect(page.getByText('Draft', { exact: true }).first()).toBeVisible();
 	});
 
 	test('can mark estimate as accepted', async ({ page }) => {
@@ -66,19 +68,21 @@ test.describe('Estimates', () => {
 		await page.getByRole('button', { name: /Mark Accepted/i }).first().click();
 
 		await page.waitForLoadState('networkidle');
-		await expect(page.getByText(/Accepted/i).first()).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText('Accepted', { exact: true }).first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('can mark estimate as declined', async ({ page }) => {
-		// Start from accepted; mark declined via menu
+		// Declining is only offered from draft/sent/expired — move back to draft first
 		await page.goto(estimateUrl);
 		await page.waitForLoadState('networkidle');
 
 		await page.getByLabel(/More actions/i).click();
-		await page.getByRole('button', { name: /Mark Declined/i }).first().click();
+		await page.getByRole('button', { name: /Mark as Draft/i }).first().click();
+		await expect(page.getByText('Draft', { exact: true }).first()).toBeVisible({ timeout: 10000 });
 
-		await page.waitForLoadState('networkidle');
-		await expect(page.getByText(/Declined/i).first()).toBeVisible({ timeout: 10000 });
+		await page.getByLabel(/More actions/i).click();
+		await page.getByRole('button', { name: /Mark Declined/i }).first().click();
+		await expect(page.getByText('Declined', { exact: true }).first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('can move estimate back to draft', async ({ page }) => {
@@ -89,7 +93,7 @@ test.describe('Estimates', () => {
 		await page.getByRole('button', { name: /Mark as Draft/i }).first().click();
 
 		await page.waitForLoadState('networkidle');
-		await expect(page.getByText(/Draft/i).first()).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText('Draft', { exact: true }).first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('can edit the estimate', async ({ page }) => {
@@ -106,9 +110,12 @@ test.describe('Estimates', () => {
 	});
 
 	test('estimates list shows created estimate', async ({ page }) => {
+		// Target the table cell — the quick-create client dropdown also contains the name
 		await page.goto('/estimates');
 		await page.waitForLoadState('networkidle');
-		await expect(page.getByText(CLIENT_NAME)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole('cell', { name: CLIENT_NAME }).first()).toBeVisible({
+			timeout: 10000
+		});
 	});
 
 	test('can add an internal note', async ({ page }) => {

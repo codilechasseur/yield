@@ -22,7 +22,7 @@ export async function load({ params }) {
 		]);
 
 		const client = invoice.expand?.client ?? null;
-		const currency = client?.currency ?? 'USD';
+		const currency = client?.currency || 'USD';
 
 		// Load contacts for the invoice's client
 		const contacts = client

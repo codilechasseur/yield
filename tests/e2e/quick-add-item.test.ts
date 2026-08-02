@@ -122,9 +122,10 @@ test.describe('Quick Add Item', () => {
 		await expect(dialog).not.toBeVisible({ timeout: 10000 });
 
 		// A new draft invoice should now exist — confirm on the invoices list
+		// (target the table cell: the client-filter dropdown also contains the name)
 		await page.goto('/invoices?status=draft');
 		await page.waitForLoadState('networkidle');
-		await expect(page.getByText(CLIENT_NAME).first()).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole('cell', { name: CLIENT_NAME }).first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('shows an error when submitting without a description', async ({ page }) => {
@@ -141,8 +142,9 @@ test.describe('Quick Add Item', () => {
 		// Submit without filling in description
 		await dialog.getByRole('button', { name: /Add to Invoice/i }).click();
 
-		// Error message should be visible inside the dialog
-		await expect(dialog.getByRole('alert')).toContainText(/Description is required/i);
+		// Native `required` validation blocks the submit — the description field is invalid
+		const description = dialog.getByLabel(/Description/i);
+		expect(await description.evaluate((el) => (el as HTMLInputElement).checkValidity())).toBe(false);
 		// Dialog should remain open
 		await expect(dialog).toBeVisible();
 	});

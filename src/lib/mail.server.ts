@@ -135,7 +135,7 @@ export function buildInvoiceHtml(
 ): string {
 	const hue = opts?.brandHue || 250;
 	const c = palette(hue);
-	const currency = client?.currency ?? 'USD';
+	const currency = client?.currency || 'USD';
 	const companyName = opts?.companyName || 'Invoice';
 	const companyAddress = opts?.companyAddress || '';
 	const logoUrl = opts?.logoUrl || '';
@@ -336,7 +336,7 @@ export function buildEstimateHtml(
 ): string {
 	const hue = opts?.brandHue || 250;
 	const c = palette(hue);
-	const currency = client?.currency ?? 'USD';
+	const currency = client?.currency || 'USD';
 	const companyName = opts?.companyName || 'Estimate';
 	const companyAddress = opts?.companyAddress || '';
 	const logoUrl = opts?.logoUrl || '';
@@ -625,7 +625,8 @@ export async function sendInvoiceEmail({
 	});
 	try {
 		const page = await browser.newPage();
-		await page.setContent(html, { waitUntil: 'networkidle0' });
+		await page.setContent(html, { waitUntil: 'load' });
+		await page.waitForNetworkIdle();
 		const raw = await page.pdf({ format: 'A4', printBackground: true });
 		pdfBuffer = Buffer.from(raw);
 	} finally {
@@ -637,7 +638,7 @@ export async function sendInvoiceEmail({
 		? `"${smtp.smtp_from_name}" <${smtp.smtp_from_email}>`
 		: smtp.smtp_from_email;
 
-	const currency = client?.currency ?? 'USD';
+	const currency = client?.currency || 'USD';
 	const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
 	const total = subtotal * (1 + invoice.tax_percent / 100);
 
@@ -748,7 +749,8 @@ export async function sendEstimateEmail({
 	});
 	try {
 		const page = await browser.newPage();
-		await page.setContent(html, { waitUntil: 'networkidle0' });
+		await page.setContent(html, { waitUntil: 'load' });
+		await page.waitForNetworkIdle();
 		const raw = await page.pdf({ format: 'A4', printBackground: true });
 		pdfBuffer = Buffer.from(raw);
 	} finally {
@@ -759,7 +761,7 @@ export async function sendEstimateEmail({
 		? `"${smtp.smtp_from_name}" <${smtp.smtp_from_email}>`
 		: smtp.smtp_from_email;
 
-	const currency = client?.currency ?? 'USD';
+	const currency = client?.currency || 'USD';
 	const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
 	const total = subtotal * (1 + estimate.tax_percent / 100);
 

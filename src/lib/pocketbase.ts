@@ -4,7 +4,8 @@
 export function formatCurrency(amount: number, currency = 'USD'): string {
 	return new Intl.NumberFormat('en-US', {
 		style: 'currency',
-		currency
+		// Guard against empty-string currency (e.g. unset client/settings currency)
+		currency: currency || 'USD'
 	}).format(amount);
 }
 

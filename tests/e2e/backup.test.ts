@@ -7,10 +7,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Backups section on System Settings', () => {
 	test('Backups section is visible on the System Settings page', async ({ page }) => {
 		await page.goto('/settings/system');
-		// Sidebar link
-		await expect(page.getByRole('button', { name: 'Backups' })).toBeVisible();
 		// Section heading
-		await expect(page.getByRole('heading', { name: 'Backups' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Backups', exact: true })).toBeVisible();
+		// Card heading
+		await expect(page.getByRole('heading', { name: 'Database backups' })).toBeVisible();
 	});
 
 	test('"Create backup now" button is present', async ({ page }) => {
@@ -47,11 +47,9 @@ test.describe('Backups section on System Settings', () => {
 		// Delete the backup we just created
 		const rowCount = await rows.count();
 		await deleteButton.click();
-		await page.waitForLoadState('networkidle');
 
-		// Row count should have decreased by 1 (or the table should be gone if it was the only backup)
-		const newRowCount = await rows.count();
-		expect(newRowCount).toBeLessThan(rowCount);
+		// Row count should decrease by 1 (the table disappears if it was the only backup)
+		await expect(rows).toHaveCount(rowCount - 1, { timeout: 15000 });
 	});
 
 	test('backup download link points to /api/backup/...', async ({ page }) => {

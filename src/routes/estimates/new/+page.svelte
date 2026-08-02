@@ -63,7 +63,7 @@
 	}
 
 	function fmt(n: number): string {
-		const currency = selectedClient?.currency ?? 'USD';
+		const currency = selectedClient?.currency || 'USD';
 		return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n);
 	}
 </script>

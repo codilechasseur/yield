@@ -228,6 +228,7 @@ describe('sendInvoiceEmail', () => {
 		// Set up puppeteer mock: browser → page → setContent/pdf
 		const pageMock = {
 			setContent: vi.fn().mockResolvedValue(undefined),
+			waitForNetworkIdle: vi.fn().mockResolvedValue(undefined),
 			pdf: vi.fn().mockResolvedValue(Buffer.from('PDF'))
 		};
 		const browserMock = {

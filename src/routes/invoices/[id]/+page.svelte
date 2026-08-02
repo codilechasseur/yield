@@ -12,7 +12,7 @@
 	let invoice = $derived(data.invoice);
 	let items = $derived(data.items);
 
-	function fmt(n: number, currency = invoice.expand?.client?.currency ?? 'USD'): string {
+	function fmt(n: number, currency = invoice.expand?.client?.currency || 'USD'): string {
 		return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n);
 	}
 	function fmtDate(d: string) {

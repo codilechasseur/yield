@@ -12,7 +12,7 @@
 	let estimate = $derived(data.estimate);
 	let items = $derived(data.items);
 
-	function fmt(n: number, currency = estimate.expand?.client?.currency ?? 'USD'): string {
+	function fmt(n: number, currency = estimate.expand?.client?.currency || 'USD'): string {
 		return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n);
 	}
 	function fmtDate(d: string) {
