@@ -643,13 +643,13 @@
 
 									<div class="px-4 py-4 border-t space-y-4" style="border-color: var(--color-destructive)">
 										<p class="text-sm font-semibold" style="color: var(--color-destructive)">
-											⚠ This will permanently delete all data — clients, contacts, invoices, line items, taxes, and all settings (including SMTP config, logo, and app password). The app will return to its initial setup state. There is no undo.
+											⚠ This will permanently delete all business data — clients, contacts, invoices, line items, estimates, expenses, and tax payments. Settings (SMTP config, Harvest credentials, logo, and app password) are kept. There is no undo.
 										</p>
 
 										<div class="space-y-2">
 											{#each [
 												{ label: 'I understand all clients, contacts, invoices, and line items will be permanently deleted.' },
-												{ label: 'I understand all taxes and settings (including SMTP, logo, and app password) will be permanently deleted.' },
+												{ label: 'I understand all estimates, expenses, and tax payments will be permanently deleted.' },
 												{ label: 'I understand this cannot be undone and I have a backup if needed.' }
 											] as item, i}
 												<label class="flex items-start gap-3 cursor-pointer select-none">
@@ -679,7 +679,7 @@
 													resetCheck1 = false;
 													resetCheck2 = false;
 													resetCheck3 = false;
-													if (result.type === 'success') addToast('All data deleted.');
+													if (result.type === 'success') addToast('All business data deleted. Settings were kept.');
 													else if (result.type === 'failure') addToast((result.data as any)?.resetError ?? 'Reset failed.', 'error');
 													await update();
 												};

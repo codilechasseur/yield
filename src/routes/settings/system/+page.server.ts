@@ -453,16 +453,15 @@ export const actions = {
 			}
 		};
 
-		for (const col of ['invoice_items', 'invoice_logs', 'invoices', 'estimate_items', 'estimate_logs', 'estimates', 'contacts', 'clients', 'tax_payments', 'expenses', 'settings']) {
+		// Business data only — settings (SMTP config, Harvest credentials, logo,
+		// app password, etc.) are intentionally preserved.
+		for (const col of ['invoice_items', 'invoice_logs', 'invoices', 'estimate_items', 'estimate_logs', 'estimates', 'contacts', 'clients', 'tax_payments', 'expenses']) {
 			try {
 				await deleteAll(col);
 			} catch {
 				// collection may not exist on this instance — skip and continue
 			}
 		}
-
-		// settings (including app password) have been wiped — clear the in-memory cache
-		invalidatePasswordCache();
 
 		return { resetSuccess: true };
 	},
