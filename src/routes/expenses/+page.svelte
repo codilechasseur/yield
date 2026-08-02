@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { Wallet, Trash2, Plus, Copy, Receipt } from 'lucide-svelte';
 	import { addToast } from '$lib/toasts.svelte.js';
@@ -30,7 +31,7 @@
 </script>
 
 <svelte:head>
-	<title>Expenses — Yield</title>
+	<title>Expenses — {page.data.appName}</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto">

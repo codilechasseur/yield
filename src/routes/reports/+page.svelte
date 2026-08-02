@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { BarChart2, TrendingUp, Wallet, Receipt, Calculator, Users, CalendarDays, PieChart } from 'lucide-svelte';
 	import type { PageData } from './$types.js';
@@ -32,7 +33,7 @@
 </script>
 
 <svelte:head>
-	<title>Reports — Yield</title>
+	<title>Reports — {page.data.appName}</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto">

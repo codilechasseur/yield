@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, Mail, MapPin, Save, UserPlus, Phone, Briefcase, Pencil, Trash2, User } from 'lucide-svelte';
 	import { STATUS_COLORS, formatCurrency } from '$lib/pocketbase.js';
@@ -43,7 +44,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.client.name} — Yield</title>
+	<title>{data.client.name} — {page.data.appName}</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto">

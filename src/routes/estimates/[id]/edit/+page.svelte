@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { ArrowLeft, Plus, Trash2 } from 'lucide-svelte';
@@ -37,7 +38,7 @@
 </script>
 
 <svelte:head>
-	<title>Edit {data.estimate.number} — Yield</title>
+	<title>Edit {data.estimate.number} — {page.data.appName}</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto">

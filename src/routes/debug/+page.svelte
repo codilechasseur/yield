@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { Bug, Trash2 } from 'lucide-svelte';
 	import {
 		debugState,
@@ -85,7 +86,7 @@
 </script>
 
 <svelte:head>
-	<title>Debug Log — Yield</title>
+	<title>Debug Log — {page.data.appName}</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto space-y-8">

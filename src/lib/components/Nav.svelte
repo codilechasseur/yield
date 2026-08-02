@@ -6,7 +6,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import QuickAddItem from '$lib/components/QuickAddItem.svelte';
 
-	let { authEnabled = false }: { authEnabled?: boolean } = $props();
+	let { authEnabled = false, appName = 'Yield' }: { authEnabled?: boolean; appName?: string } = $props();
 
 	let quickAddOpen = $state(false);
 
@@ -57,7 +57,7 @@
 				</svg>
 			</div>
 			<div>
-				<h1 class="text-xl font-bold tracking-tight leading-none" style="color: var(--color-primary)">Yield</h1>
+				<h1 class="text-xl font-bold tracking-tight leading-none" style="color: var(--color-primary)">{appName}</h1>
 				<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Invoice Manager</p>
 			</div>
 		</a>
@@ -178,7 +178,7 @@
 				<polyline points="21.3 9.3 29.3 9.3 29.3 17.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 			</svg>
 		</div>
-		<span class="font-bold text-base tracking-tight" style="color: var(--color-primary)">Yield</span>
+		<span class="font-bold text-base tracking-tight" style="color: var(--color-primary)">{appName}</span>
 	</a>
 	<button
 		type="button"
@@ -228,7 +228,7 @@
 					</svg>
 				</div>
 				<div>
-					<p class="font-bold text-base leading-none" style="color: var(--color-primary)">Yield</p>
+					<p class="font-bold text-base leading-none" style="color: var(--color-primary)">{appName}</p>
 					<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Invoice Manager</p>
 				</div>
 			</a>

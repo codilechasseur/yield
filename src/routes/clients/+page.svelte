@@ -1,6 +1,6 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
-	import { page } from '$app/stores';
 	import { Users, Plus, Trash2, Mail, MapPin, Archive, ArchiveRestore, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-svelte';
 	import { formatCurrency } from '$lib/pocketbase.js';
 	import { addToast } from '$lib/toasts.svelte.js';
@@ -50,7 +50,7 @@
 	}
 
 	function pageUrl(p: number) {
-		const params = new URLSearchParams($page.url.searchParams);
+		const params = new URLSearchParams(page.url.searchParams);
 		params.set('page', String(p));
 		return `?${params}`;
 	}
@@ -63,7 +63,7 @@
 </script>
 
 <svelte:head>
-	<title>Clients — Yield</title>
+	<title>Clients — {page.data.appName}</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto">

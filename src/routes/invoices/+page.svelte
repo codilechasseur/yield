@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { FileText, Plus, Download, ChevronLeft, ChevronRight, X } from 'lucide-svelte';
 	import { page as pageStore } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -60,7 +61,7 @@
 </script>
 
 <svelte:head>
-	<title>Invoices — Yield</title>
+	<title>Invoices — {page.data.appName}</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto">

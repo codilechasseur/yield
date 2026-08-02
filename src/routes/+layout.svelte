@@ -19,6 +19,13 @@
 	});
 </script>
 
+<svelte:head>
+	{#if data.faviconUrl}
+		<!-- Later link wins over the static /favicon.svg from app.html -->
+		<link rel="icon" href={data.faviconUrl} />
+	{/if}
+</svelte:head>
+
 {#if isLogin}
 	{@render children()}
 {:else}
@@ -30,7 +37,7 @@
 		Skip to main content
 	</a>
 	<div class="min-h-screen flex" style="background-color: var(--color-background)">
-		<Nav authEnabled={data.authEnabled} />
+		<Nav authEnabled={data.authEnabled} appName={data.appName} />
 		<main id="main-content" class="flex-1 min-w-0 md:ml-56 p-4 md:p-8 pt-18 md:pt-8 md:pb-8 overflow-x-clip" tabindex="-1">
 			{@render children()}
 		</main>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { DollarSign, AlertCircle, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { STATUS_COLORS, formatCurrency } from '$lib/pocketbase.js';
@@ -91,7 +92,7 @@
 </script>
 
 <svelte:head>
-	<title>Dashboard — Yield</title>
+	<title>Dashboard — {page.data.appName}</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto">
@@ -113,7 +114,7 @@
 				<TrendingUp size={16} style="color: var(--color-primary)" />
 			</div>
 			<div class="flex-1 min-w-0">
-				<p class="text-sm font-semibold" style="color: var(--color-foreground)">Welcome to Yield</p>
+				<p class="text-sm font-semibold" style="color: var(--color-foreground)">Welcome to {page.data.appName}</p>
 				<p class="text-sm mt-0.5" style="color: var(--color-muted-foreground)">
 					No data yet. Head to <a href="/settings/system#import" class="font-medium underline underline-offset-2" style="color: var(--color-primary)">System Settings → Data Import</a>
 					to import from Harvest, or create your first <a href="/clients" class="font-medium underline underline-offset-2" style="color: var(--color-primary)">client</a>

@@ -172,6 +172,80 @@ export const actions = {
 		return { clientDefaultsSuccess: true };
 	},
 
+	saveAppName: async ({ request }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const fd = await request.formData();
+		const app_name = fd.get('app_name')?.toString().trim().slice(0, 40) ?? '';
+
+		try {
+			const existing = await getSmtpSettings(pb);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, { app_name });
+			} else {
+				await pb.collection('settings').create({ app_name });
+			}
+		} catch (e) {
+			return fail(500, { appNameError: 'Failed to save app name: ' + (e as Error).message });
+		}
+
+		return { appNameSuccess: true };
+	},
+
+	saveFavicon: async ({ request }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const fd = await request.formData();
+		const faviconFile = fd.get('favicon');
+
+		if (!faviconFile || !(faviconFile instanceof File) || faviconFile.size === 0) {
+			return fail(400, { faviconError: 'Please select an image file.' });
+		}
+
+		const allowedTypes = [
+			'image/png',
+			'image/svg+xml',
+			'image/x-icon',
+			'image/vnd.microsoft.icon',
+			'image/jpeg',
+			'image/webp',
+			'image/gif'
+		];
+		if (!allowedTypes.includes(faviconFile.type)) {
+			return fail(400, { faviconError: 'Only PNG, SVG, ICO, JPEG, WebP, and GIF images are allowed.' });
+		}
+
+		if (faviconFile.size > 1024 * 1024) {
+			return fail(400, { faviconError: 'Favicon must be under 1 MB.' });
+		}
+
+		try {
+			const existing = await getSmtpSettings(pb);
+			const uploadData = new FormData();
+			uploadData.append('favicon', faviconFile);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, uploadData);
+			} else {
+				await pb.collection('settings').create(uploadData);
+			}
+		} catch (e) {
+			return fail(500, { faviconError: 'Failed to save favicon: ' + (e as Error).message });
+		}
+
+		return { faviconSuccess: true };
+	},
+
+	removeFavicon: async () => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		try {
+			const existing = await getSmtpSettings(pb);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, { 'favicon-': existing.favicon ?? '' });
+			}
+		} catch (e) {
+			return fail(500, { faviconError: 'Failed to remove favicon: ' + (e as Error).message });
+		}
+		return { faviconRemoved: true };
+	},
+
 	saveAppearance: async ({ request }) => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const fd = await request.formData();

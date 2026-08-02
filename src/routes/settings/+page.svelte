@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
-	import { Sun, Moon, Monitor, Check, Save, Palette, Building2, FileText, Hash, Coins, Mail, FileUp, Image, X, BellRing } from 'lucide-svelte';
+	import { Sun, Moon, Monitor, Check, Save, Palette, Building2, FileText, Hash, Coins, Mail, FileUp, Image, X, BellRing, Sparkles } from 'lucide-svelte';
 	import Tip from '$lib/components/Tip.svelte';
 	import RichTextarea from '$lib/components/RichTextarea.svelte';
 	import FormAlert from '$lib/components/FormAlert.svelte';
@@ -113,10 +114,20 @@
 	let remindersEnabled = $state(untrack(() => data.smtp?.reminders_enabled ?? false));
 	let reminderDays     = $state<number>(untrack(() => data.smtp?.reminder_days || 7));
 	let remindersSaving  = $state(false);
+
+	// ── Branding (app name + favicon) state ───────────────────────────────
+	let appNameValue  = $state(untrack(() => data.smtp?.app_name ?? ''));
+	let appNameSaved  = $state(untrack(() => data.smtp?.app_name ?? ''));
+	let appNameSaving = $state(false);
+	let appNameDirty  = $derived(appNameValue !== appNameSaved);
+	let faviconUploading = $state(false);
+	let faviconRemoving  = $state(false);
+	let faviconError     = $state('');
+	let faviconFile      = $state<File | null>(null);
 </script>
 
 <svelte:head>
-	<title>Settings — Yield</title>
+	<title>Settings — {page.data.appName}</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto space-y-14 pb-24">
@@ -227,6 +238,148 @@
 				<span class="status-badge status-sent">sent</span>
 				<a class="text-xs font-medium" style="color: var(--color-primary)" href="/settings">Link</a>
 			</div>
+		</div>
+
+		<!-- Branding: app name + favicon overrides -->
+		<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
+			<div class="flex items-center gap-2 mb-1">
+				<Sparkles size={16} style="color: var(--color-primary)" aria-hidden="true" />
+				<h4 class="font-semibold" style="color: var(--color-foreground)">Branding</h4>
+			</div>
+			<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">
+				Rename the app and swap the browser-tab icon. Leave blank to keep the Yield defaults.
+			</p>
+
+			<!-- App name -->
+			<FormAlert message={form?.appNameError ?? null} class="mb-3" />
+			<form
+				method="POST"
+				action="?/saveAppName"
+				class="flex items-end gap-2 mb-6"
+				use:enhance={() => {
+					appNameSaving = true;
+					return async ({ update, result }) => {
+						appNameSaving = false;
+						await update({ reset: false });
+						if (result.type === 'success') {
+							appNameSaved = appNameValue;
+							addToast('App name saved');
+						} else if (result.type === 'failure') {
+							addToast((result.data as any)?.appNameError ?? 'Failed to save app name', 'error');
+						}
+					};
+				}}
+			>
+				<div class="flex flex-col gap-1 flex-1 max-w-xs">
+					<label for="app-name" class="text-xs font-medium" style="color: var(--color-muted-foreground)">App Name</label>
+					<input
+						id="app-name"
+						name="app_name"
+						type="text"
+						maxlength="40"
+						placeholder="Yield"
+						bind:value={appNameValue}
+						class="px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2"
+						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+					/>
+				</div>
+				<button
+					type="submit"
+					disabled={appNameSaving || !appNameDirty}
+					class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+					style={appNameDirty && !appNameSaving
+						? 'background-color: var(--color-primary); color: var(--color-primary-foreground)'
+						: 'background-color: var(--color-muted); color: var(--color-muted-foreground); opacity: 0.7'}
+				>
+					<Save size={14} aria-hidden="true" />
+					{appNameSaving ? 'Saving…' : 'Save'}
+				</button>
+			</form>
+
+			<!-- Favicon -->
+			<FormAlert message={faviconError || null} class="mb-3" />
+			<div class="flex flex-wrap items-end gap-3">
+				{#if data.faviconUrl}
+					<div class="p-2 rounded-lg border inline-flex self-center" style="border-color: var(--color-border); background: var(--color-muted)">
+						<img src={data.faviconUrl} alt="Favicon preview" style="width:24px;height:24px;object-fit:contain;display:block;" />
+					</div>
+				{/if}
+				<form
+					method="POST"
+					action="?/saveFavicon"
+					enctype="multipart/form-data"
+					use:enhance={() => {
+						faviconUploading = true;
+						faviconError = '';
+						return async ({ update, result }) => {
+							faviconUploading = false;
+							faviconFile = null;
+							await update();
+							if (result.type === 'success') {
+								addToast('Favicon saved');
+							} else if (result.type === 'failure') {
+								faviconError = (result.data as any)?.faviconError ?? 'Failed to save favicon';
+							}
+						};
+					}}
+					class="flex items-end gap-2"
+				>
+					<div class="flex flex-col gap-1">
+						<label for="favicon-upload" class="text-xs font-medium" style="color: var(--color-muted-foreground)">{data.faviconUrl ? 'Replace favicon' : 'Upload favicon'}</label>
+						<input
+							id="favicon-upload"
+							name="favicon"
+							type="file"
+							accept="image/png,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,image/jpeg,image/webp,image/gif"
+							onchange={(e) => { faviconFile = (e.target as HTMLInputElement).files?.[0] ?? null; }}
+							class="text-sm rounded-lg border px-2 py-1.5 file:mr-2 file:rounded file:border-0 file:px-2 file:py-1 file:text-xs file:font-medium"
+							style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+						/>
+					</div>
+					<button
+						type="submit"
+						disabled={faviconUploading || !faviconFile}
+						class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+						style={faviconFile && !faviconUploading
+							? 'background-color: var(--color-primary); color: var(--color-primary-foreground)'
+							: 'background-color: var(--color-muted); color: var(--color-muted-foreground); opacity: 0.7'}
+					>
+						<FileUp size={14} aria-hidden="true" />
+						{faviconUploading ? 'Uploading…' : 'Upload'}
+					</button>
+				</form>
+
+				{#if data.faviconUrl}
+					<form
+						method="POST"
+						action="?/removeFavicon"
+						use:enhance={() => {
+							faviconRemoving = true;
+							faviconError = '';
+							return async ({ update, result }) => {
+								faviconRemoving = false;
+								await update();
+								if (result.type === 'success') {
+									addToast('Favicon removed');
+								} else if (result.type === 'failure') {
+									faviconError = (result.data as any)?.faviconError ?? 'Failed to remove favicon';
+								}
+							};
+						}}
+					>
+						<button
+							type="submit"
+							disabled={faviconRemoving}
+							class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all"
+							style="border-color: var(--color-border); color: var(--color-muted-foreground); background: var(--color-background)"
+						>
+							<X size={13} aria-hidden="true" />
+							{faviconRemoving ? 'Removing…' : 'Remove favicon'}
+						</button>
+					</form>
+				{/if}
+			</div>
+			<p class="text-xs mt-3" style="color: var(--color-muted-foreground)">Square images work best — PNG, SVG, or ICO up to 1 MB.</p>
 		</div>
 	</section>
 

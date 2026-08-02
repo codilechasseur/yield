@@ -71,7 +71,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		path.startsWith('/setup') ||
 		path.startsWith('/__data') ||
 		path.startsWith('/_app/') ||
-		path.startsWith('/.well-known/')
+		path.startsWith('/.well-known/') ||
+		path.startsWith('/api/favicon')
 	) {
 		event.locals.authEnabled = false;
 		event.locals.authed = false;

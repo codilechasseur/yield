@@ -53,6 +53,10 @@ export interface SmtpSettings {
 	default_hourly_rate?: number;
 	/** Filename of the uploaded logo stored in PocketBase (empty string = no logo). */
 	logo?: string;
+	/** Custom app name shown in the sidebar and page titles (empty = "Yield"). */
+	app_name?: string;
+	/** Filename of the uploaded favicon stored in PocketBase (empty string = default). */
+	favicon?: string;
 	/** When true, the company name text is hidden in the PDF header (useful when the logo already contains the name). */
 	logo_hide_company_name?: boolean;
 	/** Harvest Account ID, saved on successful import so re-imports don't require re-entry. */
@@ -528,6 +532,8 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 			estimate_next_number: r.estimate_next_number ?? 0,
 			default_hourly_rate: r.default_hourly_rate ?? 0,
 			logo: r.logo ?? '',
+			app_name: r.app_name ?? '',
+			favicon: r.favicon ?? '',
 			logo_hide_company_name: r.logo_hide_company_name ?? false,
 			harvest_account_id: r.harvest_account_id ?? '',
 			harvest_token: r.harvest_token ?? '',

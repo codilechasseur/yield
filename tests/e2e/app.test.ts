@@ -14,9 +14,11 @@ test.describe('Dashboard', () => {
 		await expect(page.getByText('Overdue').first()).toBeVisible();
 	});
 
-	test('page title includes Yield', async ({ page }) => {
+	test('page title includes the page and app name', async ({ page }) => {
+		// The app name is configurable (Settings → Appearance → Branding),
+		// so assert the "<Page> — <App>" shape rather than the default name.
 		await page.goto('/');
-		await expect(page).toHaveTitle(/Yield/i);
+		await expect(page).toHaveTitle(/^Dashboard — .+/);
 	});
 });
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { ClipboardList, Plus, ChevronLeft, ChevronRight, X } from 'lucide-svelte';
 	import { page as pageStore } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -54,7 +55,7 @@
 </script>
 
 <svelte:head>
-	<title>Estimates — Yield</title>
+	<title>Estimates — {page.data.appName}</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto">

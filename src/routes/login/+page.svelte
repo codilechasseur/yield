@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import FormAlert from '$lib/components/FormAlert.svelte';
 	import type { ActionData } from './$types.js';
@@ -10,7 +11,7 @@
 </script>
 
 <svelte:head>
-	<title>Sign in — Yield</title>
+	<title>Sign in — {page.data.appName}</title>
 </svelte:head>
 
 <div
@@ -32,7 +33,7 @@
 				</svg>
 			</div>
 			<div>
-				<h1 class="text-xl font-bold tracking-tight leading-none" style="color: var(--color-primary)">Yield</h1>
+				<h1 class="text-xl font-bold tracking-tight leading-none" style="color: var(--color-primary)">{page.data.appName}</h1>
 				<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Invoice Manager</p>
 			</div>
 		</div>

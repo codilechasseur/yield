@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { Lock, Save, Server, FileUp, Bug, HardDrive, Download, Trash2, ArrowLeft, Check } from 'lucide-svelte';
@@ -85,7 +86,7 @@
 </script>
 
 <svelte:head>
-	<title>System Settings — Yield</title>
+	<title>System Settings — {page.data.appName}</title>
 </svelte:head>
 
 <div class="max-w-5xl mx-auto">
