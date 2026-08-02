@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
-	import { Sun, Moon, Monitor, Check, Save, Palette, Building2, FileText, Hash, Coins, Mail, FileUp, Image, X } from 'lucide-svelte';
+	import { Sun, Moon, Monitor, Check, Save, Palette, Building2, FileText, Hash, Coins, Mail, FileUp, Image, X, BellRing } from 'lucide-svelte';
 	import Tip from '$lib/components/Tip.svelte';
 	import RichTextarea from '$lib/components/RichTextarea.svelte';
 	import FormAlert from '$lib/components/FormAlert.svelte';
@@ -108,6 +108,11 @@
 	let emailSaved  = $state(untrack(() => ({ subject: data.smtp?.email_subject ?? '', body: data.smtp?.email_body ?? '' })));
 	let emailSaving = $state(false);
 	let emailDirty  = $derived(emailSubject !== emailSaved.subject || emailBody !== emailSaved.body);
+
+	// ── Payment reminders state ───────────────────────────────────────────
+	let remindersEnabled = $state(untrack(() => data.smtp?.reminders_enabled ?? false));
+	let reminderDays     = $state<number>(untrack(() => data.smtp?.reminder_days || 7));
+	let remindersSaving  = $state(false);
 </script>
 
 <svelte:head>
@@ -119,7 +124,16 @@
 	<!-- ── Page header ──────────────────────────────────────────────────── -->
 	<div>
 		<h2 class="text-2xl font-bold" style="color: var(--color-foreground)">Settings</h2>
-		<p class="mt-1 text-sm" style="color: var(--color-muted-foreground)">Manage preferences for Yield.</p>
+		<p class="mt-1 text-sm" style="color: var(--color-muted-foreground)">Business preferences — appearance, company details, invoicing, and email.</p>
+		<nav aria-label="Settings sections" class="mt-4 flex flex-wrap gap-2">
+			{#each [['#appearance', 'Appearance'], ['#company', 'Company'], ['#invoices', 'Invoices'], ['#email', 'Email']] as [href, label]}
+				<a
+					{href}
+					class="px-3 py-1.5 rounded-full border text-xs font-medium transition-colors hover:bg-muted"
+					style="border-color: var(--color-border); color: var(--color-muted-foreground)"
+				>{label}</a>
+			{/each}
+		</nav>
 	</div>
 
 	<!-- ════════════════════════════════════════════════════════
@@ -217,10 +231,10 @@
 	</section>
 
 	<!-- ════════════════════════════════════════════════════════
-	     INVOICES
+	     COMPANY
 	     ════════════════════════════════════════════════════════ -->
-	<section id="invoices" class="scroll-mt-6 space-y-6">
-		<h3 class="text-base font-semibold" style="color: var(--color-foreground)">Invoices</h3>
+	<section id="company" class="scroll-mt-6 space-y-6">
+		<h3 class="text-base font-semibold" style="color: var(--color-foreground)">Company</h3>
 
 		<!-- Company -->
 		<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
@@ -421,6 +435,13 @@
 				{/if}
 			</div>
 		</div>
+	</section>
+
+	<!-- ════════════════════════════════════════════════════════
+	     INVOICES
+	     ════════════════════════════════════════════════════════ -->
+	<section id="invoices" class="scroll-mt-6 space-y-6">
+		<h3 class="text-base font-semibold" style="color: var(--color-foreground)">Invoices</h3>
 
 		<!-- Invoice Defaults -->
 		<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
@@ -814,6 +835,92 @@
 				</div>
 			</form>
 		</div>
+
+		<!-- Payment Reminders -->
+		<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
+			<div class="flex items-center gap-2 mb-1">
+				<BellRing size={16} style="color: var(--color-primary)" aria-hidden="true" />
+				<h4 class="font-semibold" style="color: var(--color-foreground)">Payment Reminders</h4>
+			</div>
+			<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">
+				Invoices past their due date are marked overdue automatically. Optionally email the client a
+				reminder — the first goes out once the invoice is overdue, then repeats until it's paid.
+				Invoices more than 6 months past due are never emailed.
+			</p>
+
+			<FormAlert message={form?.remindersError ?? null} class="mb-4" />
+
+			<form
+				method="POST"
+				action="?/saveReminders"
+				class="space-y-4"
+				use:enhance={() => {
+					remindersSaving = true;
+					return async ({ update, result }) => {
+						remindersSaving = false;
+						await update({ reset: false });
+						if (result.type === 'success') addToast('Reminder settings saved');
+						else if (result.type === 'failure') addToast((result.data as any)?.remindersError ?? 'Failed to save reminder settings', 'error');
+					};
+				}}
+			>
+				<input type="hidden" name="reminders_enabled" value={remindersEnabled ? 'on' : 'off'} />
+				<div class="flex items-center gap-3">
+					<button
+						id="reminders-enabled"
+						type="button"
+						role="switch"
+						aria-label="Send automatic payment reminders"
+						aria-checked={remindersEnabled}
+						onclick={() => remindersEnabled = !remindersEnabled}
+						class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+						style={remindersEnabled
+							? 'background-color: var(--color-primary)'
+							: 'background-color: var(--color-muted)'}
+					>
+						<span
+							aria-hidden="true"
+							class="pointer-events-none inline-block size-5 rounded-full shadow-sm ring-0 transition-transform"
+							style="background-color: white; transform: translateX({remindersEnabled ? '20px' : '0px'})"
+						></span>
+					</button>
+					<label for="reminders-enabled" class="text-sm cursor-pointer" style="color: var(--color-foreground)">Email clients about overdue invoices</label>
+				</div>
+
+				<div class="flex items-center gap-2 max-w-xs">
+					<label for="reminder-days" class="text-sm" style="color: var(--color-foreground)">Repeat every</label>
+					<input
+						id="reminder-days"
+						name="reminder_days"
+						type="number"
+						min="1"
+						max="90"
+						bind:value={reminderDays}
+						disabled={!remindersEnabled}
+						class="w-20 px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 font-mono disabled:opacity-40"
+						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+					/>
+					<span class="text-sm" style="color: var(--color-foreground)">days</span>
+				</div>
+
+				<div>
+					<button
+						type="submit"
+						disabled={remindersSaving}
+						class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+						style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
+					>
+						<Save size={14} aria-hidden="true" />
+						{remindersSaving ? 'Saving…' : 'Save reminder settings'}
+					</button>
+				</div>
+			</form>
+		</div>
+
+		<p class="text-xs" style="color: var(--color-muted-foreground)">
+			These emails are delivered through the mail server configured in
+			<a href="/settings/system#smtp" class="underline underline-offset-2" style="color: var(--color-primary)">System → SMTP</a>.
+		</p>
 	</section>
 
 </div>

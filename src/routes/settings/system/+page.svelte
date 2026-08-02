@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
-	import { Lock, Save, Server, FileUp, Bug, HardDrive, Download, Trash2, ArrowLeft, Check, BellRing } from 'lucide-svelte';
+	import { Lock, Save, Server, FileUp, Bug, HardDrive, Download, Trash2, ArrowLeft, Check } from 'lucide-svelte';
 	import FormAlert from '$lib/components/FormAlert.svelte';
 	import { addToast } from '$lib/toasts.svelte.js';
 	import { debugState, setDebugEnabled } from '$lib/debug.svelte.js';
@@ -23,11 +23,6 @@
 	let smtpSaving    = $state(false);
 	let testSending   = $state(false);
 	let testTo        = $state('');
-
-	// ── Payment reminders state ───────────────────────────────────────────
-	let remindersEnabled = $state(untrack(() => data.smtp?.reminders_enabled ?? false));
-	let reminderDays     = $state<number>(untrack(() => data.smtp?.reminder_days || 7));
-	let remindersSaving  = $state(false);
 
 	// ── Security state ────────────────────────────────────────────────────
 	let passwordSaving = $state(false);
@@ -98,7 +93,16 @@
 	<!-- ── Page header ──────────────────────────────────────────────── -->
 	<div class="mb-6">
 		<h2 class="text-2xl font-bold" style="color: var(--color-foreground)">System Settings</h2>
-		<p class="mt-1 text-sm" style="color: var(--color-muted-foreground)">Server configuration, security, data, and backups.</p>
+		<p class="mt-1 text-sm" style="color: var(--color-muted-foreground)">Server configuration, security, data, and backups. Business preferences live in <a href="/settings" class="underline underline-offset-2" style="color: var(--color-primary)">Settings</a>.</p>
+		<nav aria-label="System settings sections" class="mt-4 flex flex-wrap gap-2">
+			{#each [['#smtp', 'SMTP'], ['#security', 'Security'], ['#data', 'Data'], ['#backup', 'Backups'], ['#debug', 'Debug']] as [href, label]}
+				<a
+					{href}
+					class="px-3 py-1.5 rounded-full border text-xs font-medium transition-colors hover:bg-muted"
+					style="border-color: var(--color-border); color: var(--color-muted-foreground)"
+				>{label}</a>
+			{/each}
+		</nav>
 	</div>
 
 	<div class="space-y-14 pb-24">
@@ -114,7 +118,7 @@
 						<Server size={16} style="color: var(--color-primary)" aria-hidden="true" />
 						<h4 class="font-semibold" style="color: var(--color-foreground)">SMTP Server</h4>
 					</div>
-					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Configure a third-party SMTP service to send invoices directly to clients.</p>
+					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Configure a third-party SMTP service to send invoices directly to clients. What the emails say is set in <a href="/settings#email" class="underline underline-offset-2" style="color: var(--color-primary)">Settings → Email</a>.</p>
 
 					<FormAlert message={form?.smtpError ?? null} class="mb-4" />
 					{#if form?.smtpSuccess}
@@ -340,86 +344,6 @@
 					</div>
 				</div>
 
-				<!-- Payment Reminders -->
-				<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
-					<div class="flex items-center gap-2 mb-1">
-						<BellRing size={16} style="color: var(--color-primary)" aria-hidden="true" />
-						<h4 class="font-semibold" style="color: var(--color-foreground)">Payment Reminders</h4>
-					</div>
-					<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">
-						Invoices past their due date are marked overdue automatically. Optionally email the client a
-						reminder — the first goes out once the invoice is overdue, then repeats until it's paid.
-						Invoices more than 6 months past due are never emailed.
-					</p>
-
-					<FormAlert message={form?.remindersError ?? null} class="mb-4" />
-
-					<form
-						method="POST"
-						action="?/saveReminders"
-						class="space-y-4"
-						use:enhance={() => {
-							remindersSaving = true;
-							return async ({ update, result }) => {
-								remindersSaving = false;
-								await update({ reset: false });
-								if (result.type === 'success') addToast('Reminder settings saved');
-								else if (result.type === 'failure') addToast((result.data as any)?.remindersError ?? 'Failed to save reminder settings', 'error');
-							};
-						}}
-					>
-						<input type="hidden" name="reminders_enabled" value={remindersEnabled ? 'on' : 'off'} />
-						<div class="flex items-center gap-3">
-							<button
-								id="reminders-enabled"
-								type="button"
-								role="switch"
-								aria-label="Send automatic payment reminders"
-								aria-checked={remindersEnabled}
-								onclick={() => remindersEnabled = !remindersEnabled}
-								class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
-								style={remindersEnabled
-									? 'background-color: var(--color-primary)'
-									: 'background-color: var(--color-muted)'}
-							>
-								<span
-									aria-hidden="true"
-									class="pointer-events-none inline-block size-5 rounded-full shadow-sm ring-0 transition-transform"
-									style="background-color: white; transform: translateX({remindersEnabled ? '20px' : '0px'})"
-								></span>
-							</button>
-							<label for="reminders-enabled" class="text-sm cursor-pointer" style="color: var(--color-foreground)">Email clients about overdue invoices</label>
-						</div>
-
-						<div class="flex items-center gap-2 max-w-xs">
-							<label for="reminder-days" class="text-sm" style="color: var(--color-foreground)">Repeat every</label>
-							<input
-								id="reminder-days"
-								name="reminder_days"
-								type="number"
-								min="1"
-								max="90"
-								bind:value={reminderDays}
-								disabled={!remindersEnabled}
-								class="w-20 px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 font-mono disabled:opacity-40"
-								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
-							/>
-							<span class="text-sm" style="color: var(--color-foreground)">days</span>
-						</div>
-
-						<div>
-							<button
-								type="submit"
-								disabled={remindersSaving}
-								class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
-								style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
-							>
-								<Save size={14} aria-hidden="true" />
-								{remindersSaving ? 'Saving…' : 'Save reminder settings'}
-							</button>
-						</div>
-					</form>
-				</div>
 			</section>
 
 			<!-- ════════════════════════════════════════════════════════

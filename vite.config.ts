@@ -6,7 +6,8 @@ import { execSync } from 'child_process';
 function getAppVersion(command: string): string {
 	if (command === 'serve') return 'dev';
 	try {
-		return execSync('git describe --tags --always', { encoding: 'utf8' }).trim();
+		// Strip any leading "v" from the tag — the UI adds its own prefix.
+		return execSync('git describe --tags --always', { encoding: 'utf8' }).trim().replace(/^v/, '');
 	} catch {
 		return 'dev';
 	}

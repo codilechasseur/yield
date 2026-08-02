@@ -31,41 +31,25 @@ export const actions = {
 		return { taxSuccess: true };
 	},
 
-	testSmtp_unused: async ({ request }) => {
+	saveReminders: async ({ request }) => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const fd = await request.formData();
-		const testTo = fd.get('test_to')?.toString().trim();
 
-		if (!testTo) return fail(400, { testError: 'Enter a recipient email for the test.' });
-
-		// Use saved settings
-		const smtp = await getSmtpSettings(pb);
-		if (!smtp?.smtp_host) {
-			return fail(400, { testError: 'Save SMTP settings first before sending a test.' });
-		}
+		const reminders_enabled = fd.get('reminders_enabled') === 'on';
+		const reminder_days = Math.max(1, parseInt(fd.get('reminder_days')?.toString() ?? '7', 10) || 7);
 
 		try {
-			const nodemailer = await import('nodemailer');
-			const fromField = smtp.smtp_from_name
-				? `"${smtp.smtp_from_name}" <${smtp.smtp_from_email}>`
-				: smtp.smtp_from_email;
-			const transporter = nodemailer.default.createTransport({
-				host: smtp.smtp_host,
-				port: smtp.smtp_port,
-				secure: smtp.smtp_secure,
-				auth: smtp.smtp_user ? { user: smtp.smtp_user, pass: smtp.smtp_pass } : undefined
-			});
-			await transporter.sendMail({
-				from: fromField,
-				to: testTo,
-				subject: 'Yield – SMTP test',
-				text: 'This is a test email from Yield. Your SMTP configuration is working correctly.'
-			});
+			const existing = await getSmtpSettings(pb);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, { reminders_enabled, reminder_days });
+			} else {
+				await pb.collection('settings').create({ reminders_enabled, reminder_days });
+			}
 		} catch (e) {
-			return fail(500, { testError: 'Test failed: ' + (e as Error).message });
+			return fail(500, { remindersError: 'Failed to save reminder settings: ' + (e as Error).message });
 		}
 
-		return { testSuccess: true };
+		return { remindersSuccess: true };
 	},
 
 	saveInvoiceDefaults: async ({ request }) => {
