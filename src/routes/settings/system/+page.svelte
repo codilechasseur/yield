@@ -276,7 +276,7 @@
 								aria-label="Use SSL/TLS (port 465)"
 								aria-checked={smtpSecure}
 								onclick={() => smtpSecure = !smtpSecure}
-								class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+								class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline focus-visible:outline-offset-2"
 								style={smtpSecure
 									? 'background-color: var(--color-primary); outline-color: var(--color-primary)'
 									: 'background-color: var(--color-muted); outline-color: var(--color-primary)'}
@@ -795,7 +795,7 @@
 								aria-label="Enable debug mode"
 								aria-checked={debugState.enabled}
 								onclick={() => setDebugEnabled(!debugState.enabled)}
-								class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+								class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline focus-visible:outline-offset-2"
 								style={debugState.enabled
 									? 'background-color: var(--color-primary); outline-color: var(--color-primary)'
 									: 'background-color: var(--color-muted); outline-color: var(--color-primary)'}

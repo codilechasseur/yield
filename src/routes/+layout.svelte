@@ -31,7 +31,7 @@
 {:else}
 	<a
 		href="#main-content"
-		class="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-3 focus:left-3 focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-medium"
+		class="sr-only focus:not-sr-only focus:absolute focus:z-100 focus:top-3 focus:left-3 focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-medium"
 		style="background-color: var(--color-primary); color: var(--color-primary-foreground)"
 	>
 		Skip to main content
