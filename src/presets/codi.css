@@ -74,6 +74,16 @@
 	--color-info:               #ff4a17;
 }
 
+/* The Chromium/UA default focus ring (outline-style: auto) draws rounded
+   corners regardless of border-radius, so it leaks rounding onto focused
+   fields. Replace it with a square signal ring. :where() keeps this at zero
+   specificity: any app-authored focus style (outline-none + focus:ring,
+   component :focus-visible rules) still wins; only the UA default loses. */
+:where(:root[data-preset='codi']) :where(:focus-visible) {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 1px;
+}
+
 /* Brand hard rule: nothing is rounded. */
 :root[data-preset='codi'] *,
 :root[data-preset='codi'] *::before,
