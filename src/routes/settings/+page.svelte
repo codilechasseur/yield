@@ -1151,7 +1151,7 @@
 							id="default-hourly-rate"
 							name="default_hourly_rate"
 							type="number"
-							min="0" step="0.01"
+							min="0" step="0.25"
 							bind:value={defaultHourlyRate}
 							class="w-full px-3 py-2 rounded-lg border text-sm font-mono"
 							style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"

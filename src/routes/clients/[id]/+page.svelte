@@ -108,7 +108,7 @@
 					</div>
 					<div>
 						<label for="edit-hourly-rate" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Default Hourly Rate</label>
-						<input id="edit-hourly-rate" name="default_hourly_rate" type="number" min="0" step="0.01"
+						<input id="edit-hourly-rate" name="default_hourly_rate" type="number" min="0" step="0.25"
 							value={data.client.default_hourly_rate ?? ''}
 							placeholder="Use global default"
 							class="w-full px-3 py-2 rounded-lg border text-sm font-mono"

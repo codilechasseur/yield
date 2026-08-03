@@ -30,6 +30,10 @@
 	--color-success:            #3d6b34;
 	--color-warning:            #a05a00;
 	--color-info:               #c93a0d;
+
+	/* Brand glyph for the base app's <select> chevron slot (see app.css):
+	   a solid triangle instead of the default stroke chevron. */
+	--select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 0.5h10L6 6.5z' fill='%235c5750'/%3E%3C/svg%3E");
 }
 
 /* dark — ink (OS preference) */
@@ -51,11 +55,13 @@
 		--color-success:            #86b378;
 		--color-warning:            #d98e2b;
 		--color-info:               #ff4a17;
+		--select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 0.5h10L6 6.5z' fill='%239a938a'/%3E%3C/svg%3E");
 	}
 }
 
 /* dark — explicit */
 :root[data-preset='codi'][data-theme='dark'] {
+	--select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 0.5h10L6 6.5z' fill='%239a938a'/%3E%3C/svg%3E");
 	--color-primary:            #ff4a17;
 	--color-primary-hover:      #ff6a3d;
 	--color-primary-foreground: #111111;
@@ -82,6 +88,28 @@
 :where(:root[data-preset='codi']) :where(:focus-visible) {
 	outline: 2px solid var(--color-primary);
 	outline-offset: 1px;
+}
+
+/* The rich-text toolbar normally hangs flush under its editor (top: 100%),
+   which covers the bottom edge of the square focus ring above. Drop it below
+   the ring, and render it as the brand's inverted block — ink on paper /
+   paper on ink — so it stands off the page in both modes. */
+:root[data-preset='codi'] .rich-toolbar {
+	top: calc(100% + 4px);
+	background: var(--color-foreground);
+	border: 1px solid var(--color-foreground);
+}
+:root[data-preset='codi'] .rich-toolbar .tool-btn {
+	color: var(--color-background);
+}
+:root[data-preset='codi'] .rich-toolbar .tool-btn:hover {
+	background: var(--brand-signal);
+	color: #111111;
+}
+:root[data-preset='codi'] .rich-toolbar .tool-btn:focus-visible {
+	/* --color-primary is the deep text-safe orange in light mode — too dim on
+	   the inverted ink strip; the bright signal is the accessible one there. */
+	outline-color: var(--brand-signal);
 }
 
 /* Brand hard rule: nothing is rounded. */

@@ -30,6 +30,11 @@
 /* Light */
 :root,
 :root[data-theme='light'] {
+	/* Native widgets (select popups, date pickers, scrollbars) follow the theme */
+	color-scheme: light;
+	/* Custom <select> indicator — data URIs can't reference var(), so each
+	   theme block carries its own neutral-gray chevron. Presets may override. */
+	--select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2371717a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 	--color-primary:            oklch(0.52 0.24 var(--hue));
 	--color-primary-hover:      oklch(0.47 0.24 var(--hue));
 	--color-primary-foreground: oklch(0.98 0.01 var(--hue));
@@ -51,6 +56,8 @@
 /* Dark — OS preference (when data-theme is absent or 'system') */
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme='light']):not([data-theme='dark']) {
+		color-scheme: dark;
+		--select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%238b8b95' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 		--color-primary:            oklch(0.63 0.21 var(--hue));
 		--color-primary-hover:      oklch(0.68 0.21 var(--hue));
 		--color-primary-foreground: oklch(0.10 0.015 var(--hue));
@@ -72,6 +79,8 @@
 
 /* Dark — explicit data-theme */
 :root[data-theme='dark'] {
+	color-scheme: dark;
+	--select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%238b8b95' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 	--color-primary:            oklch(0.63 0.21 var(--hue));
 	--color-primary-hover:      oklch(0.68 0.21 var(--hue));
 	--color-primary-foreground: oklch(0.10 0.015 var(--hue));
@@ -107,6 +116,30 @@ body {
 }
 
 input, textarea, select { font-family: inherit; }
+
+/* Replace the native <select> arrow with the theme-aware chevron. Callers set
+   `background:` as an inline shorthand (which resets background-image), so the
+   chevron layers need !important to survive it. */
+select:not([multiple]) {
+	appearance: none;
+	background-image: var(--select-chevron) !important;
+	background-repeat: no-repeat !important;
+	background-position: right 0.7rem center !important;
+	background-size: 12px 7px !important;
+	padding-right: 2.25rem;
+}
+
+/* Number spinners can't be theme-styled cross-browser — hide them; typing and
+   arrow keys still work. */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+input[type='number'] {
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
 
 /* Professional table header styling */
 thead th {
