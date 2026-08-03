@@ -1,0 +1,51 @@
+/* ============================================================================
+   Brand presets + font choices.
+
+   Loaded AFTER app.css (see +layout.svelte import order) — that ordering is
+   load-bearing: preset blocks share specificity with the default token blocks
+   in app.css and must win the cascade. Each preset scopes its overrides under
+   :root[data-preset='<id>'] and is registered in src/lib/presets.ts.
+   ========================================================================== */
+
+@import './presets/codi.css';
+
+/* ---------------------------------------------------------------- fonts ---
+   Self-hosted variable fonts (static/fonts/). Browsers only download a face
+   when something on the page actually uses its family, so declaring all of
+   them here costs nothing until a preset or font choice selects one. */
+@font-face {
+	font-family: 'Archivo';
+	src: url('/fonts/archivo-variable.woff2') format('woff2-variations');
+	font-weight: 100 900;
+	font-stretch: 62% 125%;
+	font-display: swap;
+}
+@font-face {
+	font-family: 'JetBrains Mono';
+	src: url('/fonts/jetbrains-mono-variable.woff2') format('woff2-variations');
+	font-weight: 100 800;
+	font-display: swap;
+}
+
+/* ----------------------------------------------------------- font choice ---
+   data-font on <html> is the user's explicit UI font. It comes after the
+   preset imports so it beats a preset's default font. Keep font declarations
+   out of preset dark-mode blocks or they'll out-rank these. */
+:root[data-font='inter'] {
+	--font-sans: 'Inter', system-ui, sans-serif;
+}
+:root[data-font='archivo'] {
+	--font-sans: 'Archivo', system-ui, -apple-system, sans-serif;
+}
+:root[data-font='jetbrains-mono'] {
+	--font-sans: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+:root[data-font='system'] {
+	--font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* ---------------------------------------------------------------- logo ----
+   The block-cursor mark rendered by Logo.svelte when a preset asks for it. */
+.brand-cursor__rect {
+	fill: var(--brand-signal, var(--color-primary));
+}

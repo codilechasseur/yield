@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import { Sun, Moon, Monitor, Check, Save, Palette, Building2, FileText, Hash, Coins, Mail, FileUp, Image, X, BellRing, Sparkles } from 'lucide-svelte';
+	import { Sun, Moon, Monitor, Check, Save, Palette, Building2, FileText, Hash, Coins, Mail, FileUp, Image, X, BellRing, Sparkles, Type, Code } from 'lucide-svelte';
+	import { PRESETS, FONTS, getPreset } from '$lib/presets.js';
 	import Tip from '$lib/components/Tip.svelte';
 	import RichTextarea from '$lib/components/RichTextarea.svelte';
 	import FormAlert from '$lib/components/FormAlert.svelte';
@@ -115,6 +117,54 @@
 	let reminderDays     = $state<number>(untrack(() => data.smtp?.reminder_days || 7));
 	let remindersSaving  = $state(false);
 
+	// ── Brand preset + font ───────────────────────────────────────────────
+	let preset = $state(untrack(() => data.smtp?.brand_preset ?? ''));
+	let font   = $state(untrack(() => data.smtp?.brand_font ?? ''));
+	const activePreset = $derived(getPreset(preset));
+
+	function applyRootAttr(attr: string, storageKey: string, value: string) {
+		if (value) {
+			localStorage.setItem(storageKey, value);
+			document.documentElement.setAttribute(attr, value);
+		} else {
+			localStorage.removeItem(storageKey);
+			document.documentElement.removeAttribute(attr);
+		}
+	}
+
+	function setPreset(id: string) {
+		preset = id;
+		applyRootAttr('data-preset', 'yield-preset', id);
+		fetch('?/saveAppearance', {
+			method: 'POST',
+			body: new URLSearchParams({ brand_preset: id })
+		})
+			// Refresh layout data so the logo mark and manifest metas follow.
+			.then(() => invalidateAll())
+			.catch(() => { /* ignore */ });
+	}
+
+	function setFont(id: string) {
+		font = id;
+		applyRootAttr('data-font', 'yield-font', id);
+		fetch('?/saveAppearance', {
+			method: 'POST',
+			body: new URLSearchParams({ brand_font: id })
+		}).catch(() => { /* ignore */ });
+	}
+
+	// ── App logo (UI chrome) state ────────────────────────────────────────
+	let appLogoUploading = $state(false);
+	let appLogoRemoving  = $state(false);
+	let appLogoError     = $state('');
+	let appLogoFile      = $state<File | null>(null);
+
+	// ── Custom CSS state ──────────────────────────────────────────────────
+	let customCss       = $state(untrack(() => data.smtp?.brand_custom_css ?? ''));
+	let customCssSaved  = $state(untrack(() => data.smtp?.brand_custom_css ?? ''));
+	let customCssSaving = $state(false);
+	let customCssDirty  = $derived(customCss !== customCssSaved);
+
 	// ── Branding (app name + favicon) state ───────────────────────────────
 	let appNameValue  = $state(untrack(() => data.smtp?.app_name ?? ''));
 	let appNameSaved  = $state(untrack(() => data.smtp?.app_name ?? ''));
@@ -184,6 +234,70 @@
 			</p>
 		</div>
 
+		<!-- Brand preset -->
+		<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
+			<div class="flex items-center gap-2 mb-1">
+				<Sparkles size={16} style="color: var(--color-primary)" aria-hidden="true" />
+				<h4 class="font-semibold" style="color: var(--color-foreground)">Brand Preset</h4>
+			</div>
+			<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">A complete look — colours, typography, and shape — defined in code. Changes apply instantly.</p>
+
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				{#each PRESETS as p}
+					{@const active = preset === p.id}
+					<button
+						type="button"
+						onclick={() => setPreset(p.id)}
+						aria-pressed={active}
+						class="flex items-start gap-3 rounded-xl border p-4 text-left transition-all"
+						style={active
+							? 'border-color: var(--color-primary); background-color: var(--color-accent)'
+							: 'border-color: var(--color-border); background-color: var(--color-background)'}
+					>
+						<span class="flex shrink-0 rounded overflow-hidden border mt-0.5" style="border-color: var(--color-border)" aria-hidden="true">
+							<span style="background: {p.preview.bg}; width: 13px; height: 26px; display: block"></span>
+							<span style="background: {p.preview.fg}; width: 13px; height: 26px; display: block"></span>
+							<span style="background: {p.preview.accent}; width: 13px; height: 26px; display: block"></span>
+						</span>
+						<span class="min-w-0">
+							<span class="flex items-center gap-1.5 text-sm font-semibold" style="color: var(--color-foreground)">
+								{p.label}
+								{#if active}<Check size={13} strokeWidth={3} style="color: var(--color-primary)" aria-hidden="true" />{/if}
+							</span>
+							<span class="block text-xs mt-0.5" style="color: var(--color-muted-foreground)">{p.description}</span>
+						</span>
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<!-- Interface font -->
+		<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
+			<div class="flex items-center gap-2 mb-1">
+				<Type size={16} style="color: var(--color-primary)" aria-hidden="true" />
+				<h4 class="font-semibold" style="color: var(--color-foreground)">Interface Font</h4>
+			</div>
+			<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">Typeface for the app interface. “Preset default” uses whatever the active brand preset ships.</p>
+
+			<div class="flex flex-wrap gap-3">
+				{#each FONTS as f}
+					{@const active = font === f.id}
+					<button
+						type="button"
+						onclick={() => setFont(f.id)}
+						aria-pressed={active}
+						class="px-4 py-2.5 rounded-xl border text-sm transition-all"
+						style="font-family: {f.stack}; {active
+							? 'border-color: var(--color-primary); background-color: var(--color-accent); color: var(--color-primary); font-weight: 600'
+							: 'border-color: var(--color-border); background-color: var(--color-background); color: var(--color-muted-foreground)'}"
+					>
+						{f.label}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		{#if !activePreset.hueLocked}
 		<!-- Highlight colour -->
 		<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
 			<div class="flex items-center gap-2 mb-1">
@@ -239,6 +353,11 @@
 				<a class="text-xs font-medium" style="color: var(--color-primary)" href="/settings">Link</a>
 			</div>
 		</div>
+		{:else}
+		<p class="text-xs px-1" style="color: var(--color-muted-foreground)">
+			The {activePreset.label} preset defines its own colour palette, so the highlight colour picker is hidden. Switch back to the Yield preset to choose a custom hue.
+		</p>
+		{/if}
 
 		<!-- Branding: app name + favicon overrides -->
 		<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
@@ -247,7 +366,7 @@
 				<h4 class="font-semibold" style="color: var(--color-foreground)">Branding</h4>
 			</div>
 			<p class="text-sm mb-5" style="color: var(--color-muted-foreground)">
-				Rename the app and swap the browser-tab icon. Leave blank to keep the Yield defaults.
+				Rename the app, upload your own logo for the sidebar and login screen, and swap the browser-tab icon. Leave blank to keep the Yield defaults.
 			</p>
 
 			<!-- App name -->
@@ -295,6 +414,91 @@
 					{appNameSaving ? 'Saving…' : 'Save'}
 				</button>
 			</form>
+
+			<!-- App logo (UI chrome — distinct from the invoice/PDF logo) -->
+			<FormAlert message={appLogoError || null} class="mb-3" />
+			<div class="flex flex-wrap items-end gap-3 mb-6">
+				{#if data.appLogoUrl}
+					<div class="p-2 rounded-lg border inline-flex self-center" style="border-color: var(--color-border); background: var(--color-muted)">
+						<img src={data.appLogoUrl} alt="App logo preview" style="height:32px;max-width:120px;object-fit:contain;display:block;" />
+					</div>
+				{/if}
+				<form
+					method="POST"
+					action="?/saveAppLogo"
+					enctype="multipart/form-data"
+					use:enhance={() => {
+						appLogoUploading = true;
+						appLogoError = '';
+						return async ({ update, result }) => {
+							appLogoUploading = false;
+							appLogoFile = null;
+							await update();
+							if (result.type === 'success') {
+								addToast('App logo saved');
+							} else if (result.type === 'failure') {
+								appLogoError = (result.data as any)?.appLogoError ?? 'Failed to save app logo';
+							}
+						};
+					}}
+					class="flex items-end gap-2"
+				>
+					<div class="flex flex-col gap-1">
+						<label for="app-logo-upload" class="text-xs font-medium" style="color: var(--color-muted-foreground)">{data.appLogoUrl ? 'Replace app logo' : 'Upload app logo'}</label>
+						<input
+							id="app-logo-upload"
+							name="app_logo"
+							type="file"
+							accept="image/png,image/svg+xml,image/jpeg,image/webp,image/gif"
+							onchange={(e) => { appLogoFile = (e.target as HTMLInputElement).files?.[0] ?? null; }}
+							class="text-sm rounded-lg border px-2 py-1.5 file:mr-2 file:rounded file:border-0 file:px-2 file:py-1 file:text-xs file:font-medium"
+							style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+						/>
+					</div>
+					<button
+						type="submit"
+						disabled={appLogoUploading || !appLogoFile}
+						class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+						style={appLogoFile && !appLogoUploading
+							? 'background-color: var(--color-primary); color: var(--color-primary-foreground)'
+							: 'background-color: var(--color-muted); color: var(--color-muted-foreground); opacity: 0.7'}
+					>
+						<FileUp size={14} aria-hidden="true" />
+						{appLogoUploading ? 'Uploading…' : 'Upload'}
+					</button>
+				</form>
+
+				{#if data.appLogoUrl}
+					<form
+						method="POST"
+						action="?/removeAppLogo"
+						use:enhance={() => {
+							appLogoRemoving = true;
+							appLogoError = '';
+							return async ({ update, result }) => {
+								appLogoRemoving = false;
+								await update();
+								if (result.type === 'success') {
+									addToast('App logo removed');
+								} else if (result.type === 'failure') {
+									appLogoError = (result.data as any)?.appLogoError ?? 'Failed to remove app logo';
+								}
+							};
+						}}
+					>
+						<button
+							type="submit"
+							disabled={appLogoRemoving}
+							class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all"
+							style="border-color: var(--color-border); color: var(--color-muted-foreground); background: var(--color-background)"
+						>
+							<X size={13} aria-hidden="true" />
+							{appLogoRemoving ? 'Removing…' : 'Remove app logo'}
+						</button>
+					</form>
+				{/if}
+			</div>
+			<p class="text-xs -mt-4 mb-6" style="color: var(--color-muted-foreground)">Shown in the sidebar and on the sign-in page. Without one, the active preset's built-in mark is used. SVG, PNG, or WebP up to 1 MB.</p>
 
 			<!-- Favicon -->
 			<FormAlert message={faviconError || null} class="mb-3" />
@@ -380,6 +584,61 @@
 				{/if}
 			</div>
 			<p class="text-xs mt-3" style="color: var(--color-muted-foreground)">Square images work best — PNG, SVG, or ICO up to 1 MB.</p>
+		</div>
+
+		<!-- Custom CSS (advanced) -->
+		<div class="rounded-xl border p-4 md:p-6" style="background-color: var(--color-card); border-color: var(--color-border)">
+			<div class="flex items-center gap-2 mb-1">
+				<Code size={16} style="color: var(--color-primary)" aria-hidden="true" />
+				<h4 class="font-semibold" style="color: var(--color-foreground)">Custom CSS</h4>
+			</div>
+			<p class="text-sm mb-4" style="color: var(--color-muted-foreground)">
+				Advanced: appended after the app's stylesheets on every page. Override design tokens like
+				<code class="font-mono text-xs">--color-primary</code> or <code class="font-mono text-xs">--font-sans</code>
+				for a full rebrand beyond what the presets offer. Leave empty for none.
+			</p>
+			<FormAlert message={form?.customCssError ?? null} class="mb-3" />
+			<form
+				method="POST"
+				action="?/saveCustomCss"
+				use:enhance={() => {
+					customCssSaving = true;
+					return async ({ update, result }) => {
+						customCssSaving = false;
+						await update({ reset: false });
+						if (result.type === 'success') {
+							customCssSaved = customCss;
+							addToast('Custom CSS saved — reload to see it applied');
+						} else if (result.type === 'failure') {
+							addToast((result.data as any)?.customCssError ?? 'Failed to save custom CSS', 'error');
+						}
+					};
+				}}
+			>
+				<textarea
+					name="brand_custom_css"
+					rows="8"
+					maxlength="20000"
+					spellcheck="false"
+					bind:value={customCss}
+					placeholder={`:root[data-theme] {\n\t--color-primary: #c93a0d;\n}`}
+					class="w-full rounded-lg border px-3 py-2 text-xs font-mono outline-none focus:ring-2"
+					style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+				></textarea>
+				<div class="mt-3">
+					<button
+						type="submit"
+						disabled={customCssSaving || !customCssDirty}
+						class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+						style={customCssDirty && !customCssSaving
+							? 'background-color: var(--color-primary); color: var(--color-primary-foreground)'
+							: 'background-color: var(--color-muted); color: var(--color-muted-foreground); opacity: 0.7'}
+					>
+						<Save size={14} aria-hidden="true" />
+						{customCssSaving ? 'Saving…' : 'Save CSS'}
+					</button>
+				</div>
+			</form>
 		</div>
 	</section>
 

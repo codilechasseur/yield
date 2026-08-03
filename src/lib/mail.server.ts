@@ -34,6 +34,14 @@ export interface SmtpSettings {
 	company_address?: string;
 	brand_hue?: number;
 	brand_theme?: string;
+	/** Brand preset id from src/lib/presets.ts (empty = default Yield look). */
+	brand_preset?: string;
+	/** UI font choice from the curated list in src/lib/presets.ts (empty = preset default). */
+	brand_font?: string;
+	/** Filename of the uploaded app-chrome logo (sidebar/login — not the PDF logo). */
+	app_logo?: string;
+	/** Admin-supplied CSS appended after all app styles (escape hatch for full rebrands). */
+	brand_custom_css?: string;
 	default_currency?: string;
 	/** Subject line template. Supports {invoice_number}, {client_name}, {company_name}. */
 	email_subject?: string;
@@ -522,6 +530,11 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 			company_name: r.company_name ?? '',
 			company_address: r.company_address ?? '',
 			brand_hue: r.brand_hue || 250,
+			brand_theme: r.brand_theme ?? '',
+			brand_preset: r.brand_preset ?? '',
+			brand_font: r.brand_font ?? '',
+			app_logo: r.app_logo ?? '',
+			brand_custom_css: r.brand_custom_css ?? '',
 			default_currency: r.default_currency ?? '',
 			email_subject: r.email_subject ?? '',
 			email_body: r.email_body ?? '',

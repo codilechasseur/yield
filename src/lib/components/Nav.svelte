@@ -5,6 +5,7 @@
 	import { fly, fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import QuickAddItem from '$lib/components/QuickAddItem.svelte';
+	import Logo from '$lib/components/Logo.svelte';
 
 	let { authEnabled = false, appName = 'Yield' }: { authEnabled?: boolean; appName?: string } = $props();
 
@@ -50,12 +51,7 @@
 	<!-- Brand -->
 	<div class="px-6 py-5 border-b" style="border-color: var(--color-border)">
 		<a href="/" class="flex items-center gap-2.5 no-underline hover:opacity-80 transition-opacity">
-			<div class="w-8 h-8 shrink-0" style="color: var(--color-primary)">
-				<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-					<polyline points="2.7 22.7 11.3 14 18 20.7 29.3 9.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-					<polyline points="21.3 9.3 29.3 9.3 29.3 17.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-				</svg>
-			</div>
+			<Logo class="w-8 h-8" />
 			<div>
 				<h1 class="text-xl font-bold tracking-tight leading-none" style="color: var(--color-primary)">{appName}</h1>
 				<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Invoice Manager</p>
@@ -172,12 +168,7 @@
 	</button>
 
 	<a href="/" class="flex items-center gap-2 flex-1 no-underline hover:opacity-80 transition-opacity">
-		<div class="w-6 h-6 shrink-0" style="color: var(--color-primary)">
-			<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-				<polyline points="2.7 22.7 11.3 14 18 20.7 29.3 9.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-				<polyline points="21.3 9.3 29.3 9.3 29.3 17.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-			</svg>
-		</div>
+		<Logo class="w-6 h-6" />
 		<span class="font-bold text-base tracking-tight" style="color: var(--color-primary)">{appName}</span>
 	</a>
 	<button
@@ -221,12 +212,7 @@
 		<!-- Drawer header -->
 		<div class="flex items-center justify-between px-5 py-4 border-b" style="border-color: var(--color-border)">
 			<a href="/" onclick={close} class="flex items-center gap-2.5 no-underline hover:opacity-80 transition-opacity">
-				<div class="w-7 h-7 shrink-0" style="color: var(--color-primary)">
-					<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-						<polyline points="2.7 22.7 11.3 14 18 20.7 29.3 9.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-						<polyline points="21.3 9.3 29.3 9.3 29.3 17.3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-					</svg>
-				</div>
+				<Logo class="w-7 h-7" />
 				<div>
 					<p class="font-bold text-base leading-none" style="color: var(--color-primary)">{appName}</p>
 					<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Invoice Manager</p>

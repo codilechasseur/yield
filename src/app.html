@@ -3,20 +3,23 @@
 	<head>
 		<script>
 			(function () {
+				var d = document.documentElement;
 				var t = localStorage.getItem('yield-theme') || 'system';
 				var hue = localStorage.getItem('yield-hue');
-				document.documentElement.setAttribute('data-theme', t);
-				if (hue) document.documentElement.style.setProperty('--hue', hue);
+				var preset = localStorage.getItem('yield-preset');
+				var font = localStorage.getItem('yield-font');
+				d.setAttribute('data-theme', t);
+				if (hue) d.style.setProperty('--hue', hue);
+				if (preset) d.setAttribute('data-preset', preset);
+				if (font) d.setAttribute('data-font', font);
 			})();
 		</script>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-		<meta name="description" content="Yield — Self-hosted invoicing" />
-		<meta name="theme-color" content="#4361ee" />
+		<!-- description / theme-color / app-title metas are injected per-instance in +layout.svelte -->
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-		<meta name="apple-mobile-web-app-title" content="Yield" />
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 		<link rel="manifest" href="/manifest.webmanifest" />

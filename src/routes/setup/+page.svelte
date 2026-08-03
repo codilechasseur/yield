@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
+	import Logo from '$lib/components/Logo.svelte';
 	import type { ActionData } from './$types.js';
 
 	let { form }: { form: ActionData } = $props();
@@ -24,14 +25,7 @@
 	>
 		<!-- Brand -->
 		<div class="flex items-center gap-2.5 mb-8">
-			<div class="w-8 h-8 shrink-0" style="color: var(--color-primary)">
-				<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-					<rect x="2" y="21" width="7" height="9" rx="2" fill="currentColor" opacity="0.4"/>
-					<rect x="12" y="14" width="7" height="16" rx="2" fill="currentColor" opacity="0.7"/>
-					<rect x="22" y="5" width="7" height="25" rx="2" fill="currentColor"/>
-					<path d="M5.5 20 L15.5 13 L25.5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
-				</svg>
-			</div>
+			<Logo class="w-8 h-8" />
 			<div>
 				<h1 class="text-xl font-bold tracking-tight leading-none" style="color: var(--color-primary)">{page.data.appName}</h1>
 				<p class="text-xs mt-0.5" style="color: var(--color-muted-foreground)">Invoice Manager</p>

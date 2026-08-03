@@ -8,9 +8,13 @@ export async function load({ locals }) {
 	return {
 		authEnabled: locals.authEnabled ?? false,
 		brandHue: smtp?.brand_hue ?? 250,
+		brandPreset: smtp?.brand_preset ?? '',
+		brandFont: smtp?.brand_font ?? '',
+		customCss: smtp?.brand_custom_css ?? '',
 		appName: smtp?.app_name?.trim() || 'Yield',
 		// Proxied through the app — the browser can't necessarily reach PB_URL
 		// directly (e.g. internal docker hostname). ?v= busts caches on re-upload.
-		faviconUrl: smtp?.favicon ? `/api/favicon?v=${encodeURIComponent(smtp.favicon)}` : ''
+		faviconUrl: smtp?.favicon ? `/api/favicon?v=${encodeURIComponent(smtp.favicon)}` : '',
+		appLogoUrl: smtp?.app_logo ? `/api/app-logo?v=${encodeURIComponent(smtp.app_logo)}` : ''
 	};
 }

@@ -1,0 +1,147 @@
+/* ============================================================================
+   Preset: codi — Codi Lechasseur brand.
+   Paper / ink / signal orange, Archivo + JetBrains Mono, square corners.
+
+   `background` and `foreground` are semantic paper/ink — they swap in dark
+   mode. `--brand-signal` (#ff4a17) never moves; the text-safe primary is the
+   deep orange on paper and the bright orange on ink (both ≥ 4.5:1).
+   ========================================================================== */
+
+:root[data-preset='codi'] {
+	--brand-signal: #ff4a17;
+
+	--font-sans: 'Archivo', system-ui, -apple-system, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	/* light — paper */
+	--color-primary:            #c93a0d;
+	--color-primary-hover:      #b03209;
+	--color-primary-foreground: #f2f0eb;
+	--color-background:         #f2f0eb;
+	--color-foreground:         #111111;
+	--color-card:               #f7f5f0;
+	--color-card-foreground:    #111111;
+	--color-border:             #dcd9d2;
+	--color-muted:              #e9e6df;
+	--color-muted-foreground:   #5c5750;
+	--color-accent:             #dcd9d2;
+	--color-accent-foreground:  #111111;
+	--color-destructive:        #b3261e;
+	--color-success:            #3d6b34;
+	--color-warning:            #a05a00;
+	--color-info:               #c93a0d;
+}
+
+/* dark — ink (OS preference) */
+@media (prefers-color-scheme: dark) {
+	:root[data-preset='codi']:not([data-theme='light']):not([data-theme='dark']) {
+		--color-primary:            #ff4a17;
+		--color-primary-hover:      #ff6a3d;
+		--color-primary-foreground: #111111;
+		--color-background:         #111111;
+		--color-foreground:         #f2f0eb;
+		--color-card:               #1d1c1a;
+		--color-card-foreground:    #f2f0eb;
+		--color-border:             #33312d;
+		--color-muted:              #232220;
+		--color-muted-foreground:   #9a938a;
+		--color-accent:             #2a2824;
+		--color-accent-foreground:  #f2f0eb;
+		--color-destructive:        #e5484d;
+		--color-success:            #86b378;
+		--color-warning:            #d98e2b;
+		--color-info:               #ff4a17;
+	}
+}
+
+/* dark — explicit */
+:root[data-preset='codi'][data-theme='dark'] {
+	--color-primary:            #ff4a17;
+	--color-primary-hover:      #ff6a3d;
+	--color-primary-foreground: #111111;
+	--color-background:         #111111;
+	--color-foreground:         #f2f0eb;
+	--color-card:               #1d1c1a;
+	--color-card-foreground:    #f2f0eb;
+	--color-border:             #33312d;
+	--color-muted:              #232220;
+	--color-muted-foreground:   #9a938a;
+	--color-accent:             #2a2824;
+	--color-accent-foreground:  #f2f0eb;
+	--color-destructive:        #e5484d;
+	--color-success:            #86b378;
+	--color-warning:            #d98e2b;
+	--color-info:               #ff4a17;
+}
+
+/* Brand hard rule: nothing is rounded. */
+:root[data-preset='codi'] *,
+:root[data-preset='codi'] *::before,
+:root[data-preset='codi'] *::after {
+	border-radius: 0 !important;
+}
+
+/* Typography character */
+:root[data-preset='codi'] :is(h1, h2, h3, h4) {
+	letter-spacing: -0.02em;
+}
+:root[data-preset='codi'] thead th {
+	font-family: var(--font-mono);
+	letter-spacing: 0.16em !important;
+}
+:root[data-preset='codi'] .status-badge {
+	font-family: var(--font-mono);
+	font-size: 0.65rem;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+:root[data-preset='codi'] ::selection {
+	background: var(--brand-signal);
+	color: #111111;
+}
+
+/* Status badges — warm neutrals on paper / ink */
+:root[data-preset='codi'] {
+	.status-draft       { background: #e5e2da; color: #5c5750; }
+	.status-sent        { background: #f3d9cf; color: #9c2f0a; }
+	.status-paid        { background: #dbe5d5; color: #2f5427; }
+	.status-overdue     { background: #f2d5d2; color: #8c1d16; }
+	.status-written-off { background: #e2dfd8; color: #5c5750; }
+	.status-accepted    { background: #dbe5d5; color: #2f5427; }
+	.status-declined    { background: #f2d5d2; color: #8c1d16; }
+	.status-expired     { background: #e2dfd8; color: #5c5750; }
+}
+@media (prefers-color-scheme: dark) {
+	:root[data-preset='codi']:not([data-theme='light']):not([data-theme='dark']) {
+		.status-draft       { background: #26241f; color: #b5aea3; }
+		.status-sent        { background: #3a2118; color: #ff8a63; }
+		.status-paid        { background: #22301e; color: #a3c99a; }
+		.status-overdue     { background: #361a17; color: #f2988f; }
+		.status-written-off { background: #26241f; color: #a19a8f; }
+		.status-accepted    { background: #22301e; color: #a3c99a; }
+		.status-declined    { background: #361a17; color: #f2988f; }
+		.status-expired     { background: #26241f; color: #a19a8f; }
+	}
+}
+:root[data-preset='codi'][data-theme='dark'] {
+	.status-draft       { background: #26241f; color: #b5aea3; }
+	.status-sent        { background: #3a2118; color: #ff8a63; }
+	.status-paid        { background: #22301e; color: #a3c99a; }
+	.status-overdue     { background: #361a17; color: #f2988f; }
+	.status-written-off { background: #26241f; color: #a19a8f; }
+	.status-accepted    { background: #22301e; color: #a3c99a; }
+	.status-declined    { background: #361a17; color: #f2988f; }
+	.status-expired     { background: #26241f; color: #a19a8f; }
+}
+
+/* The blinking block cursor — the brand's signature. Steps(1), 1.06s. */
+:root[data-preset='codi'] .brand-cursor__rect {
+	animation: brand-blink 1.06s steps(1) infinite;
+}
+@keyframes brand-blink {
+	0%, 49%   { opacity: 1; }
+	50%, 100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+	:root[data-preset='codi'] .brand-cursor__rect { animation: none; }
+}

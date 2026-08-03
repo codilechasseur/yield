@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import { getSmtpSettings, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, buildLogoUrl } from '$lib/mail.server.js';
+import { PRESETS, FONTS } from '$lib/presets.js';
 
 export async function load() {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -249,12 +250,29 @@ export const actions = {
 	saveAppearance: async ({ request }) => {
 		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 		const fd = await request.formData();
-		const brand_hue = parseFloat(fd.get('brand_hue')?.toString() ?? '250') || 250;
+
+		// Instant-save posts are partial — only persist the keys that were sent
+		// so a hue change doesn't clobber the preset and vice versa.
+		const payload: Record<string, unknown> = {};
+		if (fd.has('brand_hue')) {
+			payload.brand_hue = parseFloat(fd.get('brand_hue')?.toString() ?? '250') || 250;
+		}
+		if (fd.has('brand_theme')) {
+			const t = fd.get('brand_theme')?.toString() ?? '';
+			payload.brand_theme = ['light', 'dark', 'system'].includes(t) ? t : 'system';
+		}
+		if (fd.has('brand_preset')) {
+			const id = fd.get('brand_preset')?.toString() ?? '';
+			payload.brand_preset = PRESETS.some((p) => p.id === id) ? id : '';
+		}
+		if (fd.has('brand_font')) {
+			const id = fd.get('brand_font')?.toString() ?? '';
+			payload.brand_font = FONTS.some((f) => f.id === id) ? id : '';
+		}
+		if (Object.keys(payload).length === 0) return {};
 
 		try {
 			const existing = await getSmtpSettings(pb);
-			const payload: Record<string, unknown> = { brand_hue };
-
 			if (existing?.id) {
 				await pb.collection('settings').update(existing.id, payload);
 			} else {
@@ -265,6 +283,72 @@ export const actions = {
 		}
 
 		return {};
+	},
+
+	saveAppLogo: async ({ request }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const fd = await request.formData();
+		const logoFile = fd.get('app_logo');
+
+		if (!logoFile || !(logoFile instanceof File) || logoFile.size === 0) {
+			return fail(400, { appLogoError: 'Please select an image file.' });
+		}
+
+		const allowedTypes = ['image/png', 'image/svg+xml', 'image/jpeg', 'image/webp', 'image/gif'];
+		if (!allowedTypes.includes(logoFile.type)) {
+			return fail(400, { appLogoError: 'Only PNG, SVG, JPEG, WebP, and GIF images are allowed.' });
+		}
+
+		if (logoFile.size > 1024 * 1024) {
+			return fail(400, { appLogoError: 'App logo must be under 1 MB.' });
+		}
+
+		try {
+			const existing = await getSmtpSettings(pb);
+			const uploadData = new FormData();
+			uploadData.append('app_logo', logoFile);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, uploadData);
+			} else {
+				await pb.collection('settings').create(uploadData);
+			}
+		} catch (e) {
+			return fail(500, { appLogoError: 'Failed to save app logo: ' + (e as Error).message });
+		}
+
+		return { appLogoSuccess: true };
+	},
+
+	removeAppLogo: async () => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		try {
+			const existing = await getSmtpSettings(pb);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, { 'app_logo-': existing.app_logo ?? '' });
+			}
+		} catch (e) {
+			return fail(500, { appLogoError: 'Failed to remove app logo: ' + (e as Error).message });
+		}
+		return { appLogoRemoved: true };
+	},
+
+	saveCustomCss: async ({ request }) => {
+		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const fd = await request.formData();
+		const brand_custom_css = (fd.get('brand_custom_css')?.toString() ?? '').slice(0, 20000);
+
+		try {
+			const existing = await getSmtpSettings(pb);
+			if (existing?.id) {
+				await pb.collection('settings').update(existing.id, { brand_custom_css });
+			} else {
+				await pb.collection('settings').create({ brand_custom_css });
+			}
+		} catch (e) {
+			return fail(500, { customCssError: 'Failed to save custom CSS: ' + (e as Error).message });
+		}
+
+		return { customCssSuccess: true };
 	},
 
 	saveLogo: async ({ request }) => {
