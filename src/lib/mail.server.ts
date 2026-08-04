@@ -7,6 +7,7 @@ import nodemailer from 'nodemailer';
 import puppeteer from 'puppeteer';
 import type PocketBase from 'pocketbase';
 import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem } from './types.js';
+import { getPreset } from './presets.js';
 import { env } from '$env/dynamic/private';
 
 // ---------------------------------------------------------------------------
@@ -145,10 +146,11 @@ export function buildInvoiceHtml(
 	invoice: Invoice & { expand?: { client?: Client } },
 	items: InvoiceItem[],
 	client: Client | null,
-	opts?: { invoiceFooter?: string; companyName?: string; companyAddress?: string; defaultNotes?: string; brandHue?: number; logoUrl?: string; hideCompanyName?: boolean }
+	opts?: { invoiceFooter?: string; companyName?: string; companyAddress?: string; defaultNotes?: string; brandHue?: number; accentColor?: string; logoUrl?: string; hideCompanyName?: boolean }
 ): string {
 	const hue = opts?.brandHue || 250;
 	const c = palette(hue);
+	if (opts?.accentColor) c.accent = opts.accentColor;
 	const currency = client?.currency || 'USD';
 	const companyName = opts?.companyName || 'Invoice';
 	const companyAddress = opts?.companyAddress || '';
@@ -346,10 +348,11 @@ export function buildEstimateHtml(
 	estimate: Estimate & { expand?: { client?: Client } },
 	items: EstimateItem[],
 	client: Client | null,
-	opts?: { estimateFooter?: string; companyName?: string; companyAddress?: string; defaultNotes?: string; brandHue?: number; logoUrl?: string; hideCompanyName?: boolean }
+	opts?: { estimateFooter?: string; companyName?: string; companyAddress?: string; defaultNotes?: string; brandHue?: number; accentColor?: string; logoUrl?: string; hideCompanyName?: boolean }
 ): string {
 	const hue = opts?.brandHue || 250;
 	const c = palette(hue);
+	if (opts?.accentColor) c.accent = opts.accentColor;
 	const currency = client?.currency || 'USD';
 	const companyName = opts?.companyName || 'Estimate';
 	const companyAddress = opts?.companyAddress || '';
@@ -636,6 +639,7 @@ export async function sendInvoiceEmail({
 		companyAddress: smtp.company_address || undefined,
 		defaultNotes: smtp.invoice_default_notes || undefined,
 		brandHue: smtp.brand_hue || 250,
+		accentColor: getPreset(smtp.brand_preset).pdfAccent,
 		logoUrl: logoUrl || undefined,
 		hideCompanyName: smtp.logo_hide_company_name
 	});
@@ -761,6 +765,7 @@ export async function sendEstimateEmail({
 		companyAddress: smtp.company_address || undefined,
 		defaultNotes: smtp.invoice_default_notes || undefined,
 		brandHue: smtp.brand_hue || 250,
+		accentColor: getPreset(smtp.brand_preset).pdfAccent,
 		logoUrl: logoUrl || undefined,
 		hideCompanyName: smtp.logo_hide_company_name
 	});

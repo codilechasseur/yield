@@ -4,6 +4,7 @@ import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import type { Estimate, EstimateItem, Client } from '$lib/types.js';
 import { getSmtpSettings, buildEstimateHtml, buildLogoUrl } from '$lib/mail.server.js';
+import { getPreset } from '$lib/presets.js';
 
 export async function GET({ params }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -36,6 +37,7 @@ export async function GET({ params }) {
 		companyAddress: settings?.company_address || undefined,
 		defaultNotes: settings?.invoice_default_notes || undefined,
 		brandHue: settings?.brand_hue || 250,
+		accentColor: getPreset(settings?.brand_preset).pdfAccent,
 		logoUrl,
 		hideCompanyName: settings?.logo_hide_company_name
 	});

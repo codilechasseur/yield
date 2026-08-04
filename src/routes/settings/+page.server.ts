@@ -1,14 +1,16 @@
 import { fail } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
-import { getSmtpSettings, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, buildLogoUrl } from '$lib/mail.server.js';
+import { getSmtpSettings, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY } from '$lib/mail.server.js';
 import { PRESETS, FONTS } from '$lib/presets.js';
 
 export async function load() {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
 	const smtp = await getSmtpSettings(pb);
 	const hasPassword = Boolean(smtp?.app_password_hash);
-	const logoUrl = buildLogoUrl(env.PB_URL || 'http://localhost:8090', smtp?.id ?? '', smtp?.logo);
+	// Proxied through the app — the browser can't necessarily reach PB_URL
+	// directly (e.g. internal docker hostname). ?v= busts caches on re-upload.
+	const logoUrl = smtp?.logo ? `/api/company-logo?v=${encodeURIComponent(smtp.logo)}` : '';
 	return { smtp, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, hasPassword, logoUrl };
 }
 

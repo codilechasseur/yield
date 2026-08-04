@@ -23,6 +23,9 @@ export interface BrandPreset {
 	preview: { bg: string; fg: string; accent: string };
 	/** True when the preset defines its own full palette, making the hue picker moot. */
 	hueLocked: boolean;
+	/** Overrides the hue-derived accent (top bar / accent dot) on invoice and
+	 * estimate PDFs. Omit to keep the hue-based colour. */
+	pdfAccent?: string;
 }
 
 export const PRESETS: BrandPreset[] = [
@@ -42,7 +45,9 @@ export const PRESETS: BrandPreset[] = [
 		mark: 'block-cursor',
 		themeColor: '#111111',
 		preview: { bg: '#f2f0eb', fg: '#111111', accent: '#ff4a17' },
-		hueLocked: true
+		hueLocked: true,
+		/* signal is for fills and shapes — the PDF top bar qualifies */
+		pdfAccent: '#ff4a17'
 	}
 ];
 
