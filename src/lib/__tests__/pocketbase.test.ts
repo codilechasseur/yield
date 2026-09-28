@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcSubtotal, calcTax, calcTotal, formatCurrency } from '../pocketbase.js';
+import { calcSubtotal, calcTax, calcTotal, formatCurrency, pbErrorMessage } from '../pocketbase.js';
 
 // ── calcSubtotal ─────────────────────────────────────────────────────────────
 
@@ -108,5 +108,36 @@ describe('formatCurrency', () => {
 		const formatted = formatCurrency(100, 'CAD');
 		// Should contain the numeric value at minimum
 		expect(formatted).toContain('100');
+	});
+});
+
+// ── pbErrorMessage ───────────────────────────────────────────────────────────
+
+describe('pbErrorMessage', () => {
+	const pbError = (data: unknown) => Object.assign(new Error('Failed to update record.'), { response: { data } });
+
+	it('reports a unique-index clash on a field', () => {
+		const e = pbError({ number: { code: 'validation_not_unique', message: 'Value must be unique.' } });
+		expect(pbErrorMessage(e, 'fallback')).toBe('Number is already in use');
+	});
+
+	it('humanises snake_case field names', () => {
+		const e = pbError({ issue_date: { code: 'validation_invalid_date', message: 'Must be a valid date.' } });
+		expect(pbErrorMessage(e, 'fallback')).toBe('Issue date: Must be a valid date.');
+	});
+
+	it('returns the fallback when there is no field data', () => {
+		expect(pbErrorMessage(pbError({}), 'fallback')).toBe('fallback');
+	});
+
+	it('returns the fallback for non-PocketBase errors', () => {
+		expect(pbErrorMessage(new Error('boom'), 'fallback')).toBe('fallback');
+		expect(pbErrorMessage(null, 'fallback')).toBe('fallback');
+		expect(pbErrorMessage(undefined, 'fallback')).toBe('fallback');
+	});
+
+	it('skips malformed field entries', () => {
+		const e = pbError({ junk: null, number: { code: 'validation_not_unique' } });
+		expect(pbErrorMessage(e, 'fallback')).toBe('Number is already in use');
 	});
 });

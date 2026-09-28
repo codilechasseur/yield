@@ -221,8 +221,8 @@
 		<div class="hidden sm:grid sm:gap-2 px-4 py-2 border-b"
 			style="border-color: var(--color-border); grid-template-columns: 1fr 6rem 8rem 7rem 2.5rem">
 			<span class="text-xs font-medium" style="color: var(--color-muted-foreground)">Description</span>
-			<span class="text-xs font-medium text-right" style="color: var(--color-muted-foreground)">Qty</span>
-			<span class="text-xs font-medium text-right" style="color: var(--color-muted-foreground)">Unit Price</span>
+			<span class="text-xs font-medium text-right" style="color: var(--color-muted-foreground)">Hours</span>
+			<span class="text-xs font-medium text-right" style="color: var(--color-muted-foreground)">Rate</span>
 			<span class="text-xs font-medium text-right" style="color: var(--color-muted-foreground)">Amount</span>
 			<span></span>
 		</div>
@@ -240,20 +240,20 @@
 						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 					/>
 					</div>
-					<!-- Qty / Unit Price / Amount / Delete — stacked row on mobile -->
+					<!-- Hours / Rate / Amount / Delete — stacked row on mobile -->
 					<div class="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 sm:contents">
 						<div>
-							<span class="block text-xs font-medium mb-1 sm:hidden" style="color: var(--color-muted-foreground)">Qty</span>
+							<span class="block text-xs font-medium mb-1 sm:hidden" style="color: var(--color-muted-foreground)">Hours</span>
 							<input type="number" min="0" step="0.01" bind:value={item.quantity}
-								aria-label="Quantity"
+								aria-label="Hours"
 								class="w-full px-2 py-1.5 rounded border text-sm text-right"
 								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 							/>
 						</div>
 						<div>
-							<span class="block text-xs font-medium mb-1 sm:hidden" style="color: var(--color-muted-foreground)">Unit Price</span>
+							<span class="block text-xs font-medium mb-1 sm:hidden" style="color: var(--color-muted-foreground)">Rate</span>
 							<input type="number" min="0" step="0.01" bind:value={item.unit_price}
-								aria-label="Unit price"
+								aria-label="Rate"
 								class="w-full px-2 py-1.5 rounded border text-sm text-right"
 								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 							/>

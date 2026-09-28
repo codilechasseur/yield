@@ -273,11 +273,11 @@
 				></textarea>
 			</div>
 
-			<!-- Quantity + Unit Price -->
+			<!-- Hours + Rate -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
 					<label for="qai-quantity" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
-						Quantity
+						Hours
 					</label>
 					<input
 						id="qai-quantity"
@@ -291,7 +291,7 @@
 				</div>
 				<div>
 					<label for="qai-price" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
-						Unit Price
+						Rate
 					</label>
 					<input
 						id="qai-price"

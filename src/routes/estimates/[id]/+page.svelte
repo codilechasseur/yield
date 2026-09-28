@@ -314,8 +314,8 @@
 					<thead>
 						<tr style="background: var(--color-muted); border-bottom: 1px solid var(--color-border)">
 							<th class="text-left px-4 py-3" style="color: var(--color-muted-foreground)">Description</th>
-							<th class="text-right px-4 py-3 hidden sm:table-cell" style="color: var(--color-muted-foreground)">Qty</th>
-							<th class="text-right px-4 py-3 hidden sm:table-cell" style="color: var(--color-muted-foreground)">Unit Price</th>
+							<th class="text-right px-4 py-3 hidden sm:table-cell" style="color: var(--color-muted-foreground)">Hours</th>
+							<th class="text-right px-4 py-3 hidden sm:table-cell" style="color: var(--color-muted-foreground)">Rate</th>
 							<th class="text-right px-4 py-3" style="color: var(--color-muted-foreground)">Amount</th>
 						</tr>
 					</thead>

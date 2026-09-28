@@ -3,6 +3,7 @@ import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import type { Client } from '$lib/types.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
+import { pbErrorMessage } from '$lib/pocketbase.js';
 
 export async function load({ url }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -101,8 +102,7 @@ export const actions = {
 				}
 			}
 		} catch (e: unknown) {
-			const msg = e instanceof Error ? e.message : 'Failed to create invoice';
-			return fail(500, { error: msg });
+			return fail(500, { error: pbErrorMessage(e, 'Failed to create invoice') });
 		}
 
 		return redirect(302, `/invoices/${invoiceId}`);

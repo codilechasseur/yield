@@ -283,8 +283,8 @@ export function buildInvoiceHtml(
         <thead>
           <tr style="background:${c.muted};">
             <th style="padding:10px 24px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:left;border-bottom:1px solid ${c.border};">Description</th>
-            <th style="padding:10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Qty</th>
-            <th style="padding:10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Unit Price</th>
+            <th style="padding:10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Hours</th>
+            <th style="padding:10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Rate</th>
             <th style="padding:10px 24px 10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Amount</th>
           </tr>
         </thead>
@@ -457,8 +457,8 @@ export function buildEstimateHtml(
         <thead>
           <tr style="background:${c.muted};">
             <th style="padding:10px 24px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:left;border-bottom:1px solid ${c.border};">Description</th>
-            <th style="padding:10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Qty</th>
-            <th style="padding:10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Unit Price</th>
+            <th style="padding:10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Hours</th>
+            <th style="padding:10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Rate</th>
             <th style="padding:10px 24px 10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:right;border-bottom:1px solid ${c.border};">Amount</th>
           </tr>
         </thead>

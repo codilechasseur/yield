@@ -31,3 +31,20 @@ export const STATUS_COLORS: Record<string, string> = {
 	declined: 'status-badge status-declined',
 	expired: 'status-badge status-expired'
 };
+
+// Turn a PocketBase ClientResponseError into a user-facing message. Field-level
+// validation errors (e.g. a unique-index clash on invoice number) live in
+// `response.data.<field>`; fall back to the given message for anything else.
+export function pbErrorMessage(e: unknown, fallback: string): string {
+	const data = (e as { response?: { data?: Record<string, { code?: string; message?: string }> } })
+		?.response?.data;
+	if (data && typeof data === 'object') {
+		for (const [field, err] of Object.entries(data)) {
+			if (!err || typeof err !== 'object') continue;
+			const label = field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' ');
+			if (err.code === 'validation_not_unique') return `${label} is already in use`;
+			if (err.message) return `${label}: ${err.message}`;
+		}
+	}
+	return fallback;
+}

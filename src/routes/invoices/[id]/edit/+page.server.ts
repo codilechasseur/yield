@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import type { Invoice, InvoiceItem, Client } from '$lib/types.js';
+import { pbErrorMessage } from '$lib/pocketbase.js';
 
 export async function load({ params }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -58,7 +59,7 @@ export const actions = {
 				});
 			} catch { /* ignore */ }
 		} catch (e: unknown) {
-			return fail(500, { error: 'Failed to update invoice' });
+			return fail(500, { error: pbErrorMessage(e, 'Failed to update invoice') });
 		}
 
 		return redirect(302, `/invoices/${params.id}`);

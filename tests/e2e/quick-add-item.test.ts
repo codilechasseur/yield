@@ -79,8 +79,8 @@ test.describe('Quick Add Item', () => {
 
 		// Fill in the line item
 		await dialog.getByLabel(/Description/i).fill('Website development work');
-		await dialog.getByLabel(/Quantity/i).fill('2');
-		await dialog.getByLabel(/Unit Price/i).fill('150');
+		await dialog.getByLabel(/Hours/i).fill('2');
+		await dialog.getByLabel(/Rate/i).fill('150');
 
 		// Submit
 		await dialog.getByRole('button', { name: /Add to Invoice/i }).click();
@@ -112,8 +112,8 @@ test.describe('Quick Add Item', () => {
 
 		// Fill in the line item
 		await dialog.getByLabel(/Description/i).fill('Strategy consulting');
-		await dialog.getByLabel(/Quantity/i).fill('3');
-		await dialog.getByLabel(/Unit Price/i).fill('200');
+		await dialog.getByLabel(/Hours/i).fill('3');
+		await dialog.getByLabel(/Rate/i).fill('200');
 
 		// Submit
 		await dialog.getByRole('button', { name: /Add to Invoice/i }).click();

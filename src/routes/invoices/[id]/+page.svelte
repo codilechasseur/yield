@@ -544,8 +544,8 @@
 			<thead>
 				<tr style="border-bottom: 1px solid var(--color-border); background: color-mix(in oklch, var(--color-accent) 50%, var(--color-muted))">
 					<th scope="col" class="px-8 py-3 text-left text-xs font-medium uppercase tracking-wide w-full" style="color: var(--color-muted-foreground)">Description</th>
-				<th scope="col" class="px-3 py-3 text-center text-xs font-medium uppercase tracking-wide whitespace-nowrap" style="color: var(--color-muted-foreground)">Qty</th>
-				<th scope="col" class="px-3 py-3 text-center text-xs font-medium uppercase tracking-wide whitespace-nowrap" style="color: var(--color-muted-foreground)">Unit Price</th>
+				<th scope="col" class="px-3 py-3 text-center text-xs font-medium uppercase tracking-wide whitespace-nowrap" style="color: var(--color-muted-foreground)">Hours</th>
+				<th scope="col" class="px-3 py-3 text-center text-xs font-medium uppercase tracking-wide whitespace-nowrap" style="color: var(--color-muted-foreground)">Rate</th>
 					<th scope="col" class="pl-3 pr-8 py-3 text-right text-xs font-medium uppercase tracking-wide whitespace-nowrap" style="color: var(--color-muted-foreground)">Amount</th>
 				</tr>
 			</thead>

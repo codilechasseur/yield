@@ -143,26 +143,26 @@
 									/>
 								</div>
 								<div>
-									<label for="item-qty-{item.id}" class="sr-only">Quantity</label>
+									<label for="item-qty-{item.id}" class="sr-only">Hours</label>
 									<input
 										id="item-qty-{item.id}"
 										type="number"
 										min="0"
 										step="any"
-										placeholder="Qty"
+										placeholder="Hours"
 										bind:value={item.quantity}
 										class="w-20 px-3 py-2 rounded-lg border text-sm text-right"
 										style="background: var(--color-background); color: var(--color-foreground); border-color: var(--color-border)"
 									/>
 								</div>
 								<div>
-									<label for="item-price-{item.id}" class="sr-only">Unit price</label>
+									<label for="item-price-{item.id}" class="sr-only">Rate</label>
 									<input
 										id="item-price-{item.id}"
 										type="number"
 										min="0"
 										step="any"
-										placeholder="Price"
+										placeholder="Rate"
 										bind:value={item.unit_price}
 										class="w-28 px-3 py-2 rounded-lg border text-sm text-right"
 										style="background: var(--color-background); color: var(--color-foreground); border-color: var(--color-border)"
