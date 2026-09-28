@@ -44,9 +44,9 @@ export interface SmtpSettings {
 	/** Admin-supplied CSS appended after all app styles (escape hatch for full rebrands). */
 	brand_custom_css?: string;
 	default_currency?: string;
-	/** Subject line template. Supports {invoice_number}, {client_name}, {company_name}. */
+	/** Subject line template. Supports {invoice_number}, {subject}, {subject_suffix}, {client_name}, {company_name}. */
 	email_subject?: string;
-	/** Body template. Supports {invoice_number}, {client_name}, {total}, {due_date}, {issue_date}, {company_name}. */
+	/** Body template. Supports {invoice_number}, {subject}, {client_name}, {total}, {due_date}, {issue_date}, {company_name}. */
 	email_body?: string;
 	/** scrypt hash of the app password. Empty = no auth required. */
 	app_password_hash?: string;
@@ -106,6 +106,21 @@ function fmtDate(d: string): string {
 }
 
 /** Build OKLCH-based color palette from a hue value (0–360). */
+function escapeHtml(s: string): string {
+	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** Labelled subject row for the invoice/estimate PDF; empty when there is no subject. */
+function subjectBlock(subject: string | undefined, lbl: string, c: ReturnType<typeof palette>): string {
+	const text = subject?.trim();
+	if (!text) return '';
+	return `<!-- Subject -->
+    <div style="margin-bottom:28px;">
+      <p style="${lbl}">Subject</p>
+      <p style="font-size:14px;font-weight:600;color:${c.fg};line-height:1.35;">${escapeHtml(text)}</p>
+    </div>`;
+}
+
 function palette(hue: number) {
 	const h = hue;
 	return {
@@ -253,6 +268,8 @@ export function buildInvoiceHtml(
 
   <!-- ═══ BODY ══════════════════════════════════════════════════════════ -->
   <div style="padding:36px 44px 0;">
+
+    ${subjectBlock(invoice.subject, lbl, c)}
 
     <!-- Billed-to + Due Date + Meta row -->
     <div style="display:flex;gap:36px;margin-bottom:40px;">
@@ -434,6 +451,7 @@ export function buildEstimateHtml(
   </div>
 
   <div style="padding:36px 44px 0;">
+    ${subjectBlock(estimate.subject, lbl, c)}
     <div style="display:flex;gap:36px;margin-bottom:40px;">
       <div style="flex:2;min-width:0;">
         <p style="${lbl}">Prepared For</p>
@@ -564,7 +582,7 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 /**
  * Default email templates used when none are configured in Settings.
  */
-export const DEFAULT_EMAIL_SUBJECT = 'Invoice {invoice_number}';
+export const DEFAULT_EMAIL_SUBJECT = 'Invoice {invoice_number}{subject_suffix}';
 export const DEFAULT_EMAIL_BODY =
 	`Hi {client_name},
 
@@ -572,13 +590,23 @@ Please find attached invoice {invoice_number} for {total}.
 
 {due_date_line}Thank you for your business.`;
 
-export const DEFAULT_ESTIMATE_EMAIL_SUBJECT = 'Estimate {estimate_number}';
+export const DEFAULT_ESTIMATE_EMAIL_SUBJECT = 'Estimate {estimate_number}{subject_suffix}';
 export const DEFAULT_ESTIMATE_EMAIL_BODY =
 	`Hi {client_name},
 
 Please find attached estimate {estimate_number} for {total}.
 
 {expiry_date_line}Thank you for the opportunity — please let us know if you have any questions.`;
+
+/**
+ * Template vars for an invoice's or estimate's optional subject. {subject_suffix} renders as
+ * " — <subject>" or nothing, so templates don't leave a dangling separator
+ * when the invoice has no subject (same idea as {due_date_line}).
+ */
+export function subjectVars(subject: string | undefined | null): { subject: string; subject_suffix: string } {
+	const s = subject?.trim() ?? '';
+	return { subject: s, subject_suffix: s ? ` — ${s}` : '' };
+}
 
 /**
  * Replace {placeholder} tokens in a template string.
@@ -671,6 +699,7 @@ export async function sendInvoiceEmail({
 	const companyName = smtp.company_name || smtp.smtp_from_name || '';
 	const vars: Record<string, string> = {
 		invoice_number: invoice.number,
+		...subjectVars(invoice.subject),
 		client_name: toName || (client?.name ?? ''),
 		total: fmtCurrency(total, currency),
 		due_date: fmtDate(invoice.due_date),
@@ -796,6 +825,7 @@ export async function sendEstimateEmail({
 	const companyName = smtp.company_name || smtp.smtp_from_name || '';
 	const vars: Record<string, string> = {
 		estimate_number: estimate.number,
+		...subjectVars(estimate.subject),
 		client_name: toName || (client?.name ?? ''),
 		total: fmtCurrency(total, currency),
 		expiry_date: fmtDate(estimate.expiry_date),

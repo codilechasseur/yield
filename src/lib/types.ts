@@ -33,6 +33,8 @@ export interface Invoice {
 	client: string;
 	expand?: { client?: Client };
 	number: string;
+	/** Optional one-line description, e.g. "Retainer for Acme — August 2026". */
+	subject?: string;
 	issue_date: string;
 	due_date: string;
 	payment_terms: PaymentTerms;
@@ -127,6 +129,8 @@ export interface Estimate {
 	client: string;
 	expand?: { client?: Client };
 	number: string;
+	/** Optional one-line description; copied to the invoice on conversion. */
+	subject?: string;
 	issue_date: string;
 	expiry_date: string;
 	status: EstimateStatus;

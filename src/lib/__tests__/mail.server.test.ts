@@ -8,8 +8,8 @@ vi.mock('$env/dynamic/private', () => ({ env: { PB_URL: 'http://pb.test:8090' } 
 vi.mock('nodemailer', () => ({ default: { createTransport: vi.fn() } }));
 vi.mock('puppeteer', () => ({ default: { launch: vi.fn() } }));
 
-import { buildLogoUrl, buildInvoiceHtml, getSmtpSettings, sendInvoiceEmail } from '../mail.server.js';
-import type { Invoice, InvoiceItem, Client } from '../types.js';
+import { buildLogoUrl, buildInvoiceHtml, buildEstimateHtml, DEFAULT_ESTIMATE_EMAIL_SUBJECT, getSmtpSettings, sendInvoiceEmail, subjectVars, interpolateEmailTemplate, DEFAULT_EMAIL_SUBJECT } from '../mail.server.js';
+import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem } from '../types.js';
 
 // ── Minimal fixtures ─────────────────────────────────────────────────────────
 
@@ -162,6 +162,73 @@ function makePb(items: Record<string, unknown>[]) {
 	} as unknown as import('pocketbase').default;
 }
 
+describe('buildInvoiceHtml subject rendering', () => {
+	it('renders the subject when set', () => {
+		const html = buildInvoiceHtml({ ...baseInvoice, subject: 'Retainer for Acme — August 2026' }, baseItems, baseClient);
+		expect(html).toContain('Retainer for Acme — August 2026');
+	});
+
+	it('omits the subject block when empty or whitespace', () => {
+		expect(buildInvoiceHtml({ ...baseInvoice, subject: '' }, baseItems, baseClient)).not.toContain('<!-- Subject -->');
+		expect(buildInvoiceHtml({ ...baseInvoice, subject: '   ' }, baseItems, baseClient)).not.toContain('<!-- Subject -->');
+		expect(buildInvoiceHtml(baseInvoice, baseItems, baseClient)).not.toContain('<!-- Subject -->');
+	});
+
+	it('escapes HTML in the subject', () => {
+		const html = buildInvoiceHtml({ ...baseInvoice, subject: '<b>R&D</b>' }, baseItems, baseClient);
+		expect(html).toContain('&lt;b&gt;R&amp;D&lt;/b&gt;');
+		expect(html).not.toContain('<b>R&D</b>');
+	});
+});
+
+describe('buildEstimateHtml subject rendering', () => {
+	const estimate: Estimate = {
+		id: 'est1', client: 'cli1', number: 'EST-001', issue_date: '2025-01-01', expiry_date: '2025-02-01',
+		status: 'draft', tax_percent: 0, notes: '', created: '', updated: ''
+	};
+	const items: EstimateItem[] = [
+		{ id: 'e1', estimate: 'est1', description: 'Design', quantity: 1, unit_price: 100, created: '', updated: '' }
+	];
+
+	it('renders the subject when set', () => {
+		expect(buildEstimateHtml({ ...estimate, subject: 'Phase 2' }, items, baseClient)).toContain('Phase 2');
+	});
+
+	it('omits the subject block when empty', () => {
+		expect(buildEstimateHtml(estimate, items, baseClient)).not.toContain('<!-- Subject -->');
+	});
+});
+
+// ── subjectVars ───────────────────────────────────────────────────────
+
+describe('subjectVars', () => {
+	it('returns the subject and an em-dash suffix when set', () => {
+		expect(subjectVars('August retainer')).toEqual({ subject: 'August retainer', subject_suffix: ' — August retainer' });
+	});
+
+	it('trims surrounding whitespace', () => {
+		expect(subjectVars('  August retainer  ').subject).toBe('August retainer');
+	});
+
+	it('returns empty strings for empty, whitespace, null and undefined', () => {
+		for (const v of ['', '   ', null, undefined]) {
+			expect(subjectVars(v)).toEqual({ subject: '', subject_suffix: '' });
+		}
+	});
+
+	it('produces a clean default email subject with and without a subject', () => {
+		const vars = (subject?: string) => ({ invoice_number: '654', ...subjectVars(subject) });
+		expect(interpolateEmailTemplate(DEFAULT_EMAIL_SUBJECT, vars('Retainer for August 2026'))).toBe('Invoice 654 — Retainer for August 2026');
+		expect(interpolateEmailTemplate(DEFAULT_EMAIL_SUBJECT, vars())).toBe('Invoice 654');
+	});
+
+	it('produces a clean default estimate email subject with and without a subject', () => {
+		const vars = (subject?: string) => ({ estimate_number: 'EST-9', ...subjectVars(subject) });
+		expect(interpolateEmailTemplate(DEFAULT_ESTIMATE_EMAIL_SUBJECT, vars('Phase 2'))).toBe('Estimate EST-9 — Phase 2');
+		expect(interpolateEmailTemplate(DEFAULT_ESTIMATE_EMAIL_SUBJECT, vars())).toBe('Estimate EST-9');
+	});
+});
+
 describe('getSmtpSettings', () => {
 	it('returns null when no settings record exists', async () => {
 		const result = await getSmtpSettings(makePb([]));
@@ -196,7 +263,7 @@ describe('getSmtpSettings', () => {
 
 // ── sendInvoiceEmail – recipient addressing ───────────────────────────────────
 
-function makeSendMailPb(settingsOverrides: Record<string, unknown> = {}) {
+function makeSendMailPb(settingsOverrides: Record<string, unknown> = {}, invoiceOverrides: Partial<Invoice> = {}) {
 	const smtpRecord = {
 		id: 'sett1',
 		smtp_host: 'smtp.example.com',
@@ -210,6 +277,7 @@ function makeSendMailPb(settingsOverrides: Record<string, unknown> = {}) {
 	};
 	const invoice = {
 		...baseInvoice,
+		...invoiceOverrides,
 		expand: { client: baseClient }
 	};
 	return {
@@ -295,6 +363,24 @@ describe('sendInvoiceEmail', () => {
 		const pb = makeSendMailPb();
 		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'Alice' });
 		expect(sendMailSpy.mock.calls[0][0].bcc).toBeUndefined();
+	});
+
+	it('includes the invoice subject in the default email subject', async () => {
+		const pb = makeSendMailPb({}, { subject: 'Retainer for August 2026' });
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'Alice' });
+		expect(sendMailSpy.mock.calls[0][0].subject).toBe('Invoice INV-001 — Retainer for August 2026');
+	});
+
+	it('uses a plain default email subject when the invoice has no subject', async () => {
+		const pb = makeSendMailPb();
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'Alice' });
+		expect(sendMailSpy.mock.calls[0][0].subject).toBe('Invoice INV-001');
+	});
+
+	it('supports {subject} in a custom subject template', async () => {
+		const pb = makeSendMailPb({ email_subject: '{subject} ({invoice_number})' }, { subject: 'August retainer' });
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'Alice' });
+		expect(sendMailSpy.mock.calls[0][0].subject).toBe('August retainer (INV-001)');
 	});
 
 	it('attaches a PDF with the correct filename', async () => {

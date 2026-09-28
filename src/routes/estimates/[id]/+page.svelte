@@ -279,6 +279,9 @@
 				<div class="flex items-start justify-between mb-6">
 					<div>
 						<p class="text-2xl font-bold" style="color: var(--color-foreground)">{estimate.number}</p>
+						{#if estimate.subject}
+							<p class="text-sm mt-1" style="color: var(--color-foreground)">{estimate.subject}</p>
+						{/if}
 						{#if estimate.expand?.client}
 							<p class="text-sm mt-1" style="color: var(--color-muted-foreground)">{estimate.expand.client.name}</p>
 						{/if}

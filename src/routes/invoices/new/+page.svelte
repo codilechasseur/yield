@@ -148,7 +148,15 @@
 					<label for="new-issue-date" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Issue Date</label>
 					<DatePicker id="new-issue-date" name="issue_date" bind:value={issueDateVal} />
 				</div>
+				<div class="sm:col-span-2">
+					<label for="new-subject" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Subject</label>
+					<input id="new-subject" name="subject" type="text" maxlength="200" placeholder="e.g. Retainer for Acme — August 2026"
+						class="w-full px-3 py-2 rounded-lg border text-sm"
+						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+					/>
+				</div>
 
+				<input type="hidden" name="suggested_number" value={data.suggestedInvoiceNumber} />
 				{#if showAdvanced}
 					<div>
 						<label for="inp-number" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Invoice Number</label>

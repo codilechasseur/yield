@@ -3,6 +3,8 @@ import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import type { Client } from '$lib/types.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
+import { pbErrorMessage } from '$lib/pocketbase.js';
+import { suggestNextNumber, advanceCounter, createWithAutoNumber } from '$lib/numbering.server.js';
 
 export async function load({ url }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -15,16 +17,7 @@ export async function load({ url }) {
 
 	const defaultTaxPercent = settings?.default_tax_percent ?? 5;
 
-	// Build suggested estimate number
-	const format = settings?.estimate_number_format?.trim() || 'EST-{number}';
-	const nextNum = settings?.estimate_next_number ?? null;
-	let suggestedEstimateNumber: string;
-	if (nextNum !== null && nextNum > 0) {
-		suggestedEstimateNumber = format.replace('{number}', String(nextNum));
-	} else {
-		const today = new Date().toISOString().split('T')[0];
-		suggestedEstimateNumber = `EST-${today.replace(/-/g, '')}-001`;
-	}
+	const suggestedEstimateNumber = await suggestNextNumber(pb, 'estimate', settings);
 
 	return { clients, preselectedClient, defaultTaxPercent, suggestedEstimateNumber };
 }
@@ -36,6 +29,7 @@ export const actions = {
 
 		const client = data.get('client')?.toString();
 		const number = data.get('number')?.toString().trim();
+		const subject = data.get('subject')?.toString().trim() ?? '';
 		const issue_date = data.get('issue_date')?.toString();
 		const expiry_date = data.get('expiry_date')?.toString();
 		const status = data.get('status')?.toString() || 'draft';
@@ -57,15 +51,14 @@ export const actions = {
 		try {
 			const settingsRecord = await getSmtpSettings(pb).catch(() => null);
 
-			const estimate = await pb.collection('estimates').create({
-				client,
-				number,
-				issue_date,
-				expiry_date,
-				status,
-				tax_percent,
-				notes
-			});
+			const fields = { client, subject, issue_date, expiry_date, status, tax_percent, notes };
+			const createEstimate = (n: string) => pb.collection('estimates').create({ ...fields, number: n });
+			// An accepted suggestion may have been taken since the form loaded — take
+			// the next free one. A number the user typed is used as-is.
+			const { record: estimate, number: usedNumber } =
+				number === data.get('suggested_number')?.toString()
+					? await createWithAutoNumber(pb, 'estimate', settingsRecord, number, createEstimate)
+					: { record: await createEstimate(number), number };
 			estimateId = estimate.id;
 
 			for (const item of items) {
@@ -84,19 +77,9 @@ export const actions = {
 				occurred_at: new Date().toISOString()
 			}).catch(() => { /* non-critical */ });
 
-			// Auto-increment estimate number in settings if user used the suggested number
-			if (settingsRecord?.id && settingsRecord.estimate_next_number) {
-				const fmt = settingsRecord.estimate_number_format?.trim() || 'EST-{number}';
-				const expectedNumber = fmt.replace('{number}', String(settingsRecord.estimate_next_number));
-				if (number === expectedNumber) {
-					await pb.collection('settings').update(settingsRecord.id, {
-						estimate_next_number: settingsRecord.estimate_next_number + 1
-					}).catch(() => { /* non-critical */ });
-				}
-			}
+			await advanceCounter(pb, 'estimate', settingsRecord, usedNumber);
 		} catch (e: unknown) {
-			const msg = e instanceof Error ? e.message : 'Failed to create estimate';
-			return fail(500, { error: msg });
+			return fail(500, { error: pbErrorMessage(e, 'Failed to create estimate') });
 		}
 
 		return redirect(302, `/estimates/${estimateId}`);

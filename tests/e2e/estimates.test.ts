@@ -8,6 +8,7 @@ import { test, expect } from '@playwright/test';
  */
 
 const CLIENT_NAME = `EstimateE2E-${Date.now()}`;
+const SUBJECT = `Website redesign — phase 2 (${Date.now()})`;
 let estimateUrl = '';
 
 test.describe('Estimates', () => {
@@ -102,11 +103,19 @@ test.describe('Estimates', () => {
 
 		await expect(page.getByRole('heading', { name: /Edit Estimate/i })).toBeVisible();
 
-		// Change tax percentage
+		// Change tax percentage and set a subject
 		await page.getByLabel(/Tax/i).fill('10');
+		await page.getByLabel('Subject').fill(SUBJECT);
 
 		await page.getByRole('button', { name: /Save Changes/i }).click();
 		await page.waitForURL(/\/estimates\/[^/]+$/);
+		await expect(page.getByText(SUBJECT)).toBeVisible();
+	});
+
+	test('estimates list shows the subject', async ({ page }) => {
+		await page.goto('/estimates');
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByRole('row').filter({ hasText: CLIENT_NAME }).getByText(SUBJECT)).toBeVisible();
 	});
 
 	test('estimates list shows created estimate', async ({ page }) => {
@@ -146,5 +155,7 @@ test.describe('Estimates', () => {
 		await page.waitForURL(/\/invoices\/[^/]+$/, { timeout: 20000 });
 		await expect(page).toHaveURL(/\/invoices\//);
 		await expect(page.getByText('Web design services')).toBeVisible({ timeout: 10000 });
+		// The subject carries over to the invoice
+		await expect(page.getByText(SUBJECT)).toBeVisible();
 	});
 });

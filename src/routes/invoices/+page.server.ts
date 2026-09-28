@@ -15,8 +15,10 @@ export async function load({ url }) {
 	const yearParam = parseInt(url.searchParams.get('year') || '0');
 	const monthParam = parseInt(url.searchParams.get('month') || '0'); // 1–12
 	const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
+	const q = url.searchParams.get('q')?.trim() || '';
 
 	const filters: string[] = [];
+	if (q) filters.push(pb.filter('(number ~ {:q} || subject ~ {:q} || client.name ~ {:q})', { q }));
 	if (status) filters.push(`status = "${status}"`);
 	if (clientId) filters.push(`client = "${clientId}"`);
 	if (yearParam) {
@@ -67,6 +69,7 @@ export async function load({ url }) {
 		clientFilter: clientId,
 		yearFilter: yearParam,
 		monthFilter: monthParam,
+		query: q,
 		page: 1,
 		totalPages: 1,
 		totalItems: 0
@@ -87,6 +90,7 @@ export async function load({ url }) {
 		clientFilter: clientId,
 		yearFilter: yearParam,
 		monthFilter: monthParam,
+		query: q,
 		page: invoicesResult.page,
 		totalPages: invoicesResult.totalPages,
 		totalItems: invoicesResult.totalItems

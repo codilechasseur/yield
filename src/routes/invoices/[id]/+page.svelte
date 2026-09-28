@@ -498,6 +498,9 @@
 				<div>
 					<h1 class="text-2xl font-bold" style="color: var(--color-primary)">INVOICE</h1>
 					<p class="text-lg font-semibold mt-1" style="color: var(--color-foreground)">{invoice.number}</p>
+					{#if invoice.subject}
+						<p class="text-sm mt-1" style="color: var(--color-muted-foreground)">{invoice.subject}</p>
+					{/if}
 				</div>
 				<span class="{STATUS_COLORS[displayStatus] ?? 'status-badge'}">{displayStatus === 'written_off' ? 'Written Off' : displayStatus.replace(/\b\w/g, c => c.toUpperCase())}</span>
 			</div>

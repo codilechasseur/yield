@@ -121,6 +121,13 @@
 							</select>
 						</div>
 						<QuickAddClient clients={data.clients} bind:selectedId={selectedClientId} inputId="est-client-quick" />
+						<div>
+							<label for="est-subject" class="block text-sm font-medium mb-1.5" style="color: var(--color-foreground)">Subject</label>
+							<input id="est-subject" name="subject" type="text" maxlength="200" placeholder="e.g. Website redesign — phase 2"
+								class="w-full px-3 py-2 rounded-lg border text-sm"
+								style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+							/>
+						</div>
 					</div>
 				</div>
 
@@ -288,6 +295,7 @@
 						</div>
 					{/if}
 				</div>
+				<input type="hidden" name="suggested_number" value={data.suggestedEstimateNumber} />
 				{#if !showAdvanced}
 					<input type="hidden" name="number" value={estimateNumber} />
 					<input type="hidden" name="tax_percent" value={taxPercent} />

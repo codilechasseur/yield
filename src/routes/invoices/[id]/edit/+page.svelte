@@ -49,7 +49,12 @@
 		paymentTerms === 'custom' ? customDueDate : (issueDateVal ? addDays(issueDateVal, TERMS_DAYS[paymentTerms] ?? 30) : '')
 	);
 
-	function addItem() { items = [...items, { id: nextId++, description: '', quantity: 1, unit_price: 0 }]; }
+	const selectedClient = $derived(data.clients.find((c) => c.id === selectedClientId) ?? null);
+
+	function addItem() {
+		const defaultRate = selectedClient?.default_hourly_rate ?? 0;
+		items = [...items, { id: nextId++, description: '', quantity: 1, unit_price: defaultRate }];
+	}
 	function removeItem(id: number) { if (items.length > 1) items = items.filter((i) => i.id !== id); }
 
 	const subtotal = $derived(items.reduce((s, i) => s + i.quantity * i.unit_price, 0));
@@ -98,6 +103,13 @@
 				<div>
 					<label for="edit-number" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Invoice Number *</label>
 					<input id="edit-number" name="number" required value={data.invoice.number} class="w-full px-3 py-2 rounded-lg border text-sm"
+						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+					/>
+				</div>
+				<div class="sm:col-span-2">
+					<label for="edit-subject" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">Subject</label>
+					<input id="edit-subject" name="subject" type="text" maxlength="200" value={data.invoice.subject ?? ''} placeholder="e.g. Retainer for Acme — August 2026"
+						class="w-full px-3 py-2 rounded-lg border text-sm"
 						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 					/>
 				</div>

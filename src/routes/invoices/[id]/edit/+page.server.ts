@@ -25,6 +25,7 @@ export const actions = {
 
 		const client = data.get('client')?.toString();
 		const number = data.get('number')?.toString().trim();
+		const subject = data.get('subject')?.toString().trim() ?? '';
 		const issue_date = data.get('issue_date')?.toString();
 		const due_date = data.get('due_date')?.toString();
 		const payment_terms = data.get('payment_terms')?.toString() || 'net_30';
@@ -40,7 +41,7 @@ export const actions = {
 		try { items = JSON.parse(itemsJson); } catch { return fail(400, { error: 'Invalid line items' }); }
 
 		try {
-			await pb.collection('invoices').update(params.id, { client, number, issue_date, due_date, payment_terms, status, tax_percent, notes });
+			await pb.collection('invoices').update(params.id, { client, number, subject, issue_date, due_date, payment_terms, status, tax_percent, notes });
 
 			// Delete existing items and recreate
 			const existing = await pb.collection('invoice_items').getFullList({ filter: `invoice = "${params.id}"` });

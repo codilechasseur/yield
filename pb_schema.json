@@ -153,6 +153,19 @@
       },
       {
         "hidden": false,
+        "id": "fld_inv_sub",
+        "max": 200,
+        "min": 0,
+        "name": "subject",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
         "id": "fld_inv_iss",
         "max": null,
         "min": null,

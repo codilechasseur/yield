@@ -2,7 +2,9 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import type { Estimate, EstimateItem, Client, EstimateLog, Contact } from '$lib/types.js';
-import { sendEstimateEmail, getSmtpSettings, interpolateEmailTemplate, DEFAULT_ESTIMATE_EMAIL_SUBJECT, DEFAULT_ESTIMATE_EMAIL_BODY } from '$lib/mail.server.js';
+import { sendEstimateEmail, getSmtpSettings, interpolateEmailTemplate, DEFAULT_ESTIMATE_EMAIL_SUBJECT, DEFAULT_ESTIMATE_EMAIL_BODY, subjectVars } from '$lib/mail.server.js';
+import { pbErrorMessage } from '$lib/pocketbase.js';
+import { suggestNextNumber, advanceCounter, createWithAutoNumber } from '$lib/numbering.server.js';
 
 export async function load({ params }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -40,6 +42,7 @@ export async function load({ params }) {
 
 		const vars: Record<string, string> = {
 			estimate_number: estimate.number,
+			...subjectVars(estimate.subject),
 			client_name: client?.name ?? '',
 			total: fmtCurrency(total),
 			expiry_date: fmtDate(estimate.expiry_date),
@@ -204,33 +207,24 @@ export const actions = {
 				getSmtpSettings(pb).catch(() => null)
 			]);
 
-			// Build invoice number
-			const format = settings?.invoice_number_format?.trim() || 'INV-{number}';
-			const nextNum = settings?.invoice_next_number ?? null;
-			let invoiceNumber: string;
-			if (nextNum !== null && nextNum > 0) {
-				invoiceNumber = format.replace('{number}', String(nextNum));
-			} else {
-				// Use a millisecond-resolution timestamp suffix to avoid collisions with
-				// the unique invoice-number index when no sequential counter is configured.
-				const today = new Date().toISOString().split('T')[0];
-				const suffix = Date.now().toString().slice(-6);
-				invoiceNumber = `INV-${today.replace(/-/g, '')}-${suffix}`;
-			}
 
 			const today = new Date().toISOString().split('T')[0];
 			const defaultDue = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
 
-			const invoice = await pb.collection('invoices').create({
-				client: estimate.client,
-				number: invoiceNumber,
-				issue_date: today,
-				due_date: defaultDue,
-				payment_terms: 'net_30',
-				status: 'draft',
-				tax_percent: estimate.tax_percent,
-				notes: estimate.notes
-			});
+			const { record: invoice, number: invoiceNumber } = await createWithAutoNumber(
+				pb, 'invoice', settings, await suggestNextNumber(pb, 'invoice', settings),
+				(number) => pb.collection('invoices').create({
+					client: estimate.client,
+					number,
+					subject: estimate.subject ?? '',
+					issue_date: today,
+					due_date: defaultDue,
+					payment_terms: 'net_30',
+					status: 'draft',
+					tax_percent: estimate.tax_percent,
+					notes: estimate.notes
+				})
+			);
 
 			for (const item of items) {
 				await pb.collection('invoice_items').create({
@@ -262,20 +256,11 @@ export const actions = {
 				occurred_at: new Date().toISOString()
 			}).catch(() => { /* non-critical */ });
 
-			// Auto-increment invoice number
-			if (settings?.id && settings.invoice_next_number) {
-				const fmt = settings.invoice_number_format?.trim() || 'INV-{number}';
-				const expectedNumber = fmt.replace('{number}', String(settings.invoice_next_number));
-				if (invoiceNumber === expectedNumber) {
-					await pb.collection('settings').update(settings.id, {
-						invoice_next_number: settings.invoice_next_number + 1
-					}).catch(() => { /* non-critical */ });
-				}
-			}
+			await advanceCounter(pb, 'invoice', settings, invoiceNumber);
 
 			newInvoiceId = invoice.id;
-		} catch {
-			return fail(500, { error: 'Failed to convert estimate to invoice' });
+		} catch (e: unknown) {
+			return fail(500, { error: pbErrorMessage(e, 'Failed to convert estimate to invoice') });
 		}
 
 		// Redirect outside the try/catch — SvelteKit's redirect() throws a control-flow

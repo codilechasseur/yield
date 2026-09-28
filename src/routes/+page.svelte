@@ -422,6 +422,9 @@
 							<a href="/invoices/{inv.id}" class="font-medium text-sm" style="color: var(--color-primary)">
 								{inv.number}
 							</a>
+							{#if inv.subject}
+								<p class="text-xs mt-0.5 max-w-xs truncate" style="color: var(--color-muted-foreground)" title={inv.subject}>{inv.subject}</p>
+							{/if}
 						</td>
 						<td class="px-6 py-4 text-sm" style="color: var(--color-foreground)">
 							{inv.expand?.client?.name ?? '—'}
@@ -472,6 +475,9 @@
 						<tr class="hover:bg-muted/30 transition-colors" style="border-bottom: 1px solid var(--color-border)">
 							<td class="px-6 py-4">
 								<a href="/estimates/{est.id}" class="font-medium text-sm" style="color: var(--color-primary)">{est.number}</a>
+								{#if est.subject}
+									<p class="text-xs mt-0.5 max-w-xs truncate" style="color: var(--color-muted-foreground)" title={est.subject}>{est.subject}</p>
+								{/if}
 							</td>
 							<td class="px-6 py-4 text-sm" style="color: var(--color-foreground)">{est.expand?.client?.name ?? '—'}</td>
 							<td class="px-6 py-4 text-sm" style="color: {isExpired ? 'var(--color-destructive)' : 'var(--color-muted-foreground)'}">
@@ -539,6 +545,9 @@
 								>
 									{inv.number}
 								</a>
+								{#if inv.subject}
+									<p class="text-xs mt-0.5 max-w-xs truncate" style="color: var(--color-muted-foreground)" title={inv.subject}>{inv.subject}</p>
+								{/if}
 							</td>
 							<td class="px-6 py-4 text-sm" style="color: var(--color-foreground)">
 								{inv.expand?.client?.name ?? '—'}

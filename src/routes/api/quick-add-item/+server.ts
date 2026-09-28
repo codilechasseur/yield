@@ -2,6 +2,8 @@ import { json } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import { getSmtpSettings } from '$lib/mail.server.js';
+import { suggestNextNumber, advanceCounter, createWithAutoNumber } from '$lib/numbering.server.js';
+import { pbErrorMessage } from '$lib/pocketbase.js';
 
 interface QuickAddBody {
 	/** ID of an existing draft invoice to append the item to. */
@@ -48,43 +50,25 @@ export async function POST({ request }) {
 	if (!targetInvoiceId && client_id) {
 		try {
 			const settings = await getSmtpSettings(pb).catch(() => null);
-			const format = settings?.invoice_number_format?.trim() || 'INV-{number}';
-			const nextNum = settings?.invoice_next_number ?? null;
 			const today = new Date().toISOString().split('T')[0];
 
-			let number: string;
-			if (nextNum !== null && nextNum > 0) {
-				number = format.replace('{number}', String(nextNum));
-			} else {
-				// Use a millisecond-resolution timestamp suffix to avoid collisions
-				// when no sequential counter is configured (e.g. clean test database).
-				const suffix = Date.now().toString().slice(-6);
-				number = `INV-${today.replace(/-/g, '')}-${suffix}`;
-			}
-
 			const dueDate = new Date(Date.now() + 30 * 86_400_000).toISOString().split('T')[0];
-			const invoice = await pb.collection('invoices').create({
-				client: client_id,
-				number,
-				issue_date: today,
-				due_date: dueDate,
-				payment_terms: 'net_30',
-				status: 'draft',
-				tax_percent: settings?.default_tax_percent ?? 0,
-				notes: ''
-			});
+			const { record: invoice, number } = await createWithAutoNumber(
+				pb, 'invoice', settings, await suggestNextNumber(pb, 'invoice', settings),
+				(n) => pb.collection('invoices').create({
+					client: client_id,
+					number: n,
+					issue_date: today,
+					due_date: dueDate,
+					payment_terms: 'net_30',
+					status: 'draft',
+					tax_percent: settings?.default_tax_percent ?? 0,
+					notes: ''
+				})
+			);
 			targetInvoiceId = invoice.id;
 
-			// Auto-increment the next invoice number in settings
-			if (settings?.id && settings.invoice_next_number) {
-				const expectedNumber = format.replace('{number}', String(settings.invoice_next_number));
-				if (number === expectedNumber) {
-					await pb
-						.collection('settings')
-						.update(settings.id, { invoice_next_number: settings.invoice_next_number + 1 })
-						.catch(() => { /* non-critical */ });
-				}
-			}
+			await advanceCounter(pb, 'invoice', settings, number);
 
 			await pb.collection('invoice_logs').create({
 				invoice: targetInvoiceId,
@@ -92,8 +76,8 @@ export async function POST({ request }) {
 				detail: 'Invoice created via Quick Add Item',
 				occurred_at: new Date().toISOString()
 			}).catch(() => { /* non-critical */ });
-		} catch {
-			return json({ error: 'Failed to create invoice' }, { status: 500 });
+		} catch (e: unknown) {
+			return json({ error: pbErrorMessage(e, 'Failed to create invoice') }, { status: 500 });
 		}
 	}
 

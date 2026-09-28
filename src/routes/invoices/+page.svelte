@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { FileText, Plus, Download, ChevronLeft, ChevronRight, X } from 'lucide-svelte';
+	import { FileText, Plus, Download, ChevronLeft, ChevronRight, X, Search } from 'lucide-svelte';
 	import { page as pageStore } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { STATUS_COLORS, formatCurrency } from '$lib/pocketbase.js';
@@ -48,7 +48,7 @@
 	const activeClients = $derived(data.clients.filter(c => !c.archived));
 	const archivedClients = $derived(data.clients.filter(c => c.archived));
 
-	const hasSecondaryFilters = $derived(!!(data.clientFilter || data.yearFilter));
+	const hasSecondaryFilters = $derived(!!(data.clientFilter || data.yearFilter || data.query));
 
 	// When year is cleared, also clear month
 	function navigateYear(year: string) {
@@ -73,6 +73,7 @@
 				{data.totalItems} invoice{data.totalItems !== 1 ? 's' : ''}
 				{data.statusFilter ? `· ${statusLabels[data.statusFilter] ?? data.statusFilter}` : ''}
 				{data.clientFilter ? `· ${data.clients.find(c => c.id === data.clientFilter)?.name ?? data.clientFilter}` : ''}
+				{data.query ? `· “${data.query}”` : ''}
 			{data.yearFilter ? `· ${data.yearFilter}${data.monthFilter ? ` / ${MONTH_NAMES[data.monthFilter - 1]}` : ''}` : ''}
 			</p>
 		</div>
@@ -119,8 +120,36 @@
 		</div>
 	</div>
 
-	<!-- Secondary filters: client + month -->
+	<!-- Secondary filters: search + client + month -->
 	<div class="mb-6 flex flex-wrap items-center gap-3">
+		<form method="GET" role="search" class="flex flex-col gap-1">
+			<label for="invoice-search" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Search</label>
+			<div class="flex">
+				<input
+					id="invoice-search"
+					name="q"
+					type="search"
+					value={data.query}
+					placeholder="Number, subject or client"
+					class="px-3 py-2 rounded-l-lg text-sm border min-w-56"
+					style="background: var(--color-card); color: var(--color-foreground); border-color: var(--color-border)"
+				/>
+				<button
+					type="submit"
+					aria-label="Search invoices"
+					class="px-3 rounded-r-lg border border-l-0 transition-colors hover:bg-muted"
+					style="background: var(--color-card); border-color: var(--color-border); color: var(--color-muted-foreground)"
+				>
+					<Search size={15} aria-hidden="true" />
+				</button>
+			</div>
+			<!-- Keep the other active filters when searching -->
+			{#if data.statusFilter}<input type="hidden" name="status" value={data.statusFilter} />{/if}
+			{#if data.clientFilter}<input type="hidden" name="client" value={data.clientFilter} />{/if}
+			{#if data.yearFilter}<input type="hidden" name="year" value={data.yearFilter} />{/if}
+			{#if data.monthFilter}<input type="hidden" name="month" value={data.monthFilter} />{/if}
+		</form>
+
 		<div class="flex flex-col gap-1">
 			<label for="invoice-client-filter" class="text-xs font-medium" style="color: var(--color-muted-foreground)">Client</label>
 			<select
@@ -182,7 +211,7 @@
 			<div class="flex flex-col gap-1">
 				<span class="text-xs" style="color: transparent">Clear</span>
 				<a
-					href={filterUrl({ client: '', year: '', month: '' })}
+					href={filterUrl({ client: '', year: '', month: '', q: '' })}
 					class="flex items-center gap-1 px-3 py-2 rounded-lg text-sm border transition-colors hover:bg-muted"
 					style="border-color: var(--color-border); color: var(--color-muted-foreground)"
 				>
@@ -198,7 +227,7 @@
 			<FileText size={40} class="mx-auto mb-4 opacity-20" style="color: var(--color-foreground)" />
 			<p class="font-medium" style="color: var(--color-foreground)">No invoices found</p>
 			<p class="text-sm mt-1" style="color: var(--color-muted-foreground)">
-				{data.statusFilter || data.clientFilter || data.yearFilter ? 'Try adjusting or clearing your filters.' : 'Create your first invoice to get started.'}
+				{data.statusFilter || data.clientFilter || data.yearFilter || data.query ? 'Try adjusting or clearing your filters.' : 'Create your first invoice to get started.'}
 			</p>
 		</div>
 	{:else}
@@ -218,6 +247,9 @@
 						<tr class="hover:bg-muted/20 transition-colors" style="border-bottom: 1px solid var(--color-border)">
 							<td class="px-6 py-3.5">
 								<a href="/invoices/{inv.id}" class="font-medium text-sm" style="color: var(--color-primary)">{inv.number}</a>
+								{#if inv.subject}
+									<p class="text-xs mt-0.5 max-w-xs truncate" style="color: var(--color-muted-foreground)" title={inv.subject}>{inv.subject}</p>
+								{/if}
 							</td>
 							<td class="px-6 py-3.5 text-sm" style="color: var(--color-foreground)">{inv.expand?.client?.name ?? '—'}</td>
 							<td class="px-6 py-3.5 text-sm" style="color: var(--color-muted-foreground)">{formatDate(inv.issue_date)}</td>

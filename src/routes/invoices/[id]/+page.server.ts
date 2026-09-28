@@ -2,7 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import type { Invoice, InvoiceItem, Client, InvoiceLog, Contact } from '$lib/types.js';
-import { sendInvoiceEmail, getSmtpSettings, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, interpolateEmailTemplate } from '$lib/mail.server.js';
+import { sendInvoiceEmail, getSmtpSettings, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, interpolateEmailTemplate, subjectVars } from '$lib/mail.server.js';
 
 export async function load({ params }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -41,6 +41,7 @@ export async function load({ params }) {
 
 		const vars: Record<string, string> = {
 			invoice_number: invoice.number,
+			...subjectVars(invoice.subject),
 			client_name: client?.name ?? '',
 			total: fmtCurrency(total),
 			due_date: fmtDate(invoice.due_date),

@@ -4,6 +4,7 @@ import { env } from '$env/dynamic/private';
 import type { InvoiceStatus, Backup } from '$lib/types.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
 import type { SmtpSettings } from '$lib/mail.server.js';
+import { advanceCounter } from '$lib/numbering.server.js';
 import { hashPassword, invalidatePasswordCache } from '$lib/auth.server.js';
 import { pushServerError } from '$lib/server-error-log.server.js';
 
@@ -173,7 +174,7 @@ export const actions = {
 		}
 		interface HarvestLineItem { description: string; quantity: number; unit_price: number; amount: number; }
 		interface HarvestInvoice {
-			id: number; number: string; client: { id: number }; state: string;
+			id: number; number: string; subject: string | null; client: { id: number }; state: string;
 			issue_date: string; due_date: string; tax: number; paid_amount: number;
 			notes: string; line_items: HarvestLineItem[];
 		}
@@ -339,7 +340,7 @@ export const actions = {
 			const pbClientId = clientIdMap.get(hi.client.id);
 			if (!pbClientId) { skipNoClient++; continue; }
 
-			let existing: { id: string; status: InvoiceStatus; paid_amount?: number } | null = null;
+			let existing: { id: string; status: InvoiceStatus; paid_amount?: number; subject?: string } | null = null;
 			try {
 				existing = await pb.collection('invoices').getFirstListItem(`number = "${hi.number}"`);
 			} catch { /* not found → create */ }
@@ -352,13 +353,16 @@ export const actions = {
 				const targetStatus =
 					existing.status === 'overdue' && mapped === 'sent' ? existing.status : mapped;
 				const targetPaid = hi.paid_amount ?? 0;
-				if (existing.status === targetStatus && (existing.paid_amount ?? 0) === targetPaid) {
+				// Backfill the subject from Harvest, but never overwrite one set locally.
+				const backfillSubject = !existing.subject && hi.subject ? hi.subject : '';
+				if (existing.status === targetStatus && (existing.paid_amount ?? 0) === targetPaid && !backfillSubject) {
 					skipDuplicate++;
 				} else {
 					try {
 						await pb.collection('invoices').update(existing.id, {
 							status: targetStatus,
-							paid_amount: targetPaid
+							paid_amount: targetPaid,
+							...(backfillSubject ? { subject: backfillSubject } : {})
 						});
 						invUpdated++;
 					} catch (e) {
@@ -373,6 +377,7 @@ export const actions = {
 				const invoice = await pb.collection('invoices').create({
 					client: pbClientId,
 					number: hi.number,
+					subject: hi.subject ?? '',
 					issue_date: hi.issue_date ?? '',
 					due_date: hi.due_date ?? '',
 					status: mapState(hi.state ?? ''),
@@ -396,6 +401,15 @@ export const actions = {
 				invFailed++;
 			}
 		}
+
+		// Move the invoice counter past any imported numbers that follow the
+		// configured format, so the next suggested number doesn't collide.
+		await advanceCounter(
+			pb,
+			'invoice',
+			await getSmtpSettings(pb).catch(() => null),
+			harvestInvoices.map((hi) => hi.number).filter(Boolean)
+		);
 
 		for (const msg of importErrors) {
 			pushServerError(msg, undefined, '/settings/system (harvestImport)');

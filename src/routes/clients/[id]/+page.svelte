@@ -391,6 +391,9 @@
 						<tr style="border-bottom: 1px solid var(--color-border)">
 							<td class="px-6 py-3">
 								<a href="/invoices/{inv.id}" class="text-sm font-medium" style="color: var(--color-primary)">{inv.number}</a>
+								{#if inv.subject}
+									<p class="text-xs mt-0.5 max-w-xs truncate" style="color: var(--color-muted-foreground)" title={inv.subject}>{inv.subject}</p>
+								{/if}
 							</td>
 							<td class="px-6 py-3 text-sm" style="color: var(--color-muted-foreground)">{inv.issue_date ? formatDate(inv.issue_date) : '—'}</td>
 							<td class="px-6 py-3 text-sm" style="color: var(--color-muted-foreground)">{inv.due_date ? formatDate(inv.due_date) : '—'}</td>

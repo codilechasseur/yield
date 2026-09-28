@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import type { Estimate, EstimateItem, Client } from '$lib/types.js';
+import { pbErrorMessage } from '$lib/pocketbase.js';
 
 export async function load({ params }) {
 	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
@@ -24,6 +25,7 @@ export const actions = {
 
 		const client = data.get('client')?.toString();
 		const number = data.get('number')?.toString().trim();
+		const subject = data.get('subject')?.toString().trim() ?? '';
 		const issue_date = data.get('issue_date')?.toString();
 		const expiry_date = data.get('expiry_date')?.toString();
 		const status = data.get('status')?.toString() || 'draft';
@@ -43,7 +45,7 @@ export const actions = {
 
 		try {
 			await pb.collection('estimates').update(params.id, {
-				client, number, issue_date, expiry_date, status, tax_percent, notes
+				client, number, subject, issue_date, expiry_date, status, tax_percent, notes
 			});
 
 			const existing = await pb.collection('estimate_items').getFullList({ filter: `estimate = "${params.id}"` });
@@ -65,8 +67,8 @@ export const actions = {
 					occurred_at: new Date().toISOString()
 				});
 			} catch { /* non-critical */ }
-		} catch {
-			return fail(500, { error: 'Failed to update estimate' });
+		} catch (e: unknown) {
+			return fail(500, { error: pbErrorMessage(e, 'Failed to update estimate') });
 		}
 
 		return redirect(302, `/estimates/${params.id}`);

@@ -185,6 +185,9 @@
 							>
 								<td class="px-4 py-3 font-medium" style="color: var(--color-foreground)">
 									{est.number}
+									{#if est.subject}
+										<span class="block text-xs font-normal mt-0.5 max-w-xs truncate" style="color: var(--color-muted-foreground)" title={est.subject}>{est.subject}</span>
+									{/if}
 									<span class="sm:hidden block text-xs mt-0.5" style="color: var(--color-muted-foreground)">
 										{est.expand?.client?.name ?? '—'}
 									</span>

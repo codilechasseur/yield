@@ -1188,7 +1188,8 @@
 			</div>
 			<p class="text-sm mb-1" style="color: var(--color-muted-foreground)">Boilerplate used when sending invoices. Leave blank to use the built-in defaults.</p>
 			<p class="text-xs mb-5" style="color: var(--color-muted-foreground)">
-				Placeholders: <code class="font-mono">{'{invoice_number}'}</code> <code class="font-mono">{'{client_name}'}</code> <code class="font-mono">{'{total}'}</code> <code class="font-mono">{'{due_date}'}</code> <code class="font-mono">{'{issue_date}'}</code> <code class="font-mono">{'{company_name}'}</code>
+				Placeholders: <code class="font-mono">{'{invoice_number}'}</code> <code class="font-mono">{'{subject}'}</code> <code class="font-mono">{'{subject_suffix}'}</code> <code class="font-mono">{'{client_name}'}</code> <code class="font-mono">{'{total}'}</code> <code class="font-mono">{'{due_date}'}</code> <code class="font-mono">{'{issue_date}'}</code> <code class="font-mono">{'{company_name}'}</code>
+				<br /><code class="font-mono">{'{subject_suffix}'}</code> adds “ — ” plus the invoice subject, or nothing when the invoice has none.
 			</p>
 			<form
 				method="POST"
