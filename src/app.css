@@ -194,6 +194,41 @@ thead th {
 	.status-expired    { background: oklch(0.24 0.008 280);        color: oklch(0.72 0.020 280);          }
 }
 
+/* ─── Rich text (line item descriptions) ──────────────────────────── */
+/* Restores list/emphasis styling that Tailwind's preflight removes. Output of $lib/rich-text.ts. */
+
+.rich-text ul,
+.rich-text ol {
+	padding-left: 1.25em;
+	margin: 0.25em 0;
+}
+.rich-text ul { list-style: disc; }
+.rich-text ol { list-style: decimal; }
+.rich-text ul ul { list-style: circle; }
+.rich-text ul ul ul { list-style: square; }
+.rich-text li > ul,
+.rich-text li > ol { margin: 0.1em 0; }
+.rich-text p { margin: 0.25em 0; }
+.rich-text b,
+.rich-text strong { font-weight: 600; }
+.rich-text em { font-style: italic; }
+.rich-text code {
+	font-family: ui-monospace, monospace;
+	font-size: 0.875em;
+	background: rgba(127, 127, 127, 0.15);
+	padding: 0.1em 0.3em;
+	border-radius: 3px;
+}
+.rich-text hr {
+	border: none;
+	border-top: 1px solid var(--color-border);
+	margin: 0.4em 0;
+}
+.rich-text blockquote {
+	border-left: 2px solid var(--color-border);
+	padding-left: 0.75em;
+}
+
 /* ─── Hue slider ──────────────────────────────────────────────────── */
 
 /* ─── Base interactivity ─────────────────────────────────────────── */

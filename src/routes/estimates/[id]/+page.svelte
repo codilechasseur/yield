@@ -6,6 +6,7 @@
 	import { addToast } from '$lib/toasts.svelte.js';
 	import RichTextarea from '$lib/components/RichTextarea.svelte';
 	import FormAlert from '$lib/components/FormAlert.svelte';
+	import { renderRichText } from '$lib/rich-text.js';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -325,7 +326,7 @@
 					<tbody>
 						{#each items as item}
 							<tr style="border-bottom: 1px solid var(--color-border)">
-								<td class="px-4 py-3 text-sm" style="color: var(--color-foreground)">{item.description || '—'}</td>
+								<td class="rich-text px-4 py-3 text-sm" style="color: var(--color-foreground)">{@html renderRichText(item.description) || '—'}</td>
 								<td class="px-4 py-3 text-sm text-right hidden sm:table-cell" style="color: var(--color-muted-foreground)">{item.quantity}</td>
 								<td class="px-4 py-3 text-sm text-right hidden sm:table-cell" style="color: var(--color-muted-foreground)">{fmt(item.unit_price)}</td>
 								<td class="px-4 py-3 text-sm text-right font-medium" style="color: var(--color-foreground)">{fmt(item.quantity * item.unit_price)}</td>

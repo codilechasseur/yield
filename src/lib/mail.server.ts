@@ -8,6 +8,7 @@ import puppeteer from 'puppeteer';
 import type PocketBase from 'pocketbase';
 import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem } from './types.js';
 import { getPreset } from './presets.js';
+import { renderRichText } from './rich-text.js';
 import { env } from '$env/dynamic/private';
 
 // ---------------------------------------------------------------------------
@@ -110,6 +111,14 @@ function escapeHtml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/** List/emphasis styles for rich-text item descriptions (the PDF template resets all margins/padding). */
+const RICH_TEXT_PDF_CSS = `.rich-text ul, .rich-text ol { padding-left: 18px; margin: 3px 0; }
+    .rich-text li > ul, .rich-text li > ol { margin: 1px 0; }
+    .rich-text p { margin: 3px 0; }
+    .rich-text code { font-family: ui-monospace, monospace; font-size: 0.9em; }
+    .rich-text hr { border: none; border-top: 1px solid #ddd; margin: 5px 0; }
+    .rich-text blockquote { border-left: 2px solid #ddd; padding-left: 8px; }`;
+
 /** Labelled subject row for the invoice/estimate PDF; empty when there is no subject. */
 function subjectBlock(subject: string | undefined, lbl: string, c: ReturnType<typeof palette>): string {
 	const text = subject?.trim();
@@ -187,7 +196,7 @@ export function buildInvoiceHtml(
 		const rowBg = idx % 2 === 1 ? `background:${c.muted};` : '';
 		return `
     <tr style="${rowBg}">
-      <td style="padding:12px 28px 12px 24px;font-size:13px;color:${c.fg};border-bottom:1px solid ${c.borderLight};">${i.description || '—'}</td>
+      <td style="padding:12px 28px 12px 24px;font-size:13px;color:${c.fg};border-bottom:1px solid ${c.borderLight};" class="rich-text">${renderRichText(i.description) || '—'}</td>
       <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${i.quantity}</td>
       <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${fmtCurrency(i.unit_price, currency)}</td>
       <td style="padding:12px 24px 12px 16px;font-size:13px;color:${c.fg};text-align:right;border-bottom:1px solid ${c.borderLight};font-weight:500;${rowBg}">${fmtCurrency(i.quantity * i.unit_price, currency)}</td>
@@ -243,6 +252,7 @@ export function buildInvoiceHtml(
     }
     @page { size: A4; margin: 0; }
     table { width: 100%; border-collapse: collapse; }
+    ${RICH_TEXT_PDF_CSS}
   </style>
 </head>
 <body>
@@ -386,7 +396,7 @@ export function buildEstimateHtml(
 		const rowBg = idx % 2 === 1 ? `background:${c.muted};` : '';
 		return `
     <tr style="${rowBg}">
-      <td style="padding:12px 28px 12px 24px;font-size:13px;color:${c.fg};border-bottom:1px solid ${c.borderLight};">${i.description || '—'}</td>
+      <td style="padding:12px 28px 12px 24px;font-size:13px;color:${c.fg};border-bottom:1px solid ${c.borderLight};" class="rich-text">${renderRichText(i.description) || '—'}</td>
       <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${i.quantity}</td>
       <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${fmtCurrency(i.unit_price, currency)}</td>
       <td style="padding:12px 24px 12px 16px;font-size:13px;color:${c.fg};text-align:right;border-bottom:1px solid ${c.borderLight};font-weight:500;${rowBg}">${fmtCurrency(i.quantity * i.unit_price, currency)}</td>
@@ -431,6 +441,7 @@ export function buildEstimateHtml(
     }
     @page { size: A4; margin: 0; }
     table { width: 100%; border-collapse: collapse; }
+    ${RICH_TEXT_PDF_CSS}
   </style>
 </head>
 <body>

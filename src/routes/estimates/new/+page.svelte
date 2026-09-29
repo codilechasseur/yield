@@ -139,12 +139,12 @@
 						{#each items as item (item.id)}
 							<div class="grid gap-2 items-start" style="grid-template-columns: 1fr auto auto auto">
 								<div>
-									<label for="item-desc-{item.id}" class="sr-only">Description</label>
-									<input
+									<RichTextarea
 										id="item-desc-{item.id}"
-										type="text"
-										placeholder="Description"
 										bind:value={item.description}
+										placeholder="Description"
+										rows={1}
+										aria-label="Description"
 										class="w-full px-3 py-2 rounded-lg border text-sm"
 										style="background: var(--color-background); color: var(--color-foreground); border-color: var(--color-border)"
 									/>

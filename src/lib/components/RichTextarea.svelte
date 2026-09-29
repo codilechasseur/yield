@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Bold, Italic, Code2, List, Minus } from 'lucide-svelte';
+	import { Bold, Italic, Code2, List, ListOrdered, Minus } from 'lucide-svelte';
+	import { renderRichText, sanitizeRichText, plainTextToRichText } from '$lib/rich-text.js';
 
 	let {
 		value = $bindable(''),
@@ -31,7 +32,7 @@
 		if (editor) {
 			const html = value ?? '';
 			if (editor.innerHTML !== html) {
-				editor.innerHTML = html.includes('<') ? html : html.replace(/\n/g, '<br>');
+				editor.innerHTML = renderRichText(html);
 			}
 		}
 	});
@@ -39,6 +40,44 @@
 	function syncValue() {
 		const html = editor.innerHTML;
 		value = html === '<br>' ? '' : html;
+	}
+
+	// Pasted content (e.g. from a chat app) arrives with inline styles, wrapper divs and
+	// backgrounds. Reduce it to the supported subset; plain text gets markdown lists.
+	function handlePaste(e: ClipboardEvent) {
+		const data = e.clipboardData;
+		if (!data) return;
+		const html = data.getData('text/html');
+		const clean = html ? sanitizeRichText(html) : plainTextToRichText(data.getData('text/plain'));
+		e.preventDefault();
+		if (clean) document.execCommand('insertHTML', false, clean);
+		syncValue();
+	}
+
+	// Typing "- ", "* " or "1. " at the start of a line starts a list.
+	function handleInput(e: Event) {
+		const ie = e as InputEvent;
+		if (ie.inputType === 'insertText' && ie.data === ' ') applyListShortcut();
+		syncValue();
+	}
+
+	function applyListShortcut() {
+		const sel = window.getSelection();
+		const node = sel?.anchorNode;
+		if (!sel?.isCollapsed || !node || node.nodeType !== Node.TEXT_NODE) return;
+		if (node.previousSibling && node.previousSibling.nodeName !== 'BR') return;
+		if (node.parentElement?.closest('li')) return;
+
+		const match = (node.textContent ?? '').slice(0, sel.anchorOffset).match(/^([-*]|1[.)])[\s\u00a0]$/);
+		if (!match) return;
+
+		const range = document.createRange();
+		range.setStart(node, 0);
+		range.setEnd(node, sel.anchorOffset);
+		sel.removeAllRanges();
+		sel.addRange(range);
+		document.execCommand('delete', false);
+		document.execCommand(match[1].startsWith('1') ? 'insertOrderedList' : 'insertUnorderedList', false);
 	}
 
 	function handleFocus() {
@@ -88,6 +127,7 @@
 		{ label: 'Italic',  icon: Italic, action: () => cmd('italic') },
 		{ label: 'Code',    icon: Code2,  action: applyCode },
 		{ label: 'List',    icon: List,   action: () => cmd('insertUnorderedList') },
+		{ label: 'Numbered list', icon: ListOrdered, action: () => cmd('insertOrderedList') },
 		{ label: 'Divider', icon: Minus,  action: applyHRule },
 	];
 
@@ -126,10 +166,11 @@
 		{id}
 		aria-label={ariaLabel}
 		data-placeholder={placeholder}
-		class="rich-editor {className}"
+		class="rich-editor rich-text {className}"
 		class:ce-focused={focused}
 		style="{style}; min-height: {minHeight};"
-		oninput={syncValue}
+		oninput={handleInput}
+		onpaste={handlePaste}
 		onfocus={handleFocus}
 		onblur={handleBlur}
 	></div>
@@ -207,30 +248,5 @@
 		opacity: 0.5;
 		pointer-events: none;
 		cursor: text;
-	}
-
-	.rich-editor :global(ul) {
-		list-style: disc;
-		padding-left: 1.25em;
-		margin: 0.25em 0;
-	}
-
-	.rich-editor :global(code) {
-		font-family: ui-monospace, monospace;
-		font-size: 0.875em;
-		background: rgba(127, 127, 127, 0.15);
-		padding: 0.1em 0.3em;
-		border-radius: 3px;
-	}
-
-	.rich-editor :global(hr) {
-		border: none;
-		border-top: 1px solid var(--color-border);
-		margin: 0.4em 0;
-	}
-
-	.rich-editor :global(b),
-	.rich-editor :global(strong) {
-		font-weight: 600;
 	}
 </style>
