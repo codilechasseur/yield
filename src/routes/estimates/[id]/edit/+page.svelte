@@ -129,19 +129,19 @@
 					<Plus size={15} /> Add Item
 				</button>
 			</div>
-			<div class="hidden sm:grid sm:gap-2 px-4 py-2 border-b"
-				style="border-color: var(--color-border); grid-template-columns: 1fr 6rem 8rem 7rem 2.5rem">
-				<span class="text-xs font-medium" style="color: var(--color-muted-foreground)">Description</span>
-				<span class="text-xs font-medium text-right" style="color: var(--color-muted-foreground)">Hours</span>
-				<span class="text-xs font-medium text-right" style="color: var(--color-muted-foreground)">Rate</span>
+			<div class="hidden sm:grid sm:gap-2 px-6 py-2 border-b"
+				style="border-color: var(--color-border); grid-template-columns: 1fr 4.5rem 5.5rem 7rem 2.5rem">
+				<span class="text-xs font-medium pl-[calc(0.5rem+1px)]" style="color: var(--color-muted-foreground)">Description</span>
+				<span class="text-xs font-medium text-right pr-[calc(0.5rem+1px)]" style="color: var(--color-muted-foreground)">Hours</span>
+				<span class="text-xs font-medium text-right pr-[calc(0.5rem+1px)]" style="color: var(--color-muted-foreground)">Rate</span>
 				<span class="text-xs font-medium text-right" style="color: var(--color-muted-foreground)">Amount</span>
 				<span></span>
 			</div>
 
 			<div class="divide-y divide-border">
 				{#each items as item (item.id)}
-					<div class="px-4 py-3 flex flex-col gap-2 sm:grid sm:gap-2 sm:items-start"
-						style="grid-template-columns: 1fr 6rem 8rem 7rem 2.5rem">
+					<div class="px-6 py-3 flex flex-col gap-2 sm:grid sm:gap-2 sm:items-start"
+						style="grid-template-columns: 1fr 4.5rem 5.5rem 7rem 2.5rem">
 						<div>
 							<span class="block text-xs font-medium mb-1 sm:hidden" style="color: var(--color-muted-foreground)">Description</span>
 							<RichTextarea bind:value={item.description} placeholder="Service description" rows={2} aria-label="Item description"
