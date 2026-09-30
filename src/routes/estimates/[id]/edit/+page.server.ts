@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Estimate, EstimateItem, Client } from '$lib/types.js';
 import { pbErrorMessage } from '$lib/pocketbase.js';
 import { getPb } from '$lib/pb.server.js';
+import { changedFields, lineItemsChanged, describeChanges, FIELD_LABELS } from '$lib/changes.js';
 
 export async function load({ params }) {
 	const pb = await getPb();
@@ -43,29 +44,42 @@ export const actions = {
 		}
 
 		try {
-			await pb.collection('estimates').update(params.id, {
-				client, number, subject, issue_date, expiry_date, status, tax_percent, notes
-			});
+			const fields = { client, number, subject, issue_date, expiry_date, status, tax_percent, notes };
+			const [current, existing] = await Promise.all([
+				pb.collection('estimates').getOne<Estimate>(params.id),
+				pb.collection('estimate_items').getFullList<EstimateItem>({ filter: pb.filter('estimate = {:id}', { id: params.id }), sort: 'created' })
+			]);
+			const changed = changedFields(current, fields, ['issue_date', 'expiry_date']);
+			const itemsChanged = lineItemsChanged(existing, items);
 
-			const existing = await pb.collection('estimate_items').getFullList({ filter: pb.filter('estimate = {:id}', { id: params.id }) });
-			await Promise.all(existing.map((i) => pb.collection('estimate_items').delete(i.id)));
-			for (const item of items) {
-				await pb.collection('estimate_items').create({
-					estimate: params.id,
-					description: item.description,
-					quantity: item.quantity,
-					unit_price: item.unit_price
-				});
+			if (changed.length) {
+				await pb.collection('estimates').update(params.id, fields);
 			}
 
-			try {
-				await pb.collection('estimate_logs').create({
-					estimate: params.id,
-					action: 'edited',
-					detail: 'Estimate details updated',
-					occurred_at: new Date().toISOString()
-				});
-			} catch { /* non-critical */ }
+			if (itemsChanged) {
+				await Promise.all(existing.map((i) => pb.collection('estimate_items').delete(i.id)));
+				for (const item of items) {
+					await pb.collection('estimate_items').create({
+						estimate: params.id,
+						description: item.description,
+						quantity: item.quantity,
+						unit_price: item.unit_price
+					});
+				}
+			}
+
+			const changes = changed.map((key) => FIELD_LABELS[key]);
+			if (itemsChanged) changes.push('line items');
+			if (changes.length) {
+				try {
+					await pb.collection('estimate_logs').create({
+						estimate: params.id,
+						action: 'edited',
+						detail: describeChanges(changes),
+						occurred_at: new Date().toISOString()
+					});
+				} catch { /* non-critical */ }
+			}
 		} catch (e: unknown) {
 			return fail(500, { error: pbErrorMessage(e, 'Failed to update estimate') });
 		}

@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Invoice, InvoiceItem, Client } from '$lib/types.js';
 import { pbErrorMessage } from '$lib/pocketbase.js';
 import { getPb } from '$lib/pb.server.js';
+import { changedFields, lineItemsChanged, describeChanges, FIELD_LABELS } from '$lib/changes.js';
 
 export async function load({ params }) {
 	const pb = await getPb();
@@ -40,24 +41,39 @@ export const actions = {
 		try { items = JSON.parse(itemsJson); } catch { return fail(400, { error: 'Invalid line items' }); }
 
 		try {
-			await pb.collection('invoices').update(params.id, { client, number, subject, issue_date, due_date, payment_terms, status, tax_percent, notes });
+			const fields = { client, number, subject, issue_date, due_date, payment_terms, status, tax_percent, notes };
+			const [current, existing] = await Promise.all([
+				pb.collection('invoices').getOne<Invoice>(params.id),
+				pb.collection('invoice_items').getFullList<InvoiceItem>({ filter: pb.filter('invoice = {:id}', { id: params.id }), sort: 'created' })
+			]);
+			const changed = changedFields(current, fields, ['issue_date', 'due_date']);
+			const itemsChanged = lineItemsChanged(existing, items);
 
-			// Delete existing items and recreate
-			const existing = await pb.collection('invoice_items').getFullList({ filter: pb.filter('invoice = {:id}', { id: params.id }) });
-			await Promise.all(existing.map((i) => pb.collection('invoice_items').delete(i.id)));
-			for (const item of items) {
-				await pb.collection('invoice_items').create({ invoice: params.id, description: item.description, quantity: item.quantity, unit_price: item.unit_price });
+			if (changed.length) {
+				await pb.collection('invoices').update(params.id, fields);
 			}
 
-			// Log the edit (non-critical)
-			try {
-				await pb.collection('invoice_logs').create({
-					invoice: params.id,
-					action: 'edited',
-					detail: 'Invoice details updated',
-					occurred_at: new Date().toISOString()
-				});
-			} catch { /* ignore */ }
+			if (itemsChanged) {
+				// Delete existing items and recreate
+				await Promise.all(existing.map((i) => pb.collection('invoice_items').delete(i.id)));
+				for (const item of items) {
+					await pb.collection('invoice_items').create({ invoice: params.id, description: item.description, quantity: item.quantity, unit_price: item.unit_price });
+				}
+			}
+
+			// Log the edit only when something actually changed (non-critical)
+			const changes = changed.map((key) => FIELD_LABELS[key]);
+			if (itemsChanged) changes.push('line items');
+			if (changes.length) {
+				try {
+					await pb.collection('invoice_logs').create({
+						invoice: params.id,
+						action: 'edited',
+						detail: describeChanges(changes),
+						occurred_at: new Date().toISOString()
+					});
+				} catch { /* ignore */ }
+			}
 		} catch (e: unknown) {
 			return fail(500, { error: pbErrorMessage(e, 'Failed to update invoice') });
 		}
