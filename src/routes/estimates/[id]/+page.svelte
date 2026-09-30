@@ -39,6 +39,8 @@
 	let sendMessage = $state('');
 	let sendSubmitting = $state(false);
 	let extraRecipients = $state('');
+	// Only used when the client has no contacts — the client's own email becomes a checkbox
+	let includeClientEmail = $state(true);
 	let showActionMenu = $state(false);
 	let showDeleteConfirm = $state(false);
 	let convertSubmitting = $state(false);
@@ -60,6 +62,7 @@
 	function openSend() {
 		if (!showSend) {
 			sendMessage = data.emailBody ?? '';
+			includeClientEmail = true;
 			selectedContactIds = new Set(
 				(data.contacts ?? []).filter((c) => c.email).map((c) => c.id)
 			);
@@ -382,7 +385,7 @@
 						};
 					}}>
 						<!-- Contacts -->
-						{#if data.contacts.length > 0}
+						{#if data.contacts.some((c) => c.email)}
 							<div class="mb-3">
 								<p class="text-xs font-medium mb-2" style="color: var(--color-muted-foreground)">Recipients</p>
 								<div class="space-y-1.5">
@@ -401,6 +404,15 @@
 									{/each}
 								</div>
 							</div>
+						{:else if estimate.expand?.client?.email}
+							<fieldset class="mb-3">
+								<legend class="text-xs font-medium mb-2" style="color: var(--color-muted-foreground)">Recipients</legend>
+								<label class="flex items-center gap-2 text-sm cursor-pointer">
+									<input type="checkbox" name="include_client_email" bind:checked={includeClientEmail} />
+									<span style="color: var(--color-foreground)">{estimate.expand.client.name}</span>
+									<span class="text-xs" style="color: var(--color-muted-foreground)">{estimate.expand.client.email}</span>
+								</label>
+							</fieldset>
 						{/if}
 
 						<div class="mb-3">

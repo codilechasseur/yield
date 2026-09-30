@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Invoice, InvoiceItem, Client, InvoiceLog, Contact } from '$lib/types.js';
 import { sendInvoiceEmail, getSmtpSettings, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY, interpolateEmailTemplate, subjectVars } from '$lib/mail.server.js';
+import { resolveRecipients } from '$lib/recipients.js';
 import { getPb } from '$lib/pb.server.js';
 
 export async function load({ params }) {
@@ -176,11 +177,7 @@ export const actions = {
 		const extraRecipientsRaw = fd.get('extra_recipients')?.toString().trim() || '';
 		const contactIdsRaw = fd.getAll('contact_ids').map((v) => v.toString()).filter(Boolean);
 
-		// Parse comma-separated extra recipients; accept only strings containing '@'
-		const extraEmails = extraRecipientsRaw
-			.split(',')
-			.map((e) => e.trim())
-			.filter((e) => e.includes('@'));
+		const includeClientEmail = fd.get('include_client_email') === 'on';
 
 		let clientEmail = '';
 		let clientId = '';
@@ -210,13 +207,12 @@ export const actions = {
 					if (email) contactEmails.push(email);
 				}
 			} catch {
-				// Non-critical — fall through to client.email fallback
+				return fail(500, { sendError: 'Could not load contacts. Nothing was sent.' });
 			}
 		}
 
-		// Build recipient list: contact emails (if any selected) + extra, else fall back to client.email
-		const primaryEmails = contactEmails.length > 0 ? contactEmails : (clientEmail ? [clientEmail] : []);
-		const allEmails = [...new Set([...primaryEmails, ...extraEmails])].filter(Boolean);
+		// Send only to what was explicitly selected — never fall back to client.email
+		const allEmails = resolveRecipients({ contactEmails, clientEmail, includeClientEmail, extraRaw: extraRecipientsRaw });
 
 		if (allEmails.length === 0) {
 			return fail(400, { sendError: 'No recipients specified. Add a contact with an email address or enter additional recipients below.' });

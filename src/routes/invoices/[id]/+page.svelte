@@ -45,6 +45,8 @@
 	let sendMessage = $state('');
 	let sendSubmitting = $state(false);
 	let extraRecipients = $state('');
+	// Only used when the client has no contacts — the client's own email becomes a checkbox
+	let includeClientEmail = $state(true);
 	let showActionMenu = $state(false);
 	let showDeleteConfirm = $state(false);
 
@@ -67,7 +69,7 @@
 	// Whether there is at least one sendable recipient (contact with email, or client.email, or extra)
 	const hasAnyRecipient = $derived(
 		selectedContactIds.size > 0 ||
-		!!invoice.expand?.client?.email ||
+		(includeClientEmail && !!invoice.expand?.client?.email) ||
 		extraRecipients.includes('@')
 	);
 
@@ -75,6 +77,7 @@
 	function openSend() {
 		if (!showSend) {
 			sendMessage = data.emailBody ?? '';
+			includeClientEmail = true;
 			// Reset selection to contacts with emails
 			selectedContactIds = new Set(
 				(data.contacts ?? []).filter((c) => c.email).map((c) => c.id)
@@ -395,7 +398,7 @@
 				}}
 			>
 				<!-- Contact recipient selection -->
-				{#if (data.contacts ?? []).length > 0}
+				{#if (data.contacts ?? []).some((c) => c.email)}
 					<fieldset>
 						<legend class="text-xs font-medium mb-2" style="color: var(--color-muted-foreground)">Recipients</legend>
 						<div class="space-y-1.5">
@@ -424,9 +427,16 @@
 						</div>
 					</fieldset>
 				{:else if invoice.expand?.client?.email}
-					<p class="text-xs" style="color: var(--color-muted-foreground)">
-						To: <strong>{invoice.expand.client.email}</strong>
-					</p>
+					<fieldset>
+						<legend class="text-xs font-medium mb-2" style="color: var(--color-muted-foreground)">Recipients</legend>
+						<label class="flex items-center gap-2.5 text-sm cursor-pointer select-none">
+							<input type="checkbox" name="include_client_email" bind:checked={includeClientEmail} class="rounded" />
+							<span style="color: var(--color-foreground)">
+								{invoice.expand.client.name}
+								<span class="font-mono text-xs" style="color: var(--color-muted-foreground)"> &lt;{invoice.expand.client.email}&gt;</span>
+							</span>
+						</label>
+					</fieldset>
 				{/if}
 
 				<div class="flex flex-col gap-1">

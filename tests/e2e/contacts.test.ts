@@ -161,5 +161,10 @@ test.describe('Client Contacts', () => {
 
 		// The contact email should appear as a recipient checkbox option
 		await expect(page.getByText('invoicereceiver@example.com')).toBeVisible({ timeout: 15000 });
+
+		// Unchecking every contact must not fall back to the client's email
+		await page.getByRole('checkbox', { name: /invoicereceiver@example\.com/ }).uncheck();
+		await page.getByRole('button', { name: /^Send$/ }).click();
+		await expect(page.getByText(/No recipients specified/)).toBeVisible({ timeout: 15000 });
 	});
 });

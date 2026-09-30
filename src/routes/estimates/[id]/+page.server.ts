@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Estimate, EstimateItem, Client, EstimateLog, Contact } from '$lib/types.js';
 import { sendEstimateEmail, getSmtpSettings, interpolateEmailTemplate, DEFAULT_ESTIMATE_EMAIL_SUBJECT, DEFAULT_ESTIMATE_EMAIL_BODY, subjectVars } from '$lib/mail.server.js';
+import { resolveRecipients } from '$lib/recipients.js';
 import { pbErrorMessage } from '$lib/pocketbase.js';
 import { suggestNextNumber, advanceCounter, createWithAutoNumber } from '$lib/numbering.server.js';
 import { getPb } from '$lib/pb.server.js';
@@ -121,10 +122,7 @@ export const actions = {
 		const extraRecipientsRaw = fd.get('extra_recipients')?.toString().trim() || '';
 		const contactIdsRaw = fd.getAll('contact_ids').map((v) => v.toString()).filter(Boolean);
 
-		const extraEmails = extraRecipientsRaw
-			.split(',')
-			.map((e) => e.trim())
-			.filter((e) => e.includes('@'));
+		const includeClientEmail = fd.get('include_client_email') === 'on';
 
 		let clientEmail = '';
 		let clientId = '';
@@ -152,11 +150,13 @@ export const actions = {
 					const email = contactMap.get(id);
 					if (email) contactEmails.push(email);
 				}
-			} catch { /* Non-critical */ }
+			} catch {
+				return fail(500, { sendError: 'Could not load contacts. Nothing was sent.' });
+			}
 		}
 
-		const primaryEmails = contactEmails.length > 0 ? contactEmails : (clientEmail ? [clientEmail] : []);
-		const allEmails = [...new Set([...primaryEmails, ...extraEmails])].filter(Boolean);
+		// Send only to what was explicitly selected — never fall back to client.email
+		const allEmails = resolveRecipients({ contactEmails, clientEmail, includeClientEmail, extraRaw: extraRecipientsRaw });
 
 		if (allEmails.length === 0) {
 			return fail(400, { sendError: 'No recipients specified. Add a contact with an email address or enter additional recipients below.' });
