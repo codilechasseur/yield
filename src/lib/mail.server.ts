@@ -137,6 +137,33 @@ export function emailBody(body: string): { text: string; html: string } {
 	return { text: richTextToPlainText(html), html };
 }
 
+/**
+ * Page box + pagination rules shared by the invoice/estimate PDFs. Continuation pages get a
+ * top margin (the first page runs edge-to-edge for the accent bar), the bottom margin holds
+ * the repeating page footer, and rows / the totals block / notes aren't split across pages.
+ */
+const PDF_PAGE_CSS = `@page { size: A4; margin: 12mm 0 11mm; }
+    @page :first { margin-top: 0; }
+    body { zoom: 0.92; }
+    table { width: 100%; border-collapse: collapse; }
+    tr, .pdf-keep { break-inside: avoid; }
+    .pdf-box { box-decoration-break: clone; -webkit-box-decoration-break: clone; }`;
+
+/**
+ * Repeating page footer, rendered by Chromium into each page's bottom margin (see
+ * `extractPdfFooter`). It's drawn in a separate context without the page's styles or web
+ * fonts, so everything is inline.
+ */
+function pdfFooterTemplate(companyName: string, number: string, c: ReturnType<typeof palette>): string {
+	const text = `font-size:10px;color:${c.subtleFg};font-weight:500;`;
+	return `<template id="pdf-footer">
+    <div style="position:absolute;left:0;right:0;bottom:0;height:9mm;display:flex;justify-content:space-between;align-items:center;padding:0 44px;background:${c.muted};border-top:1px solid ${c.border};font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+      <span style="${text}">${escapeHtml(companyName)}</span>
+      <span style="${text}">${escapeHtml(number)} · Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+    </div>
+  </template>`;
+}
+
 /** List/emphasis styles for rich-text item descriptions (the PDF template resets all margins/padding). */
 const RICH_TEXT_PDF_CSS = `.rich-text ul, .rich-text ol { padding-left: 18px; margin: 3px 0; }
     .rich-text li > ul, .rich-text li > ol { margin: 1px 0; }
@@ -150,7 +177,7 @@ function subjectBlock(subject: string | undefined, lbl: string, c: ReturnType<ty
 	const text = subject?.trim();
 	if (!text) return '';
 	return `<!-- Subject -->
-    <div style="margin-bottom:28px;">
+    <div style="margin-bottom:22px;">
       <p style="${lbl}">Subject</p>
       <p style="font-size:14px;font-weight:600;color:${c.fg};line-height:1.35;">${escapeHtml(text)}</p>
     </div>`;
@@ -276,8 +303,7 @@ export function buildInvoiceHtml(
       -webkit-font-smoothing: antialiased;
       font-synthesis: none;
     }
-    @page { size: A4; margin: 0; }
-    table { width: 100%; border-collapse: collapse; }
+    ${PDF_PAGE_CSS}
     ${RICH_TEXT_PDF_CSS}
   </style>
 </head>
@@ -287,7 +313,7 @@ export function buildInvoiceHtml(
   <div style="height:4px;background:${c.accent};"></div>
 
   <!-- ═══ HEADER ═══════════════════════════════════════════════════════ -->
-  <div style="padding:36px 44px 30px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid ${c.border};">
+  <div style="padding:32px 44px 26px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid ${c.border};">
     <!-- Company -->
     <div>
       ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)} logo" style="max-height:56px;max-width:180px;width:auto;height:auto;display:block;object-fit:contain;${hideCompanyName ? '' : 'margin-bottom:8px;'}" />` : ''}
@@ -303,12 +329,12 @@ export function buildInvoiceHtml(
   </div>
 
   <!-- ═══ BODY ══════════════════════════════════════════════════════════ -->
-  <div style="padding:36px 44px 0;">
+  <div style="padding:28px 44px 0;">
 
     ${subjectBlock(invoice.subject, lbl, c)}
 
     <!-- Billed-to + Due Date + Meta row -->
-    <div style="display:flex;gap:36px;margin-bottom:40px;">
+    <div style="display:flex;gap:36px;margin-bottom:30px;">
       <!-- Billed To -->
       <div style="flex:2;min-width:0;">
         <p style="${lbl}">Billed To</p>
@@ -330,9 +356,9 @@ export function buildInvoiceHtml(
     </div>
 
     <!-- ── Line items table ── -->
-    <div style="border:1px solid ${c.border};">
+    <div>
 
-      <table>
+      <table style="border:1px solid ${c.border};">
         <thead>
           <tr style="background:${c.muted};">
             <th style="padding:10px 24px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:left;border-bottom:1px solid ${c.border};">Description</th>
@@ -344,6 +370,7 @@ export function buildInvoiceHtml(
         <tbody>${itemRows}</tbody>
       </table>
 
+      <div class="pdf-keep" style="border:1px solid ${c.border};border-top:none;">
       <!-- Totals -->
       <div style="display:flex;justify-content:flex-end;background:${c.muted};">
         <div style="width:280px;padding:18px 24px 18px 20px;">
@@ -363,30 +390,28 @@ export function buildInvoiceHtml(
         <span style="font-size:10px;font-weight:600;color:${c.subtleFg};letter-spacing:0.12em;text-transform:uppercase;">${paidAmt > 0 && invoice.status !== 'paid' ? 'Balance Due' : 'Amount Due'}</span>
         <span style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;">${fmtCurrency(paidAmt > 0 && invoice.status !== 'paid' ? remaining : total, currency)}</span>
       </div>
+      </div>
 
     </div><!-- /table block -->
 
   </div><!-- /body pad -->
 
   <!-- ═══ NOTES / FOOTER ═══════════════════════════════════════════════ -->
-  <div style="padding:0 44px 100px;">
+  <div style="padding:0 44px;">
     ${invoice.notes || opts?.defaultNotes ? `
-    <div style="margin-top:28px;padding:16px 20px;border:1px solid ${c.borderLight};">
+    <div class="pdf-keep pdf-box" style="margin-top:24px;padding:16px 20px;border:1px solid ${c.borderLight};">
       <p style="${lbl}margin-bottom:6px;">Notes</p>
       <div style="font-size:12.5px;color:${c.mutedFg};line-height:1.7;">${renderMultilineText(invoice.notes || opts?.defaultNotes)}</div>
     </div>` : ''}
 
     ${opts?.invoiceFooter ? `
-    <div style="margin-top:${invoice.notes || opts?.defaultNotes ? '20px' : '28px'};padding-top:0;">
+    <div style="margin-top:${invoice.notes || opts?.defaultNotes ? '16px' : '24px'};padding-top:0;">
       <div style="font-size:10px;color:${c.subtleFg};line-height:1.75;">${renderMultilineText(opts.invoiceFooter)}</div>
     </div>` : ''}
   </div>
 
   <!-- ═══ PAGE FOOTER ══════════════════════════════════════════════════ -->
-  <div style="position:fixed;bottom:0;left:0;right:0;background:${c.muted};border-top:1px solid ${c.border};padding:10px 44px;display:flex;justify-content:space-between;align-items:center;">
-    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${escapeHtml(companyName)}</p>
-    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${escapeHtml(invoice.number)}</p>
-  </div>
+  ${pdfFooterTemplate(companyName, invoice.number, c)}
 
 </body>
 </html>`;
@@ -465,8 +490,7 @@ export function buildEstimateHtml(
       -webkit-font-smoothing: antialiased;
       font-synthesis: none;
     }
-    @page { size: A4; margin: 0; }
-    table { width: 100%; border-collapse: collapse; }
+    ${PDF_PAGE_CSS}
     ${RICH_TEXT_PDF_CSS}
   </style>
 </head>
@@ -474,7 +498,7 @@ export function buildEstimateHtml(
 
   <div style="height:4px;background:${c.accent};"></div>
 
-  <div style="padding:36px 44px 30px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid ${c.border};">
+  <div style="padding:32px 44px 26px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid ${c.border};">
     <div>
       ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)} logo" style="max-height:56px;max-width:180px;width:auto;height:auto;display:block;object-fit:contain;${hideCompanyName ? '' : 'margin-bottom:8px;'}" />` : ''}
       ${hideCompanyName ? '' : `<p style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;line-height:1.1;">${escapeHtml(companyName)}</p>`}
@@ -487,9 +511,9 @@ export function buildEstimateHtml(
     </div>
   </div>
 
-  <div style="padding:36px 44px 0;">
+  <div style="padding:28px 44px 0;">
     ${subjectBlock(estimate.subject, lbl, c)}
-    <div style="display:flex;gap:36px;margin-bottom:40px;">
+    <div style="display:flex;gap:36px;margin-bottom:30px;">
       <div style="flex:2;min-width:0;">
         <p style="${lbl}">Prepared For</p>
         ${client
@@ -507,8 +531,8 @@ export function buildEstimateHtml(
       </div>
     </div>
 
-    <div style="border:1px solid ${c.border};">
-      <table>
+    <div>
+      <table style="border:1px solid ${c.border};">
         <thead>
           <tr style="background:${c.muted};">
             <th style="padding:10px 24px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:${c.subtleFg};text-align:left;border-bottom:1px solid ${c.border};">Description</th>
@@ -520,6 +544,7 @@ export function buildEstimateHtml(
         <tbody>${itemRows}</tbody>
       </table>
 
+      <div class="pdf-keep" style="border:1px solid ${c.border};border-top:none;">
       <div style="display:flex;justify-content:flex-end;background:${c.muted};">
         <div style="width:280px;padding:18px 24px 18px 20px;">
           ${subtotalRow}
@@ -536,25 +561,23 @@ export function buildEstimateHtml(
         <span style="font-size:10px;font-weight:600;color:${c.subtleFg};letter-spacing:0.12em;text-transform:uppercase;">Estimate Total</span>
         <span style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;">${fmtCurrency(total, currency)}</span>
       </div>
+      </div>
     </div>
   </div>
 
-  <div style="padding:0 44px 100px;">
+  <div style="padding:0 44px;">
     ${estimate.notes || opts?.defaultNotes ? `
-    <div style="margin-top:28px;padding:16px 20px;border:1px solid ${c.borderLight};">
+    <div class="pdf-keep pdf-box" style="margin-top:24px;padding:16px 20px;border:1px solid ${c.borderLight};">
       <p style="${lbl}margin-bottom:6px;">Notes</p>
       <div style="font-size:12.5px;color:${c.mutedFg};line-height:1.7;">${renderMultilineText(estimate.notes || opts?.defaultNotes)}</div>
     </div>` : ''}
     ${opts?.estimateFooter ? `
-    <div style="margin-top:${estimate.notes || opts?.defaultNotes ? '20px' : '28px'};">
+    <div style="margin-top:${estimate.notes || opts?.defaultNotes ? '16px' : '24px'};">
       <div style="font-size:10px;color:${c.subtleFg};line-height:1.75;">${renderMultilineText(opts.estimateFooter)}</div>
     </div>` : ''}
   </div>
 
-  <div style="position:fixed;bottom:0;left:0;right:0;background:${c.muted};border-top:1px solid ${c.border};padding:10px 44px;display:flex;justify-content:space-between;align-items:center;">
-    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${escapeHtml(companyName)}</p>
-    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${escapeHtml(estimate.number)}</p>
-  </div>
+  ${pdfFooterTemplate(companyName, estimate.number, c)}
 
 </body>
 </html>`;

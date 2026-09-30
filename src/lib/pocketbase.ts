@@ -1,6 +1,8 @@
 // All PocketBase API calls are made server-side (in +page.server.ts / +server.ts).
 // This file only exports shared utilities used in both client and server code.
 
+import type { ChartPeriod } from './types.js';
+
 export function formatCurrency(amount: number, currency = 'USD'): string {
 	return new Intl.NumberFormat('en-US', {
 		style: 'currency',
@@ -19,6 +21,17 @@ export function calcTax(subtotal: number, taxPercent: number): number {
 
 export function calcTotal(subtotal: number, taxPercent: number): number {
 	return subtotal + calcTax(subtotal, taxPercent);
+}
+
+/** Invoiced / paid / draft totals across chart periods, plus what's still outstanding. */
+export function sumChartPeriods(periods: ChartPeriod[]): Omit<ChartPeriod, 'period'> & { outstanding: number } {
+	const t = { invoiced: 0, paid: 0, draft: 0 };
+	for (const p of periods) {
+		t.invoiced += p.invoiced;
+		t.paid += p.paid;
+		t.draft += p.draft;
+	}
+	return { ...t, outstanding: t.invoiced - t.paid };
 }
 
 export const STATUS_COLORS: Record<string, string> = {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcSubtotal, calcTax, calcTotal, formatCurrency, pbErrorMessage } from '../pocketbase.js';
+import { calcSubtotal, calcTax, calcTotal, formatCurrency, pbErrorMessage, sumChartPeriods } from '../pocketbase.js';
 
 // ── calcSubtotal ─────────────────────────────────────────────────────────────
 
@@ -79,6 +79,27 @@ describe('calcTotal', () => {
 });
 
 // ── formatCurrency ───────────────────────────────────────────────────────────
+
+describe('sumChartPeriods', () => {
+	it('sums invoiced, paid and draft, and derives outstanding', () => {
+		const t = sumChartPeriods([
+			{ period: '2026-01', invoiced: 1000, paid: 1000, draft: 0 },
+			{ period: '2026-02', invoiced: 500, paid: 200, draft: 0 },
+			{ period: '2026-03', invoiced: 0, paid: 0, draft: 300 }
+		]);
+		expect(t).toEqual({ invoiced: 1500, paid: 1200, draft: 300, outstanding: 300 });
+	});
+
+	it('returns zeros for an empty list', () => {
+		expect(sumChartPeriods([])).toEqual({ invoiced: 0, paid: 0, draft: 0, outstanding: 0 });
+	});
+
+	it('handles a single all-zero period', () => {
+		expect(sumChartPeriods([{ period: '2026', invoiced: 0, paid: 0, draft: 0 }])).toEqual({
+			invoiced: 0, paid: 0, draft: 0, outstanding: 0
+		});
+	});
+});
 
 describe('formatCurrency', () => {
 	it('formats a whole USD amount with dollar sign and commas', () => {

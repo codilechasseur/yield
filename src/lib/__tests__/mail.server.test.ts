@@ -11,6 +11,7 @@ vi.mock('puppeteer', () => ({ default: { launch: vi.fn() } }));
 
 import { buildLogoUrl, buildInvoiceHtml, buildEstimateHtml, DEFAULT_ESTIMATE_EMAIL_SUBJECT, getSmtpSettings, sendInvoiceEmail, subjectVars, interpolateEmailTemplate, DEFAULT_EMAIL_SUBJECT, fromAddress, emailBodyHtml, emailBody } from '../mail.server.js';
 import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem } from '../types.js';
+import { extractPdfFooter } from '../pdf.server.js';
 
 // ── Minimal fixtures ─────────────────────────────────────────────────────────
 
@@ -152,6 +153,43 @@ describe('buildInvoiceHtml logo rendering', () => {
 		});
 		// Footer always shows company name
 		expect(html).toContain('ACME Ltd');
+	});
+});
+
+describe('invoice/estimate PDF pagination', () => {
+	const estimate: Estimate = {
+		id: 'est1', client: 'cli1', number: 'EST-001', issue_date: '2025-01-01', expiry_date: '2025-02-01',
+		status: 'draft', tax_percent: 0, notes: '', created: '', updated: ''
+	};
+	const estimateItems: EstimateItem[] = [
+		{ id: 'e1', estimate: 'est1', description: 'Design', quantity: 1, unit_price: 100, created: '', updated: '' }
+	];
+
+	it.each([
+		['invoice', () => buildInvoiceHtml(baseInvoice, baseItems, baseClient, { companyName: 'Acme' }), 'INV-001'],
+		['estimate', () => buildEstimateHtml(estimate, estimateItems, baseClient, { companyName: 'Acme' }), 'EST-001']
+	])('%s reserves page margins and keeps rows and totals whole', (_, build, number) => {
+		const html = build();
+		expect(html).toContain('@page { size: A4; margin: 12mm 0 11mm; }');
+		expect(html).toContain('@page :first { margin-top: 0; }');
+		expect(html).toContain('tr, .pdf-keep { break-inside: avoid; }');
+		expect(html).toContain('<div class="pdf-keep"');
+		// The old in-flow fixed footer overlapped content on every page but the last.
+		expect(html).not.toContain('position:fixed');
+
+		const footer = extractPdfFooter(html);
+		expect(footer).toContain('Acme');
+		expect(footer).toContain(number);
+		expect(footer).toContain('<span class="pageNumber"></span> of <span class="totalPages"></span>');
+	});
+
+	it('escapes the company name and number in the page footer', () => {
+		const html = buildInvoiceHtml({ ...baseInvoice, number: '1</template><b>x' }, baseItems, baseClient, {
+			companyName: 'A&B <i>Co</i>'
+		});
+		const footer = extractPdfFooter(html)!;
+		expect(footer).toContain('A&amp;B &lt;i&gt;Co&lt;/i&gt;');
+		expect(footer).toContain('1&lt;/template&gt;&lt;b&gt;x');
 	});
 });
 

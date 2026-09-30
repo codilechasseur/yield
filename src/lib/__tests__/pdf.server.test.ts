@@ -3,7 +3,7 @@ import puppeteer from 'puppeteer';
 
 vi.mock('puppeteer', () => ({ default: { launch: vi.fn() } }));
 
-import { htmlToPdf, isAllowedPdfRequest } from '../pdf.server.js';
+import { extractPdfFooter, htmlToPdf, isAllowedPdfRequest } from '../pdf.server.js';
 
 describe('isAllowedPdfRequest', () => {
 	it('allows data: URLs', () => {
@@ -36,6 +36,23 @@ describe('isAllowedPdfRequest', () => {
 	it('blocks unparseable URLs', () => {
 		expect(isAllowedPdfRequest('not a url')).toBe(false);
 		expect(isAllowedPdfRequest('')).toBe(false);
+	});
+});
+
+describe('extractPdfFooter', () => {
+	it('returns the trimmed contents of the pdf-footer template', () => {
+		const html = '<body><p>Hi</p><template id="pdf-footer">\n  <div>Acme · <span class="pageNumber"></span></div>\n</template></body>';
+		expect(extractPdfFooter(html)).toBe('<div>Acme · <span class="pageNumber"></span></div>');
+	});
+
+	it('returns undefined when there is no footer template', () => {
+		expect(extractPdfFooter('<p>Hi</p>')).toBeUndefined();
+		expect(extractPdfFooter('')).toBeUndefined();
+		expect(extractPdfFooter('<template id="other">x</template>')).toBeUndefined();
+	});
+
+	it('returns undefined for an empty footer template', () => {
+		expect(extractPdfFooter('<template id="pdf-footer">  </template>')).toBeUndefined();
 	});
 });
 
@@ -95,6 +112,17 @@ describe('htmlToPdf', () => {
 		const margin = { top: '0', right: '0', bottom: '0', left: '0' };
 		await htmlToPdf('<p/>', { margin });
 		expect(page.pdf).toHaveBeenLastCalledWith({ format: 'A4', printBackground: true, margin });
+	});
+
+	it('renders a pdf-footer template as the repeating page footer', async () => {
+		await htmlToPdf('<p>Hi</p><template id="pdf-footer"><div>Foot</div></template>');
+		expect(page.pdf).toHaveBeenLastCalledWith({
+			format: 'A4',
+			printBackground: true,
+			displayHeaderFooter: true,
+			headerTemplate: '<span></span>',
+			footerTemplate: '<div>Foot</div>'
+		});
 	});
 
 	it('closes the browser when rendering fails', async () => {

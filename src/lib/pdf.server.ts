@@ -19,8 +19,18 @@ export function isAllowedPdfRequest(url: string, allowedUrls: readonly string[] 
 }
 
 /**
+ * Pulls the page-footer markup out of a document's `<template id="pdf-footer">`. Chromium
+ * draws it in every page's bottom margin (which the document's `@page` rule must reserve);
+ * `pageNumber` / `totalPages` spans inside it are filled in per page.
+ */
+export function extractPdfFooter(html: string): string | undefined {
+	return html.match(/<template id="pdf-footer">([\s\S]*?)<\/template>/)?.[1].trim() || undefined;
+}
+
+/**
  * Renders a self-contained HTML document to an A4 PDF. JavaScript is disabled
  * and network requests are limited to fonts plus `allowedUrls` (e.g. the logo).
+ * A `<template id="pdf-footer">` in the document becomes the repeating page footer.
  */
 export async function htmlToPdf(
 	html: string,
@@ -45,9 +55,11 @@ export async function htmlToPdf(
 		});
 		await page.setContent(html, { waitUntil: 'load' });
 		await page.waitForNetworkIdle();
+		const footer = extractPdfFooter(html);
 		const raw = await page.pdf({
 			format: 'A4',
 			printBackground: true,
+			...(footer ? { displayHeaderFooter: true, headerTemplate: '<span></span>', footerTemplate: footer } : {}),
 			...(opts.margin ? { margin: opts.margin } : {})
 		});
 		return Buffer.from(raw);

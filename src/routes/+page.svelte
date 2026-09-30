@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { DollarSign, AlertCircle, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
-	import { STATUS_COLORS, formatCurrency } from '$lib/pocketbase.js';
+	import { STATUS_COLORS, formatCurrency, sumChartPeriods } from '$lib/pocketbase.js';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
@@ -89,6 +89,10 @@
 					return monthLookup.get(key) ?? { period: key, invoiced: 0, paid: 0, draft: 0 };
 				})
 	);
+
+	// Totals for whatever the chart is showing: the selected year, or all time in year view
+	const periodTotals = $derived(sumChartPeriods(visibleData));
+	const totalsLabel = $derived(viewMode === 'month' ? String(monthViewYear) : 'All time');
 </script>
 
 <svelte:head>
@@ -227,6 +231,21 @@
 					</div>
 				</div>
 			</div>
+
+			<!-- Period totals -->
+			<dl class="px-6 pt-4 flex flex-wrap gap-x-8 gap-y-3">
+				{#each [
+					{ label: `Paid — ${totalsLabel}`, value: periodTotals.paid, show: true },
+					{ label: 'Invoiced', value: periodTotals.invoiced, show: true },
+					{ label: 'Outstanding', value: periodTotals.outstanding, show: true },
+					{ label: 'Draft', value: periodTotals.draft, show: periodTotals.draft > 0 }
+				].filter((t) => t.show) as t}
+					<div>
+						<dt class="text-[10px] sm:text-[11px] font-semibold tracking-wide uppercase" style="color: var(--color-muted-foreground)">{t.label}</dt>
+						<dd class="mt-0.5 text-base sm:text-lg font-semibold tabular-nums" style="color: var(--color-foreground)">{formatCurrency(t.value)}</dd>
+					</div>
+				{/each}
+			</dl>
 
 			<div class="px-4 py-5">
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
