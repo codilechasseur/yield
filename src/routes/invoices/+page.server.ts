@@ -1,14 +1,13 @@
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import { calcSubtotal, calcTotal } from '$lib/pocketbase.js';
 import type { Invoice, InvoiceItem, Client } from '$lib/types.js';
+import { getPb } from '$lib/pb.server.js';
 
 const PER_PAGE = 25;
 
 type InvoiceExpand = { client?: Client; invoice_items_via_invoice?: InvoiceItem[] };
 
 export async function load({ url }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 
 	const status = url.searchParams.get('status') || '';
 	const clientId = url.searchParams.get('client') || '';

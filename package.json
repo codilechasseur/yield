@@ -22,7 +22,7 @@
 	"dependencies": {
 		"@types/nodemailer": "^8.0.1",
 		"lucide-svelte": "^1.0.1",
-		"nodemailer": "^9.0.3",
+		"nodemailer": "^10.0.12",
 		"pocketbase": "^0.27.1",
 		"puppeteer": "^25.4.0"
 	},
@@ -32,7 +32,7 @@
 		"@sveltejs/kit": "^2.55.0",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
 		"@tailwindcss/vite": "^4.2.2",
-		"@vitest/coverage-v8": "^4.1.0",
+		"@vitest/coverage-v8": "^5.0.2",
 		"bits-ui": "^2.16.3",
 		"clsx": "^2.1.1",
 		"svelte": "^5.54.0",
@@ -42,6 +42,6 @@
 		"tailwindcss": "^4.2.2",
 		"typescript": "^6.0.3",
 		"vite": "^8.2.0",
-		"vitest": "^4.1.0"
+		"vitest": "^5.0.2"
 	}
 }

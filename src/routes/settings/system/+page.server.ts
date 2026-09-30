@@ -1,25 +1,25 @@
 import { fail } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
+import type PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/private';
 import type { InvoiceStatus, Backup } from '$lib/types.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
 import type { SmtpSettings } from '$lib/mail.server.js';
 import { advanceCounter } from '$lib/numbering.server.js';
-import { hashPassword, invalidatePasswordCache } from '$lib/auth.server.js';
+import {
+	SESSION_COOKIE,
+	sessionCookieOptions,
+	createSession,
+	destroyAllSessions,
+	hashPassword,
+	invalidatePasswordCache,
+	readPasswordHash,
+	verifyPassword
+} from '$lib/auth.server.js';
 import { pushServerError } from '$lib/server-error-log.server.js';
-
-/** Authenticate as PocketBase superuser (required for backup operations). */
-async function getAdminPb(): Promise<PocketBase> {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
-	const email = env.PB_ADMIN_EMAIL;
-	const password = env.PB_ADMIN_PASSWORD;
-	if (!email || !password) throw new Error('PB_ADMIN_EMAIL / PB_ADMIN_PASSWORD are not set');
-	await pb.collection('_superusers').authWithPassword(email, password);
-	return pb;
-}
+import { getPb, pbUrl } from '$lib/pb.server.js';
 
 export async function load() {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	const smtp = await getSmtpSettings(pb);
 	const hasPassword = Boolean(smtp?.app_password_hash);
 
@@ -33,7 +33,7 @@ export async function load() {
 	let backupsError: string | null = null;
 	let backupsMissingCreds = false;
 	try {
-		const adminPb = await getAdminPb();
+		const adminPb = await getPb();
 		const raw = await adminPb.backups.getFullList();
 		backups = raw
 			.map((b) => ({ key: b.key, size: b.size, modified: b.modified }))
@@ -52,7 +52,7 @@ export async function load() {
 
 export const actions = {
 	saveSmtp: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 
 		const data: Omit<SmtpSettings, 'id'> = {
@@ -82,7 +82,7 @@ export const actions = {
 	},
 
 	testSmtp: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const testTo = fd.get('test_to')?.toString().trim();
 
@@ -118,9 +118,9 @@ export const actions = {
 		return { testSuccess: true };
 	},
 
-	setPassword: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	setPassword: async ({ request, cookies, url }) => {
 		const fd = await request.formData();
+		const current = fd.get('current_password')?.toString() ?? '';
 		const password = fd.get('password')?.toString() ?? '';
 
 		if (password.length < 8) {
@@ -128,6 +128,11 @@ export const actions = {
 		}
 
 		try {
+			const pb = await getPb();
+			const existingHash = await readPasswordHash(pb);
+			if (existingHash && !(await verifyPassword(current, existingHash))) {
+				return fail(403, { passwordError: 'Current password is incorrect.' });
+			}
 			const hash = await hashPassword(password);
 			const existing = await getSmtpSettings(pb);
 			if (existing?.id) {
@@ -137,26 +142,15 @@ export const actions = {
 			}
 			invalidatePasswordCache();
 		} catch (e) {
-			return fail(500, { passwordError: 'Failed to save password: ' + (e as Error).message });
+			pushServerError('Failed to save password', (e as Error)?.stack, url.pathname);
+			return fail(500, { passwordError: 'Failed to save password.' });
 		}
+
+		// Sign out every other session, and keep this browser signed in.
+		destroyAllSessions();
+		cookies.set(SESSION_COOKIE, createSession(), sessionCookieOptions(url));
 
 		return { passwordSuccess: true };
-	},
-
-	removePassword: async () => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
-
-		try {
-			const existing = await getSmtpSettings(pb);
-			if (existing?.id) {
-				await pb.collection('settings').update(existing.id, { app_password_hash: '' });
-			}
-			invalidatePasswordCache();
-		} catch (e) {
-			return fail(500, { passwordError: 'Failed to remove password: ' + (e as Error).message });
-		}
-
-		return { passwordRemoved: true };
 	},
 
 	harvestImport: async ({ request }) => {
@@ -233,7 +227,7 @@ export const actions = {
 
 		// Credentials worked — persist them so the next import doesn't require re-entry
 		try {
-			const pbSettings = new PocketBase(env.PB_URL || 'http://localhost:8090');
+			const pbSettings = await getPb();
 			const existing = await getSmtpSettings(pbSettings);
 			const creds = { harvest_account_id: accountId, harvest_token: token };
 			if (existing?.id) {
@@ -251,14 +245,13 @@ export const actions = {
 			}
 		}
 
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
-
+		let pb: PocketBase;
 		try {
+			pb = await getPb();
 			await pb.health.check();
 		} catch {
-			const pbUrl = env.PB_URL || 'http://localhost:8090';
 			return fail(503, {
-				importError: `Cannot reach PocketBase at ${pbUrl}. Make sure it is running and the schema has been imported (node pb_setup.js).`
+				importError: `Cannot reach PocketBase at ${pbUrl()}. Make sure it is running and the schema has been imported (node pb_setup.js).`
 			});
 		}
 
@@ -435,7 +428,7 @@ export const actions = {
 	},
 
 	resetData: async () => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 
 		const deleteAll = async (collection: string) => {
 			let page = 1;
@@ -462,7 +455,7 @@ export const actions = {
 
 	createBackup: async () => {
 		try {
-			const pb = await getAdminPb();
+			const pb = await getPb();
 			await pb.backups.create('');
 			return { backupCreated: true };
 		} catch (e) {
@@ -475,7 +468,7 @@ export const actions = {
 		const key = fd.get('key')?.toString();
 		if (!key) return fail(400, { backupError: 'Missing backup key' });
 		try {
-			const pb = await getAdminPb();
+			const pb = await getPb();
 			await pb.backups.delete(key);
 			return { backupDeleted: true };
 		} catch (e) {

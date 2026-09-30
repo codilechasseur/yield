@@ -1,11 +1,11 @@
 import { fail } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
+import type PocketBase from 'pocketbase';
 import { getSmtpSettings, DEFAULT_EMAIL_SUBJECT, DEFAULT_EMAIL_BODY } from '$lib/mail.server.js';
 import { PRESETS, FONTS } from '$lib/presets.js';
+import { getPb } from '$lib/pb.server.js';
 
 export async function load() {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	const smtp = await getSmtpSettings(pb);
 	const hasPassword = Boolean(smtp?.app_password_hash);
 	// Proxied through the app — the browser can't necessarily reach PB_URL
@@ -16,7 +16,7 @@ export async function load() {
 
 export const actions = {
 	saveTax: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const default_tax_percent = parseFloat(fd.get('default_tax_percent')?.toString() ?? '5') || 5;
 
@@ -35,7 +35,7 @@ export const actions = {
 	},
 
 	saveReminders: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 
 		const reminders_enabled = fd.get('reminders_enabled') === 'on';
@@ -56,7 +56,7 @@ export const actions = {
 	},
 
 	saveInvoiceDefaults: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const invoice_default_notes = fd.get('invoice_default_notes')?.toString() ?? '';
 		const invoice_footer = fd.get('invoice_footer')?.toString() ?? '';
@@ -78,7 +78,7 @@ export const actions = {
 	},
 
 	saveInvoiceNumbering: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const invoice_number_format = fd.get('invoice_number_format')?.toString().trim() || 'INV-{number}';
 		const invoice_next_number = parseInt(fd.get('invoice_next_number')?.toString() ?? '1', 10) || 1;
@@ -98,7 +98,7 @@ export const actions = {
 	},
 
 	saveEstimateNumbering: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const estimate_number_format = fd.get('estimate_number_format')?.toString().trim() || 'EST-{number}';
 		const estimate_next_number = parseInt(fd.get('estimate_next_number')?.toString() ?? '1', 10) || 1;
@@ -118,7 +118,7 @@ export const actions = {
 	},
 
 	saveEmailTemplate: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const email_subject = fd.get('email_subject')?.toString() ?? '';
 		const email_body = fd.get('email_body')?.toString() ?? '';
@@ -138,7 +138,7 @@ export const actions = {
 	},
 
 	saveIncomeTaxRate: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const income_tax_rate = parseFloat(fd.get('income_tax_rate')?.toString() ?? '0') || 0;
 
@@ -157,7 +157,7 @@ export const actions = {
 	},
 
 	saveClientDefaults: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const default_currency = fd.get('default_currency')?.toString().trim() || 'CAD';
 
@@ -176,7 +176,7 @@ export const actions = {
 	},
 
 	saveAppName: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const app_name = fd.get('app_name')?.toString().trim().slice(0, 40) ?? '';
 
@@ -195,7 +195,7 @@ export const actions = {
 	},
 
 	saveFavicon: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const faviconFile = fd.get('favicon');
 
@@ -237,7 +237,7 @@ export const actions = {
 	},
 
 	removeFavicon: async () => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		try {
 			const existing = await getSmtpSettings(pb);
 			if (existing?.id) {
@@ -250,7 +250,7 @@ export const actions = {
 	},
 
 	saveAppearance: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 
 		// Instant-save posts are partial — only persist the keys that were sent
@@ -288,7 +288,7 @@ export const actions = {
 	},
 
 	saveAppLogo: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const logoFile = fd.get('app_logo');
 
@@ -322,7 +322,7 @@ export const actions = {
 	},
 
 	removeAppLogo: async () => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		try {
 			const existing = await getSmtpSettings(pb);
 			if (existing?.id) {
@@ -335,7 +335,7 @@ export const actions = {
 	},
 
 	saveCustomCss: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const brand_custom_css = (fd.get('brand_custom_css')?.toString() ?? '').slice(0, 20000);
 
@@ -354,7 +354,7 @@ export const actions = {
 	},
 
 	saveLogo: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const logoFile = fd.get('logo');
 
@@ -388,7 +388,7 @@ export const actions = {
 	},
 
 	removeLogo: async () => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		try {
 			const existing = await getSmtpSettings(pb);
 			if (existing?.id) {
@@ -403,7 +403,7 @@ export const actions = {
 	},
 
 	saveLogoSettings: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const logo_hide_company_name = fd.get('logo_hide_company_name') === 'on';
 		try {
@@ -420,7 +420,7 @@ export const actions = {
 	},
 
 	saveAll: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 
 		const data = {

@@ -1,7 +1,6 @@
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import { calcSubtotal, calcTotal } from '$lib/pocketbase.js';
 import type { Client, Invoice, InvoiceItem, ChartPeriod, Estimate, EstimateItem } from '$lib/types.js';
+import { getPb } from '$lib/pb.server.js';
 
 interface ItemWithInvoice extends InvoiceItem {
 	expand?: { invoice?: Invoice };
@@ -25,7 +24,7 @@ function sumWithTax(items: ItemWithInvoice[]): number {
 }
 
 export async function load() {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	// Prevent the SDK from auto-cancelling concurrent requests to the same collection.
 	pb.autoCancellation(false);
 

@@ -55,12 +55,17 @@ Open `.env` and fill in the values:
 
 ```env
 ORIGIN=https://yourdomain.com
-PORT=3000
 PB_ADMIN_EMAIL=admin@example.com
-PB_ADMIN_PASSWORD=a-strong-password
+PB_ADMIN_PASSWORD=a-long-random-password
+APP_PASSWORD=your-login-password
+ADDRESS_HEADER=X-Forwarded-For
+XFF_DEPTH=1
 ```
 
-`ORIGIN` must match the public URL your reverse proxy serves (SvelteKit uses it for CSRF protection). `PORT` is the host port the app binds to — point your proxy at it.
+- `ORIGIN` must match the public URL your reverse proxy serves (SvelteKit uses it for CSRF protection).
+- `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` create the PocketBase superuser on first boot, **and the app signs in with them on every request** — all collections are superuser-only.
+- `APP_PASSWORD` is the Yield login password, written to the database on first boot. Set it before the first start so nobody else can claim the instance through the setup page.
+- `ADDRESS_HEADER` / `XFF_DEPTH` tell the app where your reverse proxy puts the client IP, so failed logins are rate-limited per visitor. Remove both if the app is not behind a proxy.
 
 ### 2. Start
 
@@ -78,7 +83,8 @@ On first boot, Yield automatically:
 | Address | Service |
 |---|---|
 | Via your reverse proxy | Yield app |
-| `http://<host>:8090/_/` | PocketBase admin UI (loopback only by default) |
+
+PocketBase is only reachable inside the Docker network. To use its admin UI, publish port 8090 bound to loopback (`127.0.0.1:8090:8090`) and use an SSH tunnel — don't expose it publicly.
 
 ### Updating
 
@@ -88,6 +94,8 @@ docker compose up -d --build
 ```
 
 Data lives in the `pb_data` Docker volume and is never touched by a rebuild.
+
+> **Upgrading from a version with public PocketBase rules:** the app container now needs `PB_ADMIN_EMAIL` and `PB_ADMIN_PASSWORD` (see `docker-compose.yml`). A migration locks every collection to superusers on the next PocketBase start; until the app has the credentials it will answer `503`.
 
 ### Backups
 
@@ -109,7 +117,7 @@ Open the app and go to **Settings** to:
 - Upload your logo and set your business name + address
 - Configure your default tax rate and currency
 - Set up SMTP to send invoices by email
-- Optionally enable password protection for the UI
+- Change the login password under **Settings → System** (requires the current password; signs out other devices)
 
 ---
 

@@ -1,8 +1,7 @@
 import { fail } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import type { Client, Expense, Invoice, InvoiceItem, TaxPayment } from '$lib/types.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
+import { getPb } from '$lib/pb.server.js';
 
 export interface TaxMonthRow {
 	month: number; // 1–12
@@ -31,7 +30,7 @@ const MONTH_NAMES = [
 ];
 
 export async function load({ url }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 
 	const currentYear = new Date().getFullYear();
 	const year = parseInt(url.searchParams.get('year') ?? String(currentYear), 10);
@@ -160,7 +159,7 @@ export async function load({ url }) {
 
 export const actions = {
 	create: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 
 		const type = fd.get('type')?.toString();
@@ -188,7 +187,7 @@ export const actions = {
 	},
 
 	delete: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const id = fd.get('id')?.toString();
 

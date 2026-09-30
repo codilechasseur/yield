@@ -28,7 +28,6 @@
 	// ── Security state ────────────────────────────────────────────────────
 	let passwordSaving = $state(false);
 	let showNewPass    = $state(false);
-	let showRemovePasswordConfirm = $state(false);
 
 	// ── Data import / reset state ─────────────────────────────────────────
 	let harvestAccountId = $state(untrack(() => data.smtp?.harvest_account_id ?? ''));
@@ -359,12 +358,10 @@
 						<h4 class="font-semibold" style="color: var(--color-foreground)">Password Protection</h4>
 					</div>
 					<p class="text-sm mb-1" style="color: var(--color-muted-foreground)">
-						Protect access with a password. When set, all visitors must sign in before viewing the app.
+						Everyone must sign in with this password before viewing the app.
 					</p>
 					<p class="text-xs mb-5" style="color: var(--color-muted-foreground)">
-						Status: {data.hasPassword
-							? '🔒 Password protection is enabled.'
-							: '🔓 No password set — app is publicly accessible.'}
+						Changing the password signs out every other browser and device.
 					</p>
 
 					<form
@@ -385,6 +382,22 @@
 							};
 						}}
 					>
+						{#if data.hasPassword}
+							<div class="flex-1">
+								<label for="current-password-input" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
+									Current password
+								</label>
+								<input
+									id="current-password-input"
+									name="current_password"
+									type="password"
+									required
+									autocomplete="current-password"
+									class="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2"
+									style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+								/>
+							</div>
+						{/if}
 						<div class="flex-1">
 							<label for="password-input" class="block text-xs font-medium mb-1.5" style="color: var(--color-muted-foreground)">
 								{data.hasPassword ? 'New password' : 'Password'}
@@ -416,18 +429,6 @@
 						</button>
 					</form>
 
-					{#if data.hasPassword}
-						<div class="mt-3">
-							<button
-								type="button"
-								class="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-80"
-								style="border-color: var(--color-destructive); color: var(--color-destructive)"
-								onclick={() => (showRemovePasswordConfirm = true)}
-							>
-								Remove password
-							</button>
-						</div>
-					{/if}
 				</div>
 			</section>
 
@@ -827,28 +828,3 @@
 	</div>
 </div>
 
-<!-- Remove password confirmation modal -->
-{#if showRemovePasswordConfirm}
-	<div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.4)">
-		<div class="rounded-xl border shadow-xl p-5 max-w-sm w-full mx-4" style="background: var(--color-card); border-color: var(--color-border)">
-			<p class="font-semibold mb-1" style="color: var(--color-foreground)">Remove password protection?</p>
-			<p class="text-sm mb-4" style="color: var(--color-muted-foreground)">The app will be publicly accessible.</p>
-			<div class="flex gap-2 justify-end">
-				<button onclick={() => (showRemovePasswordConfirm = false)} class="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors" style="border-color: var(--color-border); color: var(--color-muted-foreground)">Cancel</button>
-				<form method="POST" action="?/removePassword" use:enhance={() => {
-					return async ({ update, result }) => {
-						showRemovePasswordConfirm = false;
-						if (result.type === 'success') {
-							addToast('Password protection removed.');
-						} else if (result.type === 'failure') {
-							addToast((result.data as any)?.passwordError ?? 'Failed to remove password.', 'error');
-						}
-						await update();
-					};
-				}}>
-					<button type="submit" class="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors">Remove password</button>
-				</form>
-			</div>
-		</div>
-	</div>
-{/if}

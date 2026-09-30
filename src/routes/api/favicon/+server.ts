@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
+import type PocketBase from 'pocketbase';
 import { getSmtpSettings, buildLogoUrl } from '$lib/mail.server.js';
+import { getPb, pbUrl } from '$lib/pb.server.js';
 
 /**
  * Serves the uploaded favicon by proxying the PocketBase file through the app.
@@ -9,14 +9,14 @@ import { getSmtpSettings, buildLogoUrl } from '$lib/mail.server.js';
  * docker-compose hostname), but the app server always can.
  */
 export async function GET() {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	const settings = await getSmtpSettings(pb).catch(() => null);
 
 	if (!settings?.favicon || !settings.id) {
 		throw error(404, 'No favicon configured');
 	}
 
-	const fileUrl = buildLogoUrl(env.PB_URL || 'http://localhost:8090', settings.id, settings.favicon);
+	const fileUrl = buildLogoUrl(pbUrl(), settings.id, settings.favicon);
 	const res = await fetch(fileUrl);
 	if (!res.ok) throw error(404, 'Favicon file not found');
 

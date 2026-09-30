@@ -1,9 +1,8 @@
 import { json } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import { getSmtpSettings } from '$lib/mail.server.js';
 import { suggestNextNumber, advanceCounter, createWithAutoNumber } from '$lib/numbering.server.js';
 import { pbErrorMessage } from '$lib/pocketbase.js';
+import { getPb } from '$lib/pb.server.js';
 
 interface QuickAddBody {
 	/** ID of an existing draft invoice to append the item to. */
@@ -26,7 +25,7 @@ interface QuickAddBody {
  *   { client_id, description, quantity, unit_price }   — create new invoice then append
  */
 export async function POST({ request }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 
 	let body: QuickAddBody;
 	try {

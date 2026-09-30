@@ -6,7 +6,7 @@
 	import { addToast } from '$lib/toasts.svelte.js';
 	import RichTextarea from '$lib/components/RichTextarea.svelte';
 	import FormAlert from '$lib/components/FormAlert.svelte';
-	import { renderRichText } from '$lib/rich-text.js';
+	import { renderRichText, renderMultilineText } from '$lib/rich-text.js';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -515,7 +515,7 @@
 							<p class="text-sm mt-0.5" style="color: var(--color-muted-foreground)">{invoice.expand.client.email}</p>
 						{/if}
 						{#if invoice.expand.client.address}
-						<div class="text-sm mt-1" style="color: var(--color-muted-foreground)">{@html invoice.expand.client.address}</div>
+						<div class="text-sm mt-1" style="color: var(--color-muted-foreground)">{@html renderMultilineText(invoice.expand.client.address)}</div>
 						{/if}
 					{:else}
 						<p class="text-sm" style="color: var(--color-muted-foreground)">—</p>
@@ -598,7 +598,7 @@
 		{#if invoice.notes}
 			<div class="px-8 py-4 border-t" style="border-color: var(--color-border)">
 				<p class="text-xs font-medium uppercase tracking-wide mb-1" style="color: var(--color-muted-foreground)">Notes</p>
-				<div class="text-sm" style="color: var(--color-foreground)">{@html invoice.notes.includes('<') ? invoice.notes : invoice.notes.replace(/\n/g, '<br>')}</div>
+				<div class="text-sm" style="color: var(--color-foreground)">{@html renderMultilineText(invoice.notes)}</div>
 			</div>
 		{/if}
 	</div>
@@ -639,7 +639,7 @@
 								<span class="{STATUS_COLORS[parts[0]] ?? ''}">{fmtStatus(parts[0])}</span>
 								<span class="mx-1" style="color: var(--color-muted-foreground)">→</span>
 								<span class="{STATUS_COLORS[parts[1]] ?? ''}">{fmtStatus(parts[1])}</span>						{:else if log.action === 'note'}
-							<div style="color: var(--color-foreground)">{@html log.detail}</div>							{:else}
+							<div style="color: var(--color-foreground)">{@html renderMultilineText(log.detail)}</div>							{:else}
 								<span style="color: var(--color-foreground)">{log.detail}</span>
 							{/if}
 						</div>

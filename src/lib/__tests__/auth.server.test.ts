@@ -1,8 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
 	createSession,
 	validateSession,
 	destroySession,
+	destroyAllSessions,
+	safeRedirectPath,
+	sessionCookieOptions,
+	loginRetryAfterMs,
+	recordLoginFailure,
+	clearLoginFailures,
+	MAX_LOGIN_FAILURES,
 	hashPassword,
 	verifyPassword,
 	getCachedPasswordHash,
@@ -136,5 +143,143 @@ describe('Password hash cache', () => {
 		vi.spyOn(Date, 'now').mockReturnValue(future);
 		expect(getCachedPasswordHash()).toBeUndefined();
 		vi.restoreAllMocks();
+	});
+});
+
+// ── destroyAllSessions ──────────────────────────────────────────────────────
+
+describe('destroyAllSessions', () => {
+	it('invalidates every existing session', () => {
+		const a = createSession();
+		const b = createSession();
+		destroyAllSessions();
+		expect(validateSession(a)).toBe(false);
+		expect(validateSession(b)).toBe(false);
+	});
+
+	it('does not prevent new sessions from being created', () => {
+		destroyAllSessions();
+		expect(validateSession(createSession())).toBe(true);
+	});
+});
+
+// ── safeRedirectPath ────────────────────────────────────────────────────────
+
+describe('safeRedirectPath', () => {
+	it('allows same-origin paths with query strings', () => {
+		expect(safeRedirectPath('/invoices')).toBe('/invoices');
+		expect(safeRedirectPath('/invoices?page=2&q=a%20b')).toBe('/invoices?page=2&q=a%20b');
+	});
+
+	it('falls back for null, undefined and empty values', () => {
+		expect(safeRedirectPath(null)).toBe('/');
+		expect(safeRedirectPath(undefined)).toBe('/');
+		expect(safeRedirectPath('')).toBe('/');
+	});
+
+	it('rejects absolute and protocol-relative URLs', () => {
+		expect(safeRedirectPath('https://evil.example')).toBe('/');
+		expect(safeRedirectPath('//evil.example')).toBe('/');
+		expect(safeRedirectPath('javascript:alert(1)')).toBe('/');
+	});
+
+	it('rejects backslash and control-character tricks', () => {
+		expect(safeRedirectPath('/\\evil.example')).toBe('/');
+		expect(safeRedirectPath('/\t/evil.example')).toBe('/');
+		expect(safeRedirectPath('/foo\\bar')).toBe('/');
+	});
+
+	it('uses the supplied fallback', () => {
+		expect(safeRedirectPath('//evil.example', '/login')).toBe('/login');
+	});
+});
+
+// ── Login rate limiting ─────────────────────────────────────────────────────
+
+describe('Login rate limiting', () => {
+	let n = 0;
+	const key = () => `test-ip-${++n}`;
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('allows attempts from an unknown key', () => {
+		expect(loginRetryAfterMs(key())).toBe(0);
+	});
+
+	it('allows attempts below the failure threshold', () => {
+		const k = key();
+		for (let i = 0; i < MAX_LOGIN_FAILURES - 1; i++) recordLoginFailure(k);
+		expect(loginRetryAfterMs(k)).toBe(0);
+	});
+
+	it('locks out a key after MAX_LOGIN_FAILURES failures', () => {
+		const k = key();
+		for (let i = 0; i < MAX_LOGIN_FAILURES; i++) recordLoginFailure(k);
+		expect(loginRetryAfterMs(k)).toBeGreaterThan(0);
+	});
+
+	it('does not affect other keys', () => {
+		const k = key();
+		for (let i = 0; i < MAX_LOGIN_FAILURES; i++) recordLoginFailure(k);
+		expect(loginRetryAfterMs(key())).toBe(0);
+	});
+
+	it('lifts the lockout once it expires', () => {
+		const k = key();
+		const start = Date.now();
+		vi.spyOn(Date, 'now').mockReturnValue(start);
+		for (let i = 0; i < MAX_LOGIN_FAILURES; i++) recordLoginFailure(k);
+		vi.spyOn(Date, 'now').mockReturnValue(start + 15 * 60 * 1000 + 1);
+		expect(loginRetryAfterMs(k)).toBe(0);
+	});
+
+	it('doubles the lockout on repeat offences', () => {
+		const k = key();
+		const start = Date.now();
+		vi.spyOn(Date, 'now').mockReturnValue(start);
+		for (let i = 0; i < MAX_LOGIN_FAILURES; i++) recordLoginFailure(k);
+		const first = loginRetryAfterMs(k);
+
+		const later = start + first + 1;
+		vi.spyOn(Date, 'now').mockReturnValue(later);
+		for (let i = 0; i < MAX_LOGIN_FAILURES; i++) recordLoginFailure(k);
+		expect(loginRetryAfterMs(k)).toBe(first * 2);
+	});
+
+	it('resets the failure count once the window passes', () => {
+		const k = key();
+		const start = Date.now();
+		vi.spyOn(Date, 'now').mockReturnValue(start);
+		for (let i = 0; i < MAX_LOGIN_FAILURES - 1; i++) recordLoginFailure(k);
+		vi.spyOn(Date, 'now').mockReturnValue(start + 15 * 60 * 1000 + 1);
+		recordLoginFailure(k);
+		expect(loginRetryAfterMs(k)).toBe(0);
+	});
+
+	it('clearLoginFailures removes a lockout', () => {
+		const k = key();
+		for (let i = 0; i < MAX_LOGIN_FAILURES; i++) recordLoginFailure(k);
+		clearLoginFailures(k);
+		expect(loginRetryAfterMs(k)).toBe(0);
+	});
+});
+
+// ── sessionCookieOptions ────────────────────────────────────────────────────
+
+describe('sessionCookieOptions', () => {
+	it('marks the cookie secure over https', () => {
+		expect(sessionCookieOptions(new URL('https://yield.example/login')).secure).toBe(true);
+	});
+
+	it('does not mark the cookie secure over plain http', () => {
+		expect(sessionCookieOptions(new URL('http://localhost:3000/login')).secure).toBe(false);
+	});
+
+	it('is httpOnly, lax, site-wide and lasts as long as a session', () => {
+		const opts = sessionCookieOptions(new URL('https://yield.example/'));
+		expect(opts).toMatchObject({ path: '/', httpOnly: true, sameSite: 'lax' });
+		expect(opts.maxAge).toBe(7 * 24 * 60 * 60);
 	});
 });

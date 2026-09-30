@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeRichText, plainTextToRichText, renderRichText } from '../rich-text.js';
+import {
+	sanitizeRichText,
+	plainTextToRichText,
+	renderRichText,
+	renderMultilineText,
+	escapeHtmlAttr
+} from '../rich-text.js';
 
 describe('sanitizeRichText', () => {
 	it('returns empty string for empty input', () => {
@@ -168,5 +174,47 @@ describe('renderRichText', () => {
 
 	it('treats a lone < in plain text as text, not HTML', () => {
 		expect(renderRichText('under < 5 hours')).toBe('<div>under &lt; 5 hours</div>');
+	});
+});
+
+describe('renderMultilineText', () => {
+	it('returns empty string for empty input', () => {
+		expect(renderMultilineText('')).toBe('');
+		expect(renderMultilineText(null)).toBe('');
+		expect(renderMultilineText(undefined)).toBe('');
+	});
+
+	it('escapes plain text and keeps line breaks', () => {
+		expect(renderMultilineText('1 Main St\r\nSuite <4> & Co\nCity')).toBe(
+			'1 Main St<br>Suite &lt;4&gt; &amp; Co<br>City'
+		);
+	});
+
+	it('does not apply markdown to plain text', () => {
+		expect(renderMultilineText('- Suite 4\n# 12')).toBe('- Suite 4<br># 12');
+	});
+
+	it('sanitizes values that contain HTML', () => {
+		expect(renderMultilineText('<p>Hi</p><img src=x onerror=alert(1)><script>x</script>')).toBe(
+			'<p>Hi</p>'
+		);
+	});
+
+	it('strips event-handler attributes from allowed tags', () => {
+		expect(renderMultilineText('<b onclick="alert(1)">bold</b>')).toBe('<b>bold</b>');
+	});
+});
+
+describe('escapeHtmlAttr', () => {
+	it('escapes markup and both quote styles', () => {
+		expect(escapeHtmlAttr(`<a href="x" title='y'>&</a>`)).toBe(
+			'&lt;a href=&quot;x&quot; title=&#39;y&#39;&gt;&amp;&lt;/a&gt;'
+		);
+	});
+
+	it('stringifies numbers and treats null/undefined as empty', () => {
+		expect(escapeHtmlAttr(12.5)).toBe('12.5');
+		expect(escapeHtmlAttr(null)).toBe('');
+		expect(escapeHtmlAttr(undefined)).toBe('');
 	});
 });

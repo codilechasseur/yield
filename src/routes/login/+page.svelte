@@ -48,6 +48,8 @@
 				};
 			}}
 		>
+			<!-- "?/login" drops the page's query string, so carry the return path along. -->
+			<input type="hidden" name="next" value={page.url.searchParams.get('next') ?? ''} />
 			<div class="space-y-4">
 				<div class="relative">
 					<label for="login-password" class="sr-only">Password</label>

@@ -4,12 +4,12 @@
  * generates a PDF with Puppeteer, and sends it via nodemailer.
  */
 import nodemailer from 'nodemailer';
-import puppeteer from 'puppeteer';
 import type PocketBase from 'pocketbase';
 import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem } from './types.js';
 import { getPreset } from './presets.js';
-import { renderRichText } from './rich-text.js';
-import { env } from '$env/dynamic/private';
+import { renderRichText, renderMultilineText, escapeHtmlAttr } from './rich-text.js';
+import { pbUrl } from '$lib/pb.server.js';
+import { htmlToPdf } from '$lib/pdf.server.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,9 +83,9 @@ export interface SmtpSettings {
  * Build a fully-qualified PocketBase file URL for the settings logo.
  * Returns an empty string if no logo is stored.
  */
-export function buildLogoUrl(pbUrl: string, settingsId: string, logo: string | undefined): string {
+export function buildLogoUrl(baseUrl: string, settingsId: string, logo: string | undefined): string {
 	if (!logo || !settingsId) return '';
-	const base = (pbUrl || 'http://localhost:8090').replace(/\/$/, '');
+	const base = (baseUrl || 'http://localhost:8090').replace(/\/$/, '');
 	return `${base}/api/files/yieldsetts01/${settingsId}/${logo}`;
 }
 
@@ -106,9 +106,25 @@ function fmtDate(d: string): string {
 	});
 }
 
-/** Build OKLCH-based color palette from a hue value (0–360). */
-function escapeHtml(s: string): string {
-	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const escapeHtml = escapeHtmlAttr;
+
+/**
+ * The From header for outgoing mail. Passing nodemailer an object (rather than a
+ * `"Name" <email>` string) keeps quotes or angle brackets in the name from being
+ * parsed as extra addresses.
+ */
+export function fromAddress(smtp: Pick<SmtpSettings, 'smtp_from_name' | 'smtp_from_email'>) {
+	return smtp.smtp_from_name
+		? { name: smtp.smtp_from_name, address: smtp.smtp_from_email }
+		: smtp.smtp_from_email;
+}
+
+/** Plain-text email body → minimal HTML, escaping each line. */
+export function emailBodyHtml(text: string): string {
+	return text
+		.split('\n')
+		.map((line) => (line.trim() === '' ? '<br>' : `<p style="margin:0 0 4px">${escapeHtml(line)}</p>`))
+		.join('\n');
 }
 
 /** List/emphasis styles for rich-text item descriptions (the PDF template resets all margins/padding). */
@@ -197,7 +213,7 @@ export function buildInvoiceHtml(
 		return `
     <tr style="${rowBg}">
       <td style="padding:12px 28px 12px 24px;font-size:13px;color:${c.fg};border-bottom:1px solid ${c.borderLight};" class="rich-text">${renderRichText(i.description) || '—'}</td>
-      <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${i.quantity}</td>
+      <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${escapeHtml(i.quantity)}</td>
       <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${fmtCurrency(i.unit_price, currency)}</td>
       <td style="padding:12px 24px 12px 16px;font-size:13px;color:${c.fg};text-align:right;border-bottom:1px solid ${c.borderLight};font-weight:500;${rowBg}">${fmtCurrency(i.quantity * i.unit_price, currency)}</td>
     </tr>`;
@@ -211,7 +227,7 @@ export function buildInvoiceHtml(
     </div>`;
 	const taxRow = invoice.tax_percent > 0
 		? `<div style="${rowLineStyle}margin-bottom:8px;">
-        <span style="font-size:12.5px;color:${c.mutedFg};">Tax (${invoice.tax_percent}%)</span>
+        <span style="font-size:12.5px;color:${c.mutedFg};">Tax (${escapeHtml(invoice.tax_percent)}%)</span>
         <span style="font-size:12.5px;color:${c.mutedFg};">${fmtCurrency(taxAmt, currency)}</span>
       </div>` : '';
 	const partialRow = paidAmt > 0 && invoice.status !== 'paid'
@@ -229,14 +245,14 @@ export function buildInvoiceHtml(
 	const metaHtml = `
     <div>
       <p style="${lbl}">Status</p>
-      <span style="${statusBadgeStyle(invoice.status, c)}">${statusLabel}</span>
+      <span style="${statusBadgeStyle(invoice.status, c)}">${escapeHtml(statusLabel)}</span>
     </div>`;
 
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Invoice ${invoice.number}</title>
+  <title>Invoice ${escapeHtml(invoice.number)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
@@ -264,14 +280,14 @@ export function buildInvoiceHtml(
   <div style="padding:36px 44px 30px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid ${c.border};">
     <!-- Company -->
     <div>
-      ${logoUrl ? `<img src="${logoUrl}" alt="${companyName} logo" style="max-height:56px;max-width:180px;width:auto;height:auto;display:block;object-fit:contain;${hideCompanyName ? '' : 'margin-bottom:8px;'}" />` : ''}
-      ${hideCompanyName ? '' : `<p style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;line-height:1.1;">${companyName}</p>`}
-      ${companyAddress ? `<div style="font-size:11px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${companyAddress}</div>` : ''}
+      ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)} logo" style="max-height:56px;max-width:180px;width:auto;height:auto;display:block;object-fit:contain;${hideCompanyName ? '' : 'margin-bottom:8px;'}" />` : ''}
+      ${hideCompanyName ? '' : `<p style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;line-height:1.1;">${escapeHtml(companyName)}</p>`}
+      ${companyAddress ? `<div style="font-size:11px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${renderMultilineText(companyAddress)}</div>` : ''}
     </div>
     <!-- Invoice label + number + issue date -->
     <div style="text-align:right;">
       <p style="font-size:10px;font-weight:600;color:${c.subtleFg};letter-spacing:0.14em;text-transform:uppercase;margin-bottom:4px;">Invoice</p>
-      <p style="font-size:17px;font-weight:600;color:${c.fg};letter-spacing:0.01em;">${invoice.number}</p>
+      <p style="font-size:17px;font-weight:600;color:${c.fg};letter-spacing:0.01em;">${escapeHtml(invoice.number)}</p>
       ${invoice.issue_date ? `<p style="font-size:11px;color:${c.mutedFg};margin-top:6px;">Issued ${fmtDate(invoice.issue_date)}</p>` : ''}
     </div>
   </div>
@@ -287,9 +303,9 @@ export function buildInvoiceHtml(
       <div style="flex:2;min-width:0;">
         <p style="${lbl}">Billed To</p>
         ${client
-          ? `<p style="font-size:14px;font-weight:600;color:${c.fg};line-height:1.35;">${client.name}</p>
-             ${client.email    ? `<p style="font-size:12px;color:${c.mutedFg};margin-top:3px;">${client.email}</p>` : ''}
-             ${client.address  ? `<div style="font-size:12px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${client.address}</div>` : ''}`
+          ? `<p style="font-size:14px;font-weight:600;color:${c.fg};line-height:1.35;">${escapeHtml(client.name)}</p>
+             ${client.email    ? `<p style="font-size:12px;color:${c.mutedFg};margin-top:3px;">${escapeHtml(client.email)}</p>` : ''}
+             ${client.address  ? `<div style="font-size:12px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${renderMultilineText(client.address)}</div>` : ''}`
           : `<p style="color:${c.mutedFg};">—</p>`}
       </div>
       <!-- Due Date -->
@@ -347,19 +363,19 @@ export function buildInvoiceHtml(
     ${invoice.notes || opts?.defaultNotes ? `
     <div style="margin-top:28px;padding:16px 20px;border:1px solid ${c.borderLight};">
       <p style="${lbl}margin-bottom:6px;">Notes</p>
-      <div style="font-size:12.5px;color:${c.mutedFg};line-height:1.7;">${(() => { const n = invoice.notes || opts?.defaultNotes || ''; return n.includes('<') ? n : n.replace(/\n/g, '<br>'); })()}</div>
+      <div style="font-size:12.5px;color:${c.mutedFg};line-height:1.7;">${renderMultilineText(invoice.notes || opts?.defaultNotes)}</div>
     </div>` : ''}
 
     ${opts?.invoiceFooter ? `
     <div style="margin-top:${invoice.notes || opts?.defaultNotes ? '20px' : '28px'};padding-top:0;">
-      <div style="font-size:10px;color:${c.subtleFg};line-height:1.75;">${opts.invoiceFooter}</div>
+      <div style="font-size:10px;color:${c.subtleFg};line-height:1.75;">${renderMultilineText(opts.invoiceFooter)}</div>
     </div>` : ''}
   </div>
 
   <!-- ═══ PAGE FOOTER ══════════════════════════════════════════════════ -->
   <div style="position:fixed;bottom:0;left:0;right:0;background:${c.muted};border-top:1px solid ${c.border};padding:10px 44px;display:flex;justify-content:space-between;align-items:center;">
-    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${companyName}</p>
-    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${invoice.number}</p>
+    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${escapeHtml(companyName)}</p>
+    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${escapeHtml(invoice.number)}</p>
   </div>
 
 </body>
@@ -397,7 +413,7 @@ export function buildEstimateHtml(
 		return `
     <tr style="${rowBg}">
       <td style="padding:12px 28px 12px 24px;font-size:13px;color:${c.fg};border-bottom:1px solid ${c.borderLight};" class="rich-text">${renderRichText(i.description) || '—'}</td>
-      <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${i.quantity}</td>
+      <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${escapeHtml(i.quantity)}</td>
       <td style="padding:12px 16px;font-size:13px;color:${c.mutedFg};text-align:right;border-bottom:1px solid ${c.borderLight};${rowBg}">${fmtCurrency(i.unit_price, currency)}</td>
       <td style="padding:12px 24px 12px 16px;font-size:13px;color:${c.fg};text-align:right;border-bottom:1px solid ${c.borderLight};font-weight:500;${rowBg}">${fmtCurrency(i.quantity * i.unit_price, currency)}</td>
     </tr>`;
@@ -410,7 +426,7 @@ export function buildEstimateHtml(
     </div>`;
 	const taxRow = estimate.tax_percent > 0
 		? `<div style="${rowLineStyle}margin-bottom:8px;">
-        <span style="font-size:12.5px;color:${c.mutedFg};">Tax (${estimate.tax_percent}%)</span>
+        <span style="font-size:12.5px;color:${c.mutedFg};">Tax (${escapeHtml(estimate.tax_percent)}%)</span>
         <span style="font-size:12.5px;color:${c.mutedFg};">${fmtCurrency(taxAmt, currency)}</span>
       </div>` : '';
 
@@ -418,14 +434,14 @@ export function buildEstimateHtml(
 	const metaHtml = `
     <div>
       <p style="${lbl}">Status</p>
-      <span style="${statusBadgeStyle(estimate.status, c)}">${statusLabel}</span>
+      <span style="${statusBadgeStyle(estimate.status, c)}">${escapeHtml(statusLabel)}</span>
     </div>`;
 
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Estimate ${estimate.number}</title>
+  <title>Estimate ${escapeHtml(estimate.number)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
@@ -450,13 +466,13 @@ export function buildEstimateHtml(
 
   <div style="padding:36px 44px 30px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid ${c.border};">
     <div>
-      ${logoUrl ? `<img src="${logoUrl}" alt="${companyName} logo" style="max-height:56px;max-width:180px;width:auto;height:auto;display:block;object-fit:contain;${hideCompanyName ? '' : 'margin-bottom:8px;'}" />` : ''}
-      ${hideCompanyName ? '' : `<p style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;line-height:1.1;">${companyName}</p>`}
-      ${companyAddress ? `<div style="font-size:11px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${companyAddress}</div>` : ''}
+      ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)} logo" style="max-height:56px;max-width:180px;width:auto;height:auto;display:block;object-fit:contain;${hideCompanyName ? '' : 'margin-bottom:8px;'}" />` : ''}
+      ${hideCompanyName ? '' : `<p style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;line-height:1.1;">${escapeHtml(companyName)}</p>`}
+      ${companyAddress ? `<div style="font-size:11px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${renderMultilineText(companyAddress)}</div>` : ''}
     </div>
     <div style="text-align:right;">
       <p style="font-size:10px;font-weight:600;color:${c.subtleFg};letter-spacing:0.14em;text-transform:uppercase;margin-bottom:4px;">Estimate</p>
-      <p style="font-size:17px;font-weight:600;color:${c.fg};letter-spacing:0.01em;">${estimate.number}</p>
+      <p style="font-size:17px;font-weight:600;color:${c.fg};letter-spacing:0.01em;">${escapeHtml(estimate.number)}</p>
       ${estimate.issue_date ? `<p style="font-size:11px;color:${c.mutedFg};margin-top:6px;">Issued ${fmtDate(estimate.issue_date)}</p>` : ''}
     </div>
   </div>
@@ -467,9 +483,9 @@ export function buildEstimateHtml(
       <div style="flex:2;min-width:0;">
         <p style="${lbl}">Prepared For</p>
         ${client
-          ? `<p style="font-size:14px;font-weight:600;color:${c.fg};line-height:1.35;">${client.name}</p>
-             ${client.email    ? `<p style="font-size:12px;color:${c.mutedFg};margin-top:3px;">${client.email}</p>` : ''}
-             ${client.address  ? `<div style="font-size:12px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${client.address}</div>` : ''}`
+          ? `<p style="font-size:14px;font-weight:600;color:${c.fg};line-height:1.35;">${escapeHtml(client.name)}</p>
+             ${client.email    ? `<p style="font-size:12px;color:${c.mutedFg};margin-top:3px;">${escapeHtml(client.email)}</p>` : ''}
+             ${client.address  ? `<div style="font-size:12px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${renderMultilineText(client.address)}</div>` : ''}`
           : `<p style="color:${c.mutedFg};">—</p>`}
       </div>
       <div style="flex:1;min-width:0;">
@@ -517,17 +533,17 @@ export function buildEstimateHtml(
     ${estimate.notes || opts?.defaultNotes ? `
     <div style="margin-top:28px;padding:16px 20px;border:1px solid ${c.borderLight};">
       <p style="${lbl}margin-bottom:6px;">Notes</p>
-      <div style="font-size:12.5px;color:${c.mutedFg};line-height:1.7;">${(() => { const n = estimate.notes || opts?.defaultNotes || ''; return n.includes('<') ? n : n.replace(/\n/g, '<br>'); })()}</div>
+      <div style="font-size:12.5px;color:${c.mutedFg};line-height:1.7;">${renderMultilineText(estimate.notes || opts?.defaultNotes)}</div>
     </div>` : ''}
     ${opts?.estimateFooter ? `
     <div style="margin-top:${estimate.notes || opts?.defaultNotes ? '20px' : '28px'};">
-      <div style="font-size:10px;color:${c.subtleFg};line-height:1.75;">${opts.estimateFooter}</div>
+      <div style="font-size:10px;color:${c.subtleFg};line-height:1.75;">${renderMultilineText(opts.estimateFooter)}</div>
     </div>` : ''}
   </div>
 
   <div style="position:fixed;bottom:0;left:0;right:0;background:${c.muted};border-top:1px solid ${c.border};padding:10px 44px;display:flex;justify-content:space-between;align-items:center;">
-    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${companyName}</p>
-    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${estimate.number}</p>
+    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${escapeHtml(companyName)}</p>
+    <p style="font-size:10px;color:${c.subtleFg};font-weight:500;">${escapeHtml(estimate.number)}</p>
   </div>
 
 </body>
@@ -666,12 +682,12 @@ export async function sendInvoiceEmail({
 			.getOne<Invoice & { expand?: { client?: Client } }>(invoiceId, { expand: 'client' }),
 		pb
 			.collection('invoice_items')
-			.getFullList<InvoiceItem>({ filter: `invoice = "${invoiceId}"`, sort: 'created' })
+			.getFullList<InvoiceItem>({ filter: pb.filter('invoice = {:invoice}', { invoice: invoiceId }), sort: 'created' })
 	]);
 	const client = invoice.expand?.client ?? null;
 
 	// 3. Generate PDF
-	const logoUrl = buildLogoUrl(env.PB_URL || 'http://localhost:8090', smtp.id ?? '', smtp.logo);
+	const logoUrl = buildLogoUrl(pbUrl(), smtp.id ?? '', smtp.logo);
 	const html = buildInvoiceHtml(invoice, items, client, {
 		invoiceFooter: smtp.invoice_footer,
 		companyName: smtp.company_name || smtp.smtp_from_name || undefined,
@@ -682,26 +698,10 @@ export async function sendInvoiceEmail({
 		logoUrl: logoUrl || undefined,
 		hideCompanyName: smtp.logo_hide_company_name
 	});
-	let pdfBuffer: Buffer;
-
-	const browser = await puppeteer.launch({
-		headless: true,
-		args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-	});
-	try {
-		const page = await browser.newPage();
-		await page.setContent(html, { waitUntil: 'load' });
-		await page.waitForNetworkIdle();
-		const raw = await page.pdf({ format: 'A4', printBackground: true });
-		pdfBuffer = Buffer.from(raw);
-	} finally {
-		await browser.close();
-	}
+	const pdfBuffer = await htmlToPdf(html, { allowedUrls: logoUrl ? [logoUrl] : [] });
 
 	// 4. Build email
-	const fromField = smtp.smtp_from_name
-		? `"${smtp.smtp_from_name}" <${smtp.smtp_from_email}>`
-		: smtp.smtp_from_email;
+	const fromField = fromAddress(smtp);
 
 	const currency = client?.currency || 'USD';
 	const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
@@ -730,10 +730,7 @@ export async function sendInvoiceEmail({
 		: interpolateEmailTemplate(smtp.email_body?.trim() || DEFAULT_EMAIL_BODY, vars);
 
 	// Plain-text → minimal HTML (preserve line breaks)
-	const bodyHtml = bodyText
-		.split('\n')
-		.map((line) => (line.trim() === '' ? '<br>' : `<p style="margin:0 0 4px">${line}</p>`))
-		.join('\n');
+	const bodyHtml = emailBodyHtml(bodyText);
 
 	// 5. Send
 	const transporter = nodemailer.createTransport({
@@ -794,11 +791,11 @@ export async function sendEstimateEmail({
 			.getOne<Estimate & { expand?: { client?: Client } }>(estimateId, { expand: 'client' }),
 		pb
 			.collection('estimate_items')
-			.getFullList<EstimateItem>({ filter: `estimate = "${estimateId}"`, sort: 'created' })
+			.getFullList<EstimateItem>({ filter: pb.filter('estimate = {:estimate}', { estimate: estimateId }), sort: 'created' })
 	]);
 	const client = estimate.expand?.client ?? null;
 
-	const logoUrl = buildLogoUrl(env.PB_URL || 'http://localhost:8090', smtp.id ?? '', smtp.logo);
+	const logoUrl = buildLogoUrl(pbUrl(), smtp.id ?? '', smtp.logo);
 	const html = buildEstimateHtml(estimate, items, client, {
 		estimateFooter: smtp.invoice_footer,
 		companyName: smtp.company_name || smtp.smtp_from_name || undefined,
@@ -810,24 +807,9 @@ export async function sendEstimateEmail({
 		hideCompanyName: smtp.logo_hide_company_name
 	});
 
-	let pdfBuffer: Buffer;
-	const browser = await puppeteer.launch({
-		headless: true,
-		args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-	});
-	try {
-		const page = await browser.newPage();
-		await page.setContent(html, { waitUntil: 'load' });
-		await page.waitForNetworkIdle();
-		const raw = await page.pdf({ format: 'A4', printBackground: true });
-		pdfBuffer = Buffer.from(raw);
-	} finally {
-		await browser.close();
-	}
+	const pdfBuffer = await htmlToPdf(html, { allowedUrls: logoUrl ? [logoUrl] : [] });
 
-	const fromField = smtp.smtp_from_name
-		? `"${smtp.smtp_from_name}" <${smtp.smtp_from_email}>`
-		: smtp.smtp_from_email;
+	const fromField = fromAddress(smtp);
 
 	const currency = client?.currency || 'USD';
 	const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
@@ -850,10 +832,7 @@ export async function sendEstimateEmail({
 		? message
 		: interpolateEmailTemplate(DEFAULT_ESTIMATE_EMAIL_BODY, vars);
 
-	const bodyHtml = bodyText
-		.split('\n')
-		.map((line) => (line.trim() === '' ? '<br>' : `<p style="margin:0 0 4px">${line}</p>`))
-		.join('\n');
+	const bodyHtml = emailBodyHtml(bodyText);
 
 	const transporter = nodemailer.createTransport({
 		host: smtp.smtp_host,

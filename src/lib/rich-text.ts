@@ -192,3 +192,20 @@ export function renderRichText(value: string | null | undefined): string {
 	if (!value) return '';
 	return /<[a-zA-Z!/]/.test(value) ? sanitizeRichText(value) : plainTextToRichText(value);
 }
+
+/**
+ * Safe HTML for multi-line free text such as addresses, notes and footers. Values that
+ * already contain tags are sanitized; plain text is escaped with line breaks kept as `<br>`.
+ * Unlike {@link renderRichText}, plain text gets no markdown treatment, so an address line
+ * like `- Suite 4` or `# 12` renders exactly as typed.
+ */
+export function renderMultilineText(value: string | null | undefined): string {
+	if (!value) return '';
+	if (/<[a-zA-Z!/]/.test(value)) return sanitizeRichText(value);
+	return escapeHtml(value).replace(/\r\n?/g, '\n').replace(/\n/g, '<br>');
+}
+
+/** Escapes text for use in HTML element content or a double-quoted attribute. */
+export function escapeHtmlAttr(value: string | number | null | undefined): string {
+	return escapeHtml(String(value ?? '')).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}

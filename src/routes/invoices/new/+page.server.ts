@@ -1,13 +1,12 @@
 import { fail, redirect } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import type { Client } from '$lib/types.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
 import { pbErrorMessage } from '$lib/pocketbase.js';
 import { suggestNextNumber, advanceCounter, createWithAutoNumber } from '$lib/numbering.server.js';
+import { getPb } from '$lib/pb.server.js';
 
 export async function load({ url }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	const preselectedClient = url.searchParams.get('client') || '';
 
 	const [clients, settings] = await Promise.all([
@@ -25,7 +24,7 @@ export async function load({ url }) {
 
 export const actions = {
 	default: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 
 		const client = data.get('client')?.toString();

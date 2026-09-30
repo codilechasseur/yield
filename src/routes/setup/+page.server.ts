@@ -1,24 +1,16 @@
-import { fail, redirect } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
-import { hashPassword, invalidatePasswordCache } from '$lib/auth.server.js';
+import { error, fail, isHttpError, redirect } from '@sveltejs/kit';
+import { getPb } from '$lib/pb.server.js';
+import {
+	hashPassword,
+	invalidatePasswordCache,
+	readPasswordHash
+} from '$lib/auth.server.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
 
-export async function load() {
-	// If a password is already configured, setup is not needed.
-	let hasPassword = false;
-	try {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
-		const records = await pb.collection('settings').getFullList({ requestKey: null });
-		hasPassword = Boolean(records[0]?.app_password_hash);
-	} catch {
-		// DB may not be ready yet — show the setup page anyway
-	}
-
-	if (hasPassword) {
-		redirect(302, '/');
-	}
-
+// The auth hook only serves /setup while no password is stored; the action
+// re-checks against the database so a stale cache can't reopen it.
+export async function load({ locals }) {
+	if (locals.authEnabled) redirect(302, '/login');
 	return {};
 }
 
@@ -36,7 +28,11 @@ export const actions = {
 		}
 
 		try {
-			const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+			const pb = await getPb();
+			if (await readPasswordHash(pb)) {
+				invalidatePasswordCache();
+				error(403, 'A password is already set.');
+			}
 			const hash = await hashPassword(password);
 			const existing = await getSmtpSettings(pb);
 			if (existing?.id) {
@@ -46,7 +42,9 @@ export const actions = {
 			}
 			invalidatePasswordCache();
 		} catch (e) {
-			return fail(500, { error: 'Failed to save password: ' + (e as Error).message });
+			if (isHttpError(e)) throw e;
+			console.error('[yield] Setup failed:', e);
+			return fail(500, { error: 'Failed to save password. Check that PocketBase is running.' });
 		}
 
 		redirect(302, '/login');

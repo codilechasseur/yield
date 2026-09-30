@@ -1,15 +1,14 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import type { Invoice, InvoiceItem, Client } from '$lib/types.js';
 import { pbErrorMessage } from '$lib/pocketbase.js';
+import { getPb } from '$lib/pb.server.js';
 
 export async function load({ params }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	try {
 		const [invoice, items, clients] = await Promise.all([
 			pb.collection('invoices').getOne<Invoice & { expand: { client: Client } }>(params.id, { expand: 'client' }),
-			pb.collection('invoice_items').getFullList<InvoiceItem>({ filter: `invoice = "${params.id}"`, sort: 'created' }),
+			pb.collection('invoice_items').getFullList<InvoiceItem>({ filter: pb.filter('invoice = {:id}', { id: params.id }), sort: 'created' }),
 			pb.collection('clients').getFullList<Client>({ sort: 'name', filter: 'archived = false' })
 		]);
 		return { invoice, items, clients };
@@ -20,7 +19,7 @@ export async function load({ params }) {
 
 export const actions = {
 	default: async ({ request, params }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 
 		const client = data.get('client')?.toString();
@@ -44,7 +43,7 @@ export const actions = {
 			await pb.collection('invoices').update(params.id, { client, number, subject, issue_date, due_date, payment_terms, status, tax_percent, notes });
 
 			// Delete existing items and recreate
-			const existing = await pb.collection('invoice_items').getFullList({ filter: `invoice = "${params.id}"` });
+			const existing = await pb.collection('invoice_items').getFullList({ filter: pb.filter('invoice = {:id}', { id: params.id }) });
 			await Promise.all(existing.map((i) => pb.collection('invoice_items').delete(i.id)));
 			for (const item of items) {
 				await pb.collection('invoice_items').create({ invoice: params.id, description: item.description, quantity: item.quantity, unit_price: item.unit_price });

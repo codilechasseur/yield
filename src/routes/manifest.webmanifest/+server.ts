@@ -1,8 +1,7 @@
 import { json } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import { getSmtpSettings } from '$lib/mail.server.js';
 import { getPreset } from '$lib/presets.js';
+import { getPb } from '$lib/pb.server.js';
 
 /**
  * Web app manifest, generated per-instance so a rebranded install (custom
@@ -10,7 +9,7 @@ import { getPreset } from '$lib/presets.js';
  * Replaces the former static/manifest.webmanifest.
  */
 export async function GET() {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	const smtp = await getSmtpSettings(pb).catch(() => null);
 
 	const appName = smtp?.app_name?.trim() || 'Yield';

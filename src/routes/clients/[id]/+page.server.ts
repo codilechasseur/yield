@@ -1,22 +1,21 @@
 import { error, fail } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import { calcSubtotal, calcTotal } from '$lib/pocketbase.js';
 import type { Client, Contact, Invoice, InvoiceItem } from '$lib/types.js';
+import { getPb } from '$lib/pb.server.js';
 
 export async function load({ params }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 
 	try {
 		const [client, rawInvoices, contacts] = await Promise.all([
 			pb.collection('clients').getOne<Client>(params.id),
 			pb.collection('invoices').getFullList<Invoice & { expand?: { invoice_items_via_invoice?: InvoiceItem[] } }>({
-				filter: `client = "${params.id}"`,
+				filter: pb.filter('client = {:id}', { id: params.id }),
 				sort: '-issue_date',
 				expand: 'invoice_items_via_invoice'
 			}),
 			pb.collection('contacts').getFullList<Contact>({
-				filter: `client = "${params.id}"`,
+				filter: pb.filter('client = {:id}', { id: params.id }),
 				sort: 'first_name,last_name'
 			}).catch(() => [] as Contact[])
 		]);
@@ -33,7 +32,7 @@ export async function load({ params }) {
 
 export const actions = {
 	update: async ({ request, params }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 
 		const name = data.get('name')?.toString().trim();
@@ -54,7 +53,7 @@ export const actions = {
 	},
 
 	addContact: async ({ request, params }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 
 		const first_name = data.get('first_name')?.toString().trim() ?? '';
@@ -84,7 +83,7 @@ export const actions = {
 	},
 
 	updateContact: async ({ request, params }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 
 		const contactId = data.get('contact_id')?.toString();
@@ -113,7 +112,7 @@ export const actions = {
 	},
 
 	deleteContact: async ({ request, params }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 
 		const contactId = data.get('contact_id')?.toString();

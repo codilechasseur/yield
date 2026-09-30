@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import nodemailerActual from 'nodemailer';
 import puppeteerActual from 'puppeteer';
+import PocketBase from 'pocketbase';
 
 // Provide mock env before importing the module under test
 vi.mock('$env/dynamic/private', () => ({ env: { PB_URL: 'http://pb.test:8090' } }));
@@ -8,7 +9,7 @@ vi.mock('$env/dynamic/private', () => ({ env: { PB_URL: 'http://pb.test:8090' } 
 vi.mock('nodemailer', () => ({ default: { createTransport: vi.fn() } }));
 vi.mock('puppeteer', () => ({ default: { launch: vi.fn() } }));
 
-import { buildLogoUrl, buildInvoiceHtml, buildEstimateHtml, DEFAULT_ESTIMATE_EMAIL_SUBJECT, getSmtpSettings, sendInvoiceEmail, subjectVars, interpolateEmailTemplate, DEFAULT_EMAIL_SUBJECT } from '../mail.server.js';
+import { buildLogoUrl, buildInvoiceHtml, buildEstimateHtml, DEFAULT_ESTIMATE_EMAIL_SUBJECT, getSmtpSettings, sendInvoiceEmail, subjectVars, interpolateEmailTemplate, DEFAULT_EMAIL_SUBJECT, fromAddress, emailBodyHtml } from '../mail.server.js';
 import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem } from '../types.js';
 
 // ── Minimal fixtures ─────────────────────────────────────────────────────────
@@ -280,7 +281,9 @@ function makeSendMailPb(settingsOverrides: Record<string, unknown> = {}, invoice
 		...invoiceOverrides,
 		expand: { client: baseClient }
 	};
+	const realPb = new PocketBase('http://pb.test:8090');
 	return {
+		filter: realPb.filter.bind(realPb),
 		collection: (name: string) => ({
 			getOne: async () => invoice,
 			getFullList: async () => baseItems,
@@ -295,6 +298,9 @@ describe('sendInvoiceEmail', () => {
 	beforeEach(() => {
 		// Set up puppeteer mock: browser → page → setContent/pdf
 		const pageMock = {
+			setJavaScriptEnabled: vi.fn().mockResolvedValue(undefined),
+			setRequestInterception: vi.fn().mockResolvedValue(undefined),
+			on: vi.fn(),
 			setContent: vi.fn().mockResolvedValue(undefined),
 			waitForNetworkIdle: vi.fn().mockResolvedValue(undefined),
 			pdf: vi.fn().mockResolvedValue(Buffer.from('PDF'))
@@ -335,10 +341,10 @@ describe('sendInvoiceEmail', () => {
 		expect(sendMailSpy.mock.calls[0][0].to).toBe('solo@example.com');
 	});
 
-	it('applies the configured From name as `"Name" <email>`', async () => {
+	it('applies the configured From name as a structured address', async () => {
 		const pb = makeSendMailPb();
 		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'Alice' });
-		expect(sendMailSpy.mock.calls[0][0].from).toBe('"Sender" <from@example.com>');
+		expect(sendMailSpy.mock.calls[0][0].from).toEqual({ name: 'Sender', address: 'from@example.com' });
 	});
 
 	it('sets Reply-To when configured', async () => {
@@ -388,5 +394,88 @@ describe('sendInvoiceEmail', () => {
 		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'x@example.com', toName: 'X' });
 		const attachments = sendMailSpy.mock.calls[0][0].attachments as Array<{ filename: string }>;
 		expect(attachments[0].filename).toBe(`invoice-${baseInvoice.number}.pdf`);
+	});
+});
+
+describe('HTML escaping in invoice/estimate documents', () => {
+	const baseEstimate: Estimate = {
+		id: 'est1', client: 'cli1', number: 'EST-001', issue_date: '2025-01-01', expiry_date: '2025-02-01',
+		status: 'draft', tax_percent: 0, notes: '', created: '', updated: ''
+	};
+	const evil = '<img src=x onerror=alert(1)>';
+	const evilClient: Client = {
+		...baseClient,
+		name: `Acme ${evil}`,
+		email: `a@example.com${evil}`,
+		address: `1 Main St\n${evil}`
+	};
+
+	it('escapes client, company and number fields in invoices', () => {
+		const html = buildInvoiceHtml(
+			{ ...baseInvoice, number: `INV-1${evil}`, notes: `Thanks${evil}` },
+			baseItems,
+			evilClient,
+			{
+				companyName: `Co ${evil}`,
+				companyAddress: `HQ\n${evil}`,
+				invoiceFooter: `Footer ${evil}`,
+				logoUrl: 'http://pb.test/logo.png" onload="alert(1)'
+			}
+		);
+		expect(html).not.toContain(evil);
+		expect(html).not.toContain('" onload="');
+		expect(html).toContain('Acme &lt;img src=x onerror=alert(1)&gt;');
+		expect(html).toContain('1 Main St');
+	});
+
+	it('sanitizes HTML notes and footers instead of dropping them', () => {
+		const html = buildInvoiceHtml(
+			{ ...baseInvoice, notes: '<p>Pay by <b>Friday</b></p><script>alert(1)</script>' },
+			baseItems,
+			baseClient,
+			{ invoiceFooter: '<em>Footer</em><iframe src="x"></iframe>' }
+		);
+		expect(html).toContain('<p>Pay by <b>Friday</b></p>');
+		expect(html).toContain('<em>Footer</em>');
+		expect(html).not.toContain('<script>alert(1)');
+		expect(html).not.toContain('<iframe');
+	});
+
+	it('escapes client, company and number fields in estimates', () => {
+		const html = buildEstimateHtml(
+			{ ...baseEstimate, number: `EST-1${evil}`, notes: evil },
+			[],
+			evilClient,
+			{ companyName: evil, companyAddress: evil, estimateFooter: evil }
+		);
+		expect(html).not.toContain(evil);
+		expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+	});
+});
+
+describe('fromAddress', () => {
+	it('returns a structured address when a From name is set', () => {
+		expect(fromAddress({ smtp_from_name: 'Ann "Boss" <x@evil>', smtp_from_email: 'a@example.com' })).toEqual({
+			name: 'Ann "Boss" <x@evil>',
+			address: 'a@example.com'
+		});
+	});
+
+	it('returns the bare email when no From name is set', () => {
+		expect(fromAddress({ smtp_from_name: '', smtp_from_email: 'a@example.com' })).toBe('a@example.com');
+	});
+});
+
+describe('emailBodyHtml', () => {
+	it('escapes each line and wraps it in a paragraph', () => {
+		expect(emailBodyHtml('Hi <b>Ann</b> & co')).toBe('<p style="margin:0 0 4px">Hi &lt;b&gt;Ann&lt;/b&gt; &amp; co</p>');
+	});
+
+	it('turns blank lines into <br>', () => {
+		expect(emailBodyHtml('a\n\nb')).toBe('<p style="margin:0 0 4px">a</p>\n<br>\n<p style="margin:0 0 4px">b</p>');
+	});
+
+	it('returns a single <br> for an empty body', () => {
+		expect(emailBodyHtml('')).toBe('<br>');
 	});
 });

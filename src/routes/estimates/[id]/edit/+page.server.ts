@@ -1,15 +1,14 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import type { Estimate, EstimateItem, Client } from '$lib/types.js';
 import { pbErrorMessage } from '$lib/pocketbase.js';
+import { getPb } from '$lib/pb.server.js';
 
 export async function load({ params }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	try {
 		const [estimate, items, clients] = await Promise.all([
 			pb.collection('estimates').getOne<Estimate & { expand: { client: Client } }>(params.id, { expand: 'client' }),
-			pb.collection('estimate_items').getFullList<EstimateItem>({ filter: `estimate = "${params.id}"`, sort: 'created' }),
+			pb.collection('estimate_items').getFullList<EstimateItem>({ filter: pb.filter('estimate = {:id}', { id: params.id }), sort: 'created' }),
 			pb.collection('clients').getFullList<Client>({ sort: 'name', filter: 'archived = false' })
 		]);
 		return { estimate, items, clients };
@@ -20,7 +19,7 @@ export async function load({ params }) {
 
 export const actions = {
 	default: async ({ request, params }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 
 		const client = data.get('client')?.toString();
@@ -48,7 +47,7 @@ export const actions = {
 				client, number, subject, issue_date, expiry_date, status, tax_percent, notes
 			});
 
-			const existing = await pb.collection('estimate_items').getFullList({ filter: `estimate = "${params.id}"` });
+			const existing = await pb.collection('estimate_items').getFullList({ filter: pb.filter('estimate = {:id}', { id: params.id }) });
 			await Promise.all(existing.map((i) => pb.collection('estimate_items').delete(i.id)));
 			for (const item of items) {
 				await pb.collection('estimate_items').create({

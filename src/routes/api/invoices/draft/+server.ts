@@ -1,8 +1,7 @@
 import { json } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import type { Invoice, Client } from '$lib/types.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
+import { getPb } from '$lib/pb.server.js';
 
 /**
  * Returns all draft invoices (status = "draft") with their client name expanded,
@@ -10,7 +9,7 @@ import { getSmtpSettings } from '$lib/mail.server.js';
  * Used by the Quick Add Item dialog to populate the invoice selector.
  */
 export async function GET() {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	const [invoices, settings] = await Promise.all([
 		pb
 			.collection('invoices')

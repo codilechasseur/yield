@@ -1,10 +1,9 @@
 import { fail } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import type { Expense } from '$lib/types.js';
+import { getPb } from '$lib/pb.server.js';
 
 export async function load({ url }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 
 	const currentYear = new Date().getFullYear();
 	const year = parseInt(url.searchParams.get('year') ?? String(currentYear), 10);
@@ -28,7 +27,7 @@ export async function load({ url }) {
 
 export const actions = {
 	create: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 
 		const description = fd.get('description')?.toString().trim();
@@ -55,7 +54,7 @@ export const actions = {
 
 	/** Re-log an existing expense with today's date — quick path for recurring monthly services. */
 	duplicate: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const id = fd.get('id')?.toString();
 		if (!id) return fail(400, { duplicateError: 'Missing ID.' });
@@ -77,7 +76,7 @@ export const actions = {
 	},
 
 	delete: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const id = fd.get('id')?.toString();
 		if (!id) return fail(400, { deleteError: 'Missing ID.' });

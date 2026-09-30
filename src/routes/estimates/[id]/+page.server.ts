@@ -1,23 +1,22 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import type { Estimate, EstimateItem, Client, EstimateLog, Contact } from '$lib/types.js';
 import { sendEstimateEmail, getSmtpSettings, interpolateEmailTemplate, DEFAULT_ESTIMATE_EMAIL_SUBJECT, DEFAULT_ESTIMATE_EMAIL_BODY, subjectVars } from '$lib/mail.server.js';
 import { pbErrorMessage } from '$lib/pocketbase.js';
 import { suggestNextNumber, advanceCounter, createWithAutoNumber } from '$lib/numbering.server.js';
+import { getPb } from '$lib/pb.server.js';
 
 export async function load({ params }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 
 	try {
 		const [estimate, items, logs, smtp] = await Promise.all([
 			pb.collection('estimates').getOne<Estimate & { expand: { client: Client } }>(params.id, { expand: 'client' }),
 			pb.collection('estimate_items').getFullList<EstimateItem>({
-				filter: `estimate = "${params.id}"`,
+				filter: pb.filter('estimate = {:id}', { id: params.id }),
 				sort: 'created'
 			}),
 			pb.collection('estimate_logs').getFullList<EstimateLog>({
-				filter: `estimate = "${params.id}"`,
+				filter: pb.filter('estimate = {:id}', { id: params.id }),
 				sort: 'occurred_at,created'
 			}),
 			getSmtpSettings(pb)
@@ -28,7 +27,7 @@ export async function load({ params }) {
 
 		const contacts = client
 			? await pb.collection('contacts').getFullList<Contact>({
-					filter: `client = "${client.id}"`,
+					filter: pb.filter('client = {:client}', { client: client.id }),
 					sort: 'first_name,last_name'
 				}).catch(() => [] as Contact[])
 			: [] as Contact[];
@@ -70,7 +69,7 @@ export async function load({ params }) {
 
 export const actions = {
 	updateStatus: async ({ request, params }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 		const status = data.get('status')?.toString();
 
@@ -98,7 +97,7 @@ export const actions = {
 	},
 
 	addNote: async ({ request, params }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 		const note = data.get('note')?.toString().trim();
 		if (!note) return fail(400, { error: 'Note cannot be empty' });
@@ -116,7 +115,7 @@ export const actions = {
 	},
 
 	sendEstimate: async ({ request, params }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const fd = await request.formData();
 		const message = fd.get('message')?.toString().trim() || undefined;
 		const extraRecipientsRaw = fd.get('extra_recipients')?.toString().trim() || '';
@@ -145,7 +144,7 @@ export const actions = {
 		if (contactIdsRaw.length > 0 && clientId) {
 			try {
 				const contacts = await pb.collection('contacts').getFullList<Contact>({
-					filter: `client = "${clientId}"`,
+					filter: pb.filter('client = {:client}', { client: clientId }),
 					fields: 'id,email'
 				});
 				const contactMap = new Map(contacts.map((c) => [c.id, c.email]));
@@ -194,14 +193,14 @@ export const actions = {
 	},
 
 	convertToInvoice: async ({ params }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 
 		let newInvoiceId: string;
 		try {
 			const [estimate, items, settings] = await Promise.all([
 				pb.collection('estimates').getOne<Estimate>(params.id),
 				pb.collection('estimate_items').getFullList<EstimateItem>({
-					filter: `estimate = "${params.id}"`,
+					filter: pb.filter('estimate = {:id}', { id: params.id }),
 					sort: 'created'
 				}),
 				getSmtpSettings(pb).catch(() => null)
@@ -269,7 +268,7 @@ export const actions = {
 	},
 
 	delete: async ({ params }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		try {
 			await pb.collection('estimates').delete(params.id);
 		} catch {

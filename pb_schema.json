@@ -113,11 +113,11 @@
     "indexes": [
       "CREATE UNIQUE INDEX idx_harvest_id ON clients (harvest_id) WHERE harvest_id != \"\""
     ],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
-    "updateRule": "",
-    "deleteRule": ""
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null
   },
   {
     "id": "_pb_invoices_",
@@ -282,11 +282,11 @@
     "indexes": [
       "CREATE UNIQUE INDEX idx_invoice_number ON invoices (number)"
     ],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
-    "updateRule": "",
-    "deleteRule": ""
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null
   },
   {
     "id": "_pb_invoice_items_",
@@ -366,11 +366,11 @@
       }
     ],
     "indexes": [],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
-    "updateRule": "",
-    "deleteRule": ""
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null
   },
   {
     "id": "yieldsetts01",
@@ -868,11 +868,11 @@
       }
     ],
     "indexes": [],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
-    "updateRule": "",
-    "deleteRule": ""
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null
   },
   {
     "id": "invoicelogs001",
@@ -947,11 +947,11 @@
     "indexes": [
       "CREATE INDEX idx_log_invoice ON invoice_logs (invoice)"
     ],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
     "updateRule": null,
-    "deleteRule": ""
+    "deleteRule": null
   },
   {
     "id": "taxpayments001",
@@ -1022,11 +1022,11 @@
     "indexes": [
       "CREATE INDEX idx_txp_date ON tax_payments (payment_date)"
     ],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
     "updateRule": null,
-    "deleteRule": ""
+    "deleteRule": null
   },
   {
     "id": "_pb_contacts_",
@@ -1147,11 +1147,11 @@
     "indexes": [
       "CREATE UNIQUE INDEX idx_contact_harvest_id ON contacts (harvest_id) WHERE harvest_id != \"\""
     ],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
-    "updateRule": "",
-    "deleteRule": ""
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null
   },
   {
     "id": "_pb_expenses_",
@@ -1219,10 +1219,10 @@
         "type": "text"
       }
     ],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
     "updateRule": null,
-    "deleteRule": ""
+    "deleteRule": null
   }
 ]

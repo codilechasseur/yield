@@ -1,15 +1,14 @@
 import { fail, redirect } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import { getSmtpSettings } from '$lib/mail.server.js';
 import type { Client } from '$lib/types.js';
+import { getPb } from '$lib/pb.server.js';
 
 const PER_PAGE = 20;
 
 type ClientTotals = Record<string, { total: number; paid: number; outstanding: number; invoiceCount: number }>;
 
 export async function load({ url }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
 	const showArchived = url.searchParams.get('archived') === '1';
 
@@ -83,7 +82,7 @@ export async function load({ url }) {
 
 export const actions = {
 	create: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 
 		const name = data.get('name')?.toString().trim();
@@ -108,7 +107,7 @@ export const actions = {
 	},
 
 	archive: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 		if (!id) return fail(400, { error: 'Missing ID' });
@@ -122,7 +121,7 @@ export const actions = {
 	},
 
 	unarchive: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 		if (!id) return fail(400, { error: 'Missing ID' });
@@ -136,7 +135,7 @@ export const actions = {
 	},
 
 	delete: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 		if (!id) return fail(400, { error: 'Missing ID' });
@@ -152,7 +151,7 @@ export const actions = {
 	},
 
 	bulkArchive: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 		const bulkAll = data.get('bulkAll') === '1';
 		let ids: string[];
@@ -178,7 +177,7 @@ export const actions = {
 	},
 
 	bulkUnarchive: async ({ request }) => {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+		const pb = await getPb();
 		const data = await request.formData();
 		const bulkAll = data.get('bulkAll') === '1';
 		let ids: string[];

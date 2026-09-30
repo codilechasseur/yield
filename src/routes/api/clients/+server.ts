@@ -1,10 +1,9 @@
 import { json } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import type { Client } from '$lib/types.js';
+import { getPb } from '$lib/pb.server.js';
 
 export async function GET() {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	try {
 		const clients = await pb
 			.collection('clients')
@@ -16,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST({ request }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 
 	let body: { name?: string; email?: string };
 	try {

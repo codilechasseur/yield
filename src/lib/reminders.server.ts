@@ -3,12 +3,12 @@
  * their due date, and (when enabled in settings) emails clients payment
  * reminders on a configurable cadence.
  */
-import PocketBase from 'pocketbase';
+import type PocketBase from 'pocketbase';
 import nodemailer from 'nodemailer';
-import { env } from '$env/dynamic/private';
-import { getSmtpSettings } from './mail.server.js';
+import { getSmtpSettings, fromAddress } from './mail.server.js';
 import { pushServerError } from './server-error-log.server.js';
 import type { Client, Invoice, InvoiceItem, InvoiceLog } from './types.js';
+import { getPb } from '$lib/pb.server.js';
 
 const SWEEP_INTERVAL_MS = 12 * 60 * 60 * 1000; // twice a day
 const INITIAL_DELAY_MS = 30_000; // let PocketBase come up first on boot
@@ -32,7 +32,7 @@ export interface SweepResult {
 }
 
 export async function runReminderSweep(): Promise<SweepResult> {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	pb.autoCancellation(false);
 
 	const now = new Date();
@@ -71,9 +71,7 @@ export async function runReminderSweep(): Promise<SweepResult> {
 		secure: smtp.smtp_secure,
 		auth: smtp.smtp_user ? { user: smtp.smtp_user, pass: smtp.smtp_pass } : undefined
 	});
-	const fromField = smtp.smtp_from_name
-		? `"${smtp.smtp_from_name}" <${smtp.smtp_from_email}>`
-		: smtp.smtp_from_email;
+	const fromField = fromAddress(smtp);
 	const companyName = smtp.company_name || smtp.smtp_from_name || '';
 
 	for (const inv of overdue) {
@@ -86,7 +84,10 @@ export async function runReminderSweep(): Promise<SweepResult> {
 		// Last reminder for this invoice, via the marker in its log entries
 		let lastSent: Date | null = null;
 		const logs = await pb.collection('invoice_logs').getList<InvoiceLog>(1, 1, {
-			filter: `invoice = "${inv.id}" && action = "email_sent" && detail ~ "${REMINDER_MARKER}"`,
+			filter: pb.filter('invoice = {:invoice} && action = "email_sent" && detail ~ {:marker}', {
+				invoice: inv.id,
+				marker: REMINDER_MARKER
+			}),
 			sort: '-occurred_at'
 		});
 		if (logs.items[0]?.occurred_at) lastSent = new Date(logs.items[0].occurred_at);
@@ -96,7 +97,7 @@ export async function runReminderSweep(): Promise<SweepResult> {
 		if (lastSent && (now.getTime() - lastSent.getTime()) / 86_400_000 < reminderDays) continue;
 
 		const items = await pb.collection('invoice_items').getFullList<InvoiceItem>({
-			filter: `invoice = "${inv.id}"`
+			filter: pb.filter('invoice = {:invoice}', { invoice: inv.id })
 		});
 		const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
 		const total = subtotal * (1 + (inv.tax_percent ?? 0) / 100);

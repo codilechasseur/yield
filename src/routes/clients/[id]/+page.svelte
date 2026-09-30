@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { renderMultilineText } from '$lib/rich-text.js';
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, Mail, MapPin, Save, UserPlus, Phone, Briefcase, Pencil, Trash2, User } from 'lucide-svelte';
@@ -157,7 +158,7 @@
 				{/if}
 				{#if data.client.address}
 					<div class="flex items-start gap-2 text-sm" style="color: var(--color-muted-foreground)">
-						<MapPin size={14} class="mt-0.5 shrink-0" /> <span>{@html data.client.address}</span>
+						<MapPin size={14} class="mt-0.5 shrink-0" /> <span>{@html renderMultilineText(data.client.address)}</span>
 					</div>
 				{/if}
 			</div>

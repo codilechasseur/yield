@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
+import type PocketBase from 'pocketbase';
 import { getSmtpSettings, buildLogoUrl } from '$lib/mail.server.js';
+import { getPb, pbUrl } from '$lib/pb.server.js';
 
 /**
  * Serves the uploaded app logo (UI chrome branding — distinct from the
@@ -9,14 +9,14 @@ import { getSmtpSettings, buildLogoUrl } from '$lib/mail.server.js';
  * as /api/favicon: the browser can't necessarily reach PB_URL directly.
  */
 export async function GET() {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	const settings = await getSmtpSettings(pb).catch(() => null);
 
 	if (!settings?.app_logo || !settings.id) {
 		throw error(404, 'No app logo configured');
 	}
 
-	const fileUrl = buildLogoUrl(env.PB_URL || 'http://localhost:8090', settings.id, settings.app_logo);
+	const fileUrl = buildLogoUrl(pbUrl(), settings.id, settings.app_logo);
 	const res = await fetch(fileUrl);
 	if (!res.ok) throw error(404, 'App logo file not found');
 

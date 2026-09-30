@@ -64,10 +64,14 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) runs automatically on e
 ## PocketBase patterns
 
 ### Instantiation
-Each `load` function and action creates its own PocketBase instance — there is no shared singleton:
+Every collection is superuser-only (API rules are `null`). Get a client with `getPb()` from `$lib/pb.server.ts` — it returns a fresh instance per call, authenticated with a cached superuser token from `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD`. Never construct `new PocketBase(...)` directly:
 ```ts
-const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+const pb = await getPb();
 ```
+Use `pbUrl()` from the same module when you need the raw base URL (e.g. `buildLogoUrl`). New collections must keep `null` rules — in both `pb_schema.json` and any migration, since the Docker entrypoint re-imports the schema on every boot.
+
+### Filters
+Never interpolate values into filter strings. Use `pb.filter('invoice = {:id}', { id })`.
 
 ### Reading settings
 Always use `getSmtpSettings(pb)` from `$lib/mail.server.ts` to read the `settings` collection — never query it directly. It returns `SmtpSettings | null`.
@@ -84,7 +88,7 @@ if (existing?.id) {
 ```
 
 ### Password cache invalidation
-After writing a new `app_password_hash` to settings, always call `invalidatePasswordCache()` from `$lib/auth.server.ts`.
+After writing a new `app_password_hash` to settings, always call `invalidatePasswordCache()` from `$lib/auth.server.ts`. To make an auth decision from the stored hash, use `readPasswordHash(pb)` — it throws when PocketBase can't be read (fail closed), whereas `getSmtpSettings` returns `null`.
 
 ### Graceful degradation
 `load` functions should catch PocketBase errors and return empty arrays/nulls rather than throwing, so the page renders even if the DB is temporarily unavailable:
@@ -98,6 +102,9 @@ Use `pb.collection(...).getList(page, PER_PAGE, { sort, filter })` (not `getFull
 ## Route / auth patterns
 
 - Authentication is enforced globally in `src/hooks.server.ts` — do **not** add per-route auth checks
+- `/setup` is only served while no password exists; `/login` only once one does. Redirect targets from user input go through `safeRedirectPath()`
+- Render user-entered HTML only via `renderRichText` / `renderMultilineText` from `$lib/rich-text.ts`, and escape everything else interpolated into PDF/email HTML
+- Generate PDFs with `htmlToPdf()` from `$lib/pdf.server.ts` (JS disabled, network allowlisted) — pass any extra URL the document needs (e.g. the logo) in `allowedUrls`
 - `locals.authEnabled` (boolean) is set by the hook and available to all layouts and pages
-- The PDF endpoint lives at `src/routes/api/invoice/[id]/pdf/+server.ts` and uses Puppeteer; reuse it via a fetch to `/api/invoice/[id]/pdf` rather than duplicating the generation logic
+- The PDF endpoint lives at `src/routes/api/invoice/[id]/pdf/+server.ts`; PDF rendering itself is shared via `htmlToPdf()`
 - `SmtpSettings` type is defined in `$lib/mail.server.ts`, not in `$lib/types.ts` — this is intentional because it is server-only

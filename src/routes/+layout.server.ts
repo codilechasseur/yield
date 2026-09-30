@@ -1,9 +1,8 @@
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
 import { getSmtpSettings } from '$lib/mail.server.js';
+import { getPb } from '$lib/pb.server.js';
 
 export async function load({ locals }) {
-	const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
+	const pb = await getPb();
 	const smtp = await getSmtpSettings(pb).catch(() => null);
 	return {
 		authEnabled: locals.authEnabled ?? false,

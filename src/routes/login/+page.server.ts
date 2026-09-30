@@ -1,67 +1,72 @@
 import { fail, redirect } from '@sveltejs/kit';
-import PocketBase from 'pocketbase';
-import { env } from '$env/dynamic/private';
+import { getPb } from '$lib/pb.server.js';
 import {
 	SESSION_COOKIE,
+	sessionCookieOptions,
 	verifyPassword,
 	createSession,
 	destroySession,
-	validateSession
+	readPasswordHash,
+	safeRedirectPath,
+	loginRetryAfterMs,
+	recordLoginFailure,
+	clearLoginFailures
 } from '$lib/auth.server.js';
 
-export async function load({ cookies, url }) {
-	let passwordHash: string | null = null;
-	try {
-		const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
-		const records = await pb.collection('settings').getFullList({ requestKey: null });
-		passwordHash = (records[0]?.app_password_hash as string) || null;
-	} catch {
-		// ignore
+// The auth hook only serves /login once a password exists, and sets
+// locals.authed from the session cookie.
+export async function load({ locals, url }) {
+	if (locals.authed) {
+		redirect(302, safeRedirectPath(url.searchParams.get('next')));
 	}
-
-	// If auth isn't enabled, the login page is pointless — go to app
-	if (!passwordHash) {
-		redirect(302, url.searchParams.get('next') || '/');
-	}
-
-	// If already logged in, redirect to destination
-	const token = cookies.get(SESSION_COOKIE);
-	if (token && validateSession(token)) {
-		redirect(302, url.searchParams.get('next') || '/');
-	}
-
 	return {};
 }
 
+function retryMessage(ms: number): string {
+	const minutes = Math.ceil(ms / 60_000);
+	return `Too many failed attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+}
+
 export const actions = {
-	login: async ({ request, cookies, url }) => {
+	login: async ({ request, cookies, url, getClientAddress }) => {
+		// Behind a reverse proxy, set ADDRESS_HEADER (e.g. X-Forwarded-For) so this
+		// is the real client IP rather than the proxy's. adapter-node throws when
+		// that header is missing (a request that bypassed the proxy) — those share
+		// one bucket.
+		let clientKey: string;
+		try {
+			clientKey = getClientAddress();
+		} catch {
+			clientKey = 'unknown';
+		}
+		const retryAfter = loginRetryAfterMs(clientKey);
+		if (retryAfter > 0) {
+			return fail(429, { error: retryMessage(retryAfter) });
+		}
+
 		const fd = await request.formData();
 		const password = fd.get('password')?.toString() ?? '';
 
-		let passwordHash: string | null = null;
+		let passwordHash: string | null;
 		try {
-			const pb = new PocketBase(env.PB_URL || 'http://localhost:8090');
-			const records = await pb.collection('settings').getFullList({ requestKey: null });
-			passwordHash = (records[0]?.app_password_hash as string) || null;
+			passwordHash = await readPasswordHash(await getPb());
 		} catch {
-			return fail(500, { error: 'Could not verify password. Try again.' });
+			return fail(503, { error: 'Could not verify password. Try again.' });
 		}
 
 		if (!passwordHash || !(await verifyPassword(password, passwordHash))) {
-			return fail(401, { error: 'Invalid password.' });
+			recordLoginFailure(clientKey);
+			const lockedFor = loginRetryAfterMs(clientKey);
+			return fail(lockedFor > 0 ? 429 : 401, {
+				error: lockedFor > 0 ? retryMessage(lockedFor) : 'Invalid password.'
+			});
 		}
 
+		clearLoginFailures(clientKey);
 		const token = createSession();
-		cookies.set(SESSION_COOKIE, token, {
-			path: '/',
-			httpOnly: true,
-			secure: url.protocol === 'https:',
-			sameSite: 'lax',
-			maxAge: 7 * 24 * 60 * 60 // 7 days
-		});
+		cookies.set(SESSION_COOKIE, token, sessionCookieOptions(url));
 
-		const next = url.searchParams.get('next') || '/';
-		redirect(302, next);
+		redirect(302, safeRedirectPath(fd.get('next')?.toString() || url.searchParams.get('next')));
 	},
 
 	logout: async ({ cookies }) => {
