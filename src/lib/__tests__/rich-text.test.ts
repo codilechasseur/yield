@@ -4,7 +4,9 @@ import {
 	plainTextToRichText,
 	renderRichText,
 	renderMultilineText,
-	escapeHtmlAttr
+	escapeHtmlAttr,
+	isRichText,
+	richTextToPlainText
 } from '../rich-text.js';
 
 describe('sanitizeRichText', () => {
@@ -216,5 +218,49 @@ describe('escapeHtmlAttr', () => {
 		expect(escapeHtmlAttr(12.5)).toBe('12.5');
 		expect(escapeHtmlAttr(null)).toBe('');
 		expect(escapeHtmlAttr(undefined)).toBe('');
+	});
+});
+
+describe('isRichText', () => {
+	it('detects HTML tags', () => {
+		expect(isRichText('<div>a</div>')).toBe(true);
+		expect(isRichText('a<br>b')).toBe(true);
+	});
+
+	it('treats text without tags as plain', () => {
+		expect(isRichText('a < 5 & b > 2')).toBe(false);
+		expect(isRichText('')).toBe(false);
+		expect(isRichText(null)).toBe(false);
+		expect(isRichText(undefined)).toBe(false);
+	});
+});
+
+describe('richTextToPlainText', () => {
+	it('converts contenteditable divs and blank lines to newlines', () => {
+		expect(richTextToPlainText('<div>Hi Burnkit,</div><div><br></div><div>Please pay.</div><div><br></div><div>Thanks</div>'))
+			.toBe('Hi Burnkit,\n\nPlease pay.\n\nThanks');
+	});
+
+	it('handles leading bare text and trailing <br> inside blocks', () => {
+		expect(richTextToPlainText('Hi<div>next<br></div><div>last</div>')).toBe('Hi\nnext\nlast');
+	});
+
+	it('bullets list items and renders rules', () => {
+		expect(richTextToPlainText('<div>Items:</div><ul><li>one</li><li><b>two</b></li></ul><hr><p>end</p>'))
+			.toBe('Items:\n- one\n- two\n---\nend');
+	});
+
+	it('decodes entities once', () => {
+		expect(richTextToPlainText('<div>R&amp;D &lt;Co&gt;&nbsp;&quot;x&quot; &#39;y&#39; &amp;lt;</div>')).toBe('R&D <Co> "x" \'y\' &lt;');
+	});
+
+	it('collapses runs of blank lines', () => {
+		expect(richTextToPlainText('<div>a</div><div><br></div><div><br></div><div><br></div><div>b</div>')).toBe('a\n\nb');
+	});
+
+	it('returns an empty string for empty input', () => {
+		expect(richTextToPlainText('')).toBe('');
+		expect(richTextToPlainText(null)).toBe('');
+		expect(richTextToPlainText(undefined)).toBe('');
 	});
 });

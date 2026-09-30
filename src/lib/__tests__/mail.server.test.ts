@@ -9,7 +9,7 @@ vi.mock('$env/dynamic/private', () => ({ env: { PB_URL: 'http://pb.test:8090' } 
 vi.mock('nodemailer', () => ({ default: { createTransport: vi.fn() } }));
 vi.mock('puppeteer', () => ({ default: { launch: vi.fn() } }));
 
-import { buildLogoUrl, buildInvoiceHtml, buildEstimateHtml, DEFAULT_ESTIMATE_EMAIL_SUBJECT, getSmtpSettings, sendInvoiceEmail, subjectVars, interpolateEmailTemplate, DEFAULT_EMAIL_SUBJECT, fromAddress, emailBodyHtml } from '../mail.server.js';
+import { buildLogoUrl, buildInvoiceHtml, buildEstimateHtml, DEFAULT_ESTIMATE_EMAIL_SUBJECT, getSmtpSettings, sendInvoiceEmail, subjectVars, interpolateEmailTemplate, DEFAULT_EMAIL_SUBJECT, fromAddress, emailBodyHtml, emailBody } from '../mail.server.js';
 import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem } from '../types.js';
 
 // ── Minimal fixtures ─────────────────────────────────────────────────────────
@@ -395,6 +395,33 @@ describe('sendInvoiceEmail', () => {
 		const attachments = sendMailSpy.mock.calls[0][0].attachments as Array<{ filename: string }>;
 		expect(attachments[0].filename).toBe(`invoice-${baseInvoice.number}.pdf`);
 	});
+
+	it('sends a message edited in the rich-text dialog as HTML, not escaped tags', async () => {
+		const pb = makeSendMailPb();
+		const message = '<div>Hi Burnkit,</div><div><br></div><div>Please find attached invoice 659.</div>';
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'A', message });
+		const mail = sendMailSpy.mock.calls[0][0];
+		expect(mail.html).toBe(message);
+		expect(mail.html).not.toContain('&lt;div&gt;');
+		expect(mail.text).toBe('Hi Burnkit,\n\nPlease find attached invoice 659.');
+	});
+
+	it('sends a plain-text message as escaped paragraphs', async () => {
+		const pb = makeSendMailPb();
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'A', message: 'Hi\n\nThanks' });
+		const mail = sendMailSpy.mock.calls[0][0];
+		expect(mail.text).toBe('Hi\n\nThanks');
+		expect(mail.html).toBe(emailBodyHtml('Hi\n\nThanks'));
+	});
+
+	it('escapes variables interpolated into a rich-text settings template', async () => {
+		const pb = makeSendMailPb({ email_body: '<div>Hi {client_name},</div><div>{due_date_line}Thanks</div>' });
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'R&D <Co>' });
+		const mail = sendMailSpy.mock.calls[0][0];
+		expect(mail.html).toContain('<div>Hi R&amp;D &lt;Co&gt;,</div>');
+		expect(mail.html).toMatch(/Due date: [^<]+<br><br>Thanks/);
+		expect(mail.text).toMatch(/^Hi R&D <Co>,\nDue date: .+\n\nThanks$/);
+	});
 });
 
 describe('HTML escaping in invoice/estimate documents', () => {
@@ -463,6 +490,37 @@ describe('fromAddress', () => {
 
 	it('returns the bare email when no From name is set', () => {
 		expect(fromAddress({ smtp_from_name: '', smtp_from_email: 'a@example.com' })).toBe('a@example.com');
+	});
+});
+
+describe('interpolateEmailTemplate', () => {
+	it('inserts values verbatim into a plain-text template', () => {
+		expect(interpolateEmailTemplate('Hi {name}\n{line}', { name: 'A & <B>', line: 'x\n' })).toBe('Hi A & <B>\nx\n');
+	});
+
+	it('escapes values and converts their newlines in an HTML template', () => {
+		expect(interpolateEmailTemplate('<div>Hi {name}</div><div>{line}</div>', { name: 'A & <B>', line: 'x\n\n' }))
+			.toBe('<div>Hi A &amp; &lt;B&gt;</div><div>x<br><br></div>');
+	});
+
+	it('replaces unknown placeholders with an empty string', () => {
+		expect(interpolateEmailTemplate('a{missing}b', {})).toBe('ab');
+	});
+});
+
+describe('emailBody', () => {
+	it('uses the plain-text path for bodies without tags', () => {
+		expect(emailBody('a\n\nb')).toEqual({ text: 'a\n\nb', html: emailBodyHtml('a\n\nb') });
+	});
+
+	it('sanitizes rich-text bodies and derives the plain-text part', () => {
+		const { text, html } = emailBody('<div onclick="x()">Hi</div><script>alert(1)</script><div><b>Bold</b></div>');
+		expect(html).toBe('<div>Hi</div><div><b>Bold</b></div>');
+		expect(text).toBe('Hi\nBold');
+	});
+
+	it('handles an empty body', () => {
+		expect(emailBody('')).toEqual({ text: '', html: '<br>' });
 	});
 });
 

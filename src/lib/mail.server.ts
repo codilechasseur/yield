@@ -7,7 +7,7 @@ import nodemailer from 'nodemailer';
 import type PocketBase from 'pocketbase';
 import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem } from './types.js';
 import { getPreset } from './presets.js';
-import { renderRichText, renderMultilineText, escapeHtmlAttr } from './rich-text.js';
+import { renderRichText, renderMultilineText, escapeHtmlAttr, isRichText, sanitizeRichText, richTextToPlainText } from './rich-text.js';
 import { pbUrl } from '$lib/pb.server.js';
 import { htmlToPdf } from '$lib/pdf.server.js';
 
@@ -125,6 +125,16 @@ export function emailBodyHtml(text: string): string {
 		.split('\n')
 		.map((line) => (line.trim() === '' ? '<br>' : `<p style="margin:0 0 4px">${escapeHtml(line)}</p>`))
 		.join('\n');
+}
+
+/**
+ * text/plain and text/html parts for an email body. The body is HTML when it was written in
+ * a RichTextarea (the send dialog or the settings template), otherwise plain text.
+ */
+export function emailBody(body: string): { text: string; html: string } {
+	if (!isRichText(body)) return { text: body, html: emailBodyHtml(body) };
+	const html = sanitizeRichText(body);
+	return { text: richTextToPlainText(html), html };
 }
 
 /** List/emphasis styles for rich-text item descriptions (the PDF template resets all margins/padding). */
@@ -636,13 +646,18 @@ export function subjectVars(subject: string | undefined | null): { subject: stri
 }
 
 /**
- * Replace {placeholder} tokens in a template string.
+ * Replace {placeholder} tokens in a template string. In a rich-text (HTML) template the
+ * values are escaped and their line breaks become `<br>`.
  */
 export function interpolateEmailTemplate(
 	template: string,
 	vars: Record<string, string>
 ): string {
-	return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? '');
+	const html = isRichText(template);
+	return template.replace(/\{(\w+)\}/g, (_, key) => {
+		const value = vars[key] ?? '';
+		return html ? escapeHtml(value).replace(/\n/g, '<br>') : value;
+	});
 }
 
 interface SendInvoiceEmailOptions {
@@ -729,8 +744,7 @@ export async function sendInvoiceEmail({
 		? message
 		: interpolateEmailTemplate(smtp.email_body?.trim() || DEFAULT_EMAIL_BODY, vars);
 
-	// Plain-text → minimal HTML (preserve line breaks)
-	const bodyHtml = emailBodyHtml(bodyText);
+	const body = emailBody(bodyText);
 
 	// 5. Send
 	const transporter = nodemailer.createTransport({
@@ -746,8 +760,8 @@ export async function sendInvoiceEmail({
 		bcc: smtp.smtp_bcc || undefined,
 		to: Array.isArray(toEmail) ? toEmail.join(', ') : toEmail,
 		subject,
-		text: bodyText,
-		html: bodyHtml,
+		text: body.text,
+		html: body.html,
 		attachments: [
 			{
 				filename: `invoice-${invoice.number}.pdf`,
@@ -832,7 +846,7 @@ export async function sendEstimateEmail({
 		? message
 		: interpolateEmailTemplate(DEFAULT_ESTIMATE_EMAIL_BODY, vars);
 
-	const bodyHtml = emailBodyHtml(bodyText);
+	const body = emailBody(bodyText);
 
 	const transporter = nodemailer.createTransport({
 		host: smtp.smtp_host,
@@ -847,8 +861,8 @@ export async function sendEstimateEmail({
 		bcc: smtp.smtp_bcc || undefined,
 		to: Array.isArray(toEmail) ? toEmail.join(', ') : toEmail,
 		subject,
-		text: bodyText,
-		html: bodyHtml,
+		text: body.text,
+		html: body.html,
 		attachments: [
 			{
 				filename: `estimate-${estimate.number}.pdf`,

@@ -184,13 +184,18 @@ export function plainTextToRichText(text: string | null | undefined): string {
 	return trimEmpty(out);
 }
 
+/** True when a value holds HTML (from RichTextarea) rather than plain text. */
+export function isRichText(value: string | null | undefined): boolean {
+	return !!value && /<[a-zA-Z!/]/.test(value);
+}
+
 /**
  * Safe HTML for displaying a stored rich-text value. Values containing tags are sanitized;
  * plain-text values (older records, API-created items) get the light markdown treatment.
  */
 export function renderRichText(value: string | null | undefined): string {
 	if (!value) return '';
-	return /<[a-zA-Z!/]/.test(value) ? sanitizeRichText(value) : plainTextToRichText(value);
+	return isRichText(value) ? sanitizeRichText(value) : plainTextToRichText(value);
 }
 
 /**
@@ -201,11 +206,56 @@ export function renderRichText(value: string | null | undefined): string {
  */
 export function renderMultilineText(value: string | null | undefined): string {
 	if (!value) return '';
-	if (/<[a-zA-Z!/]/.test(value)) return sanitizeRichText(value);
+	if (isRichText(value)) return sanitizeRichText(value);
 	return escapeHtml(value).replace(/\r\n?/g, '\n').replace(/\n/g, '<br>');
 }
 
 /** Escapes text for use in HTML element content or a double-quoted attribute. */
 export function escapeHtmlAttr(value: string | number | null | undefined): string {
 	return escapeHtml(String(value ?? '')).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const BLOCK_TAGS = new Set(['p', 'div', 'ul', 'ol', 'li', 'blockquote', 'pre', 'hr']);
+
+const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' };
+
+/**
+ * Plain-text rendering of rich-text HTML (e.g. the text/plain part of an email). Block tags
+ * and `<br>` become line breaks, list items get a `- ` bullet, other tags are dropped and
+ * common entities decoded.
+ */
+export function richTextToPlainText(html: string | null | undefined): string {
+	if (!html) return '';
+
+	let out = '';
+	const newline = () => {
+		if (out && !out.endsWith('\n')) out += '\n';
+	};
+	let last = 0;
+	TAG_RE.lastIndex = 0;
+
+	for (let m = TAG_RE.exec(html); m; m = TAG_RE.exec(html)) {
+		out += html.slice(last, m.index);
+		last = TAG_RE.lastIndex;
+
+		const [raw, slash, rawName] = m;
+		if (raw.startsWith('<!--')) continue;
+		const name = rawName.toLowerCase();
+
+		if (name === 'br') out += '\n';
+		else if (name === 'hr') {
+			newline();
+			out += '---\n';
+		} else if (BLOCK_TAGS.has(name)) {
+			newline();
+			if (name === 'li' && !slash) out += '- ';
+		}
+	}
+	out += html.slice(last);
+
+	return out
+		.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, e) => ENTITIES[e])
+		.replace(/[ \t]+\n/g, '\n')
+		.replace(/\n{3,}/g, '\n\n')
+		.trim();
 }
