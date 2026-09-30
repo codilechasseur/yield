@@ -124,6 +124,14 @@
 				{displayStatus === 'written_off' ? 'Written Off' : displayStatus.replace(/\b\w/g, c => c.toUpperCase())}
 			</span>
 
+			<a
+				href="/invoices/{invoice.id}/edit"
+				class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors hover:bg-muted"
+				style="border-color: var(--color-border); color: var(--color-foreground)"
+			>
+				<Pencil size={14} /> Edit
+			</a>
+
 			<!-- Split action button -->
 			<div
 				class="relative"
@@ -231,15 +239,6 @@
 							style="color: var(--color-foreground)"
 						>
 							<Download size={14} /> Download PDF
-						</a>
-						<!-- Edit -->
-						<a
-							href="/invoices/{invoice.id}/edit"
-							onclick={() => (showActionMenu = false)}
-							class="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted transition-colors"
-							style="color: var(--color-foreground)"
-						>
-							<Pencil size={14} /> Edit
 						</a>
 
 						<div class="my-1 border-t" style="border-color: var(--color-border)"></div>
