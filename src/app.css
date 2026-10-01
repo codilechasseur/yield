@@ -312,3 +312,8 @@ dialog.closing::backdrop {
 		animation-duration: 0.01ms !important;
 	}
 }
+
+/* Experiment: let page content fill the main area instead of capping at max-w-5xl. */
+main.full-width > .max-w-5xl {
+	max-width: none;
+}
