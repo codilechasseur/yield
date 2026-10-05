@@ -44,6 +44,7 @@
 	let defaultHourlyRate = $state<number>(untrack(() => data.smtp?.default_hourly_rate ?? 0));
 	let companyName       = $state(untrack(() => data.smtp?.company_name ?? ''));
 	let companyAddress    = $state(untrack(() => data.smtp?.company_address ?? ''));
+	let taxNumber         = $state(untrack(() => data.smtp?.tax_number ?? ''));
 	let defaultNotes      = $state(untrack(() => data.smtp?.invoice_default_notes ?? ''));
 	let invoiceFooter     = $state(untrack(() => data.smtp?.invoice_footer ?? ''));
 	let invoiceNumberFormat = $state(untrack(() => data.smtp?.invoice_number_format ?? 'INV-{number}'));
@@ -88,9 +89,9 @@
 	}
 
 	// ── Per-section save state ────────────────────────────────────────────
-	let companySaved   = $state(untrack(() => ({ name: data.smtp?.company_name ?? '', address: data.smtp?.company_address ?? '' })));
+	let companySaved   = $state(untrack(() => ({ name: data.smtp?.company_name ?? '', address: data.smtp?.company_address ?? '', taxNumber: data.smtp?.tax_number ?? '' })));
 	let companySaving  = $state(false);
-	let companyDirty   = $derived(companyName !== companySaved.name || companyAddress !== companySaved.address);
+	let companyDirty   = $derived(companyName !== companySaved.name || companyAddress !== companySaved.address || taxNumber !== companySaved.taxNumber);
 
 	let notesSaved     = $state(untrack(() => ({ notes: data.smtp?.invoice_default_notes ?? '', footer: data.smtp?.invoice_footer ?? '' })));
 	let notesSaving    = $state(false);
@@ -665,7 +666,7 @@
 						companySaving = false;
 						await update({ reset: false });
 						if (result.type === 'success') {
-							companySaved = { name: companyName, address: companyAddress };
+							companySaved = { name: companyName, address: companyAddress, taxNumber };
 							addToast('Company details saved');
 						} else if (result.type === 'failure') {
 							addToast((result.data as any)?.invoiceDefaultsError ?? 'Failed to save', 'error');
@@ -697,6 +698,19 @@
 						placeholder={"e.g. 123 Main St\nToronto, ON M5V 1A1"}
 						bind:value={companyAddress}
 						class="w-full px-3 py-2 rounded-lg border text-sm resize-none"
+						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
+					/>
+				</div>
+				<div class="flex flex-col gap-1">
+					<label for="company-tax-number" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">GST/HST Number <Tip tip="Printed under your address on every invoice and estimate PDF. Leave blank if you aren't registered." /></label>
+					<input
+						id="company-tax-number"
+						name="tax_number"
+						type="text"
+						maxlength="60"
+						placeholder="e.g. 123456789 RT0001"
+						bind:value={taxNumber}
+						class="w-full px-3 py-2 rounded-lg border text-sm"
 						style="background: var(--color-background); border-color: var(--color-border); color: var(--color-foreground)"
 					/>
 				</div>
@@ -883,6 +897,7 @@
 				<!-- Preserve company fields so saveInvoiceDefaults doesn't blank them -->
 				<input type="hidden" name="company_name" value={companyName} />
 				<input type="hidden" name="company_address" value={companyAddress} />
+				<input type="hidden" name="tax_number" value={taxNumber} />
 				<div class="flex flex-col gap-1">
 					<label for="default-notes" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Default Notes <Tip tip="Pre-filled in the Notes field when creating a new invoice. Editable per invoice." /></label>
 					<RichTextarea

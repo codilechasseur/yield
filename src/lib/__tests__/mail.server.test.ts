@@ -9,7 +9,7 @@ vi.mock('$env/dynamic/private', () => ({ env: { PB_URL: 'http://pb.test:8090' } 
 vi.mock('nodemailer', () => ({ default: { createTransport: vi.fn() } }));
 vi.mock('puppeteer', () => ({ default: { launch: vi.fn() } }));
 
-import { buildLogoUrl, buildInvoiceHtml, buildEstimateHtml, DEFAULT_ESTIMATE_EMAIL_SUBJECT, getSmtpSettings, sendInvoiceEmail, subjectVars, interpolateEmailTemplate, DEFAULT_EMAIL_SUBJECT, fromAddress, emailBodyHtml, emailBody } from '../mail.server.js';
+import { asIssued, buildLogoUrl, buildInvoiceHtml, buildEstimateHtml, DEFAULT_ESTIMATE_EMAIL_SUBJECT, getSmtpSettings, sendInvoiceEmail, subjectVars, interpolateEmailTemplate, DEFAULT_EMAIL_SUBJECT, fromAddress, emailBodyHtml, emailBody } from '../mail.server.js';
 import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem } from '../types.js';
 import { extractPdfFooter } from '../pdf.server.js';
 
@@ -298,6 +298,11 @@ describe('getSmtpSettings', () => {
 		const result = await getSmtpSettings(makePb([{ id: 's1' }]));
 		expect(result?.default_hourly_rate).toBe(0);
 	});
+
+	it('returns tax_number, defaulting to empty when absent', async () => {
+		expect((await getSmtpSettings(makePb([{ id: 's1', tax_number: '123456789 RT0001' }])))?.tax_number).toBe('123456789 RT0001');
+		expect((await getSmtpSettings(makePb([{ id: 's1' }])))?.tax_number).toBe('');
+	});
 });
 
 // ── sendInvoiceEmail – recipient addressing ───────────────────────────────────
@@ -332,14 +337,16 @@ function makeSendMailPb(settingsOverrides: Record<string, unknown> = {}, invoice
 
 describe('sendInvoiceEmail', () => {
 	let sendMailSpy: ReturnType<typeof vi.fn>;
+	let setContentSpy: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
 		// Set up puppeteer mock: browser → page → setContent/pdf
+		setContentSpy = vi.fn().mockResolvedValue(undefined);
 		const pageMock = {
 			setJavaScriptEnabled: vi.fn().mockResolvedValue(undefined),
 			setRequestInterception: vi.fn().mockResolvedValue(undefined),
 			on: vi.fn(),
-			setContent: vi.fn().mockResolvedValue(undefined),
+			setContent: setContentSpy,
 			waitForNetworkIdle: vi.fn().mockResolvedValue(undefined),
 			pdf: vi.fn().mockResolvedValue(Buffer.from('PDF'))
 		};
@@ -459,6 +466,75 @@ describe('sendInvoiceEmail', () => {
 		expect(mail.html).toContain('<div>Hi R&amp;D &lt;Co&gt;,</div>');
 		expect(mail.html).toMatch(/Due date: [^<]+<br><br>Thanks/);
 		expect(mail.text).toMatch(/^Hi R&D <Co>,\nDue date: .+\n\nThanks$/);
+	});
+
+	it('renders a draft invoice as Sent in the attached PDF', async () => {
+		const pb = makeSendMailPb({}, { status: 'draft' });
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'A' });
+		const pdfHtml = setContentSpy.mock.calls[0][0] as string;
+		expect(pdfHtml).toContain('>Sent</span>');
+		expect(pdfHtml).not.toContain('>Draft</span>');
+	});
+
+	it('keeps a non-draft status in the attached PDF', async () => {
+		const pb = makeSendMailPb({}, { status: 'overdue' });
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'A' });
+		expect(setContentSpy.mock.calls[0][0]).toContain('>Overdue</span>');
+	});
+
+	it('prints the GST/HST number from settings in the attached PDF', async () => {
+		const pb = makeSendMailPb({ tax_number: '123456789 RT0001' });
+		await sendInvoiceEmail({ pb, invoiceId: 'inv1', toEmail: 'a@example.com', toName: 'A' });
+		expect(setContentSpy.mock.calls[0][0]).toContain('GST/HST No. 123456789 RT0001');
+	});
+});
+
+// ── asIssued ──────────────────────────────────────────────────────────────────
+
+describe('asIssued', () => {
+	it('turns a draft into sent without mutating the original', () => {
+		const draft = { ...baseInvoice, status: 'draft' as const };
+		const issued = asIssued(draft);
+		expect(issued.status).toBe('sent');
+		expect(issued.number).toBe(draft.number);
+		expect(draft.status).toBe('draft');
+	});
+
+	it('returns non-draft documents unchanged', () => {
+		for (const status of ['sent', 'paid', 'overdue', 'written_off'] as const) {
+			const inv = { ...baseInvoice, status };
+			expect(asIssued(inv)).toBe(inv);
+		}
+	});
+});
+
+// ── GST/HST number in the PDF header ──────────────────────────────────────────
+
+describe('tax number rendering', () => {
+	const estimate: Estimate = {
+		id: 'est1', client: 'cli1', number: 'EST-001', issue_date: '2025-01-01', expiry_date: '2025-02-01',
+		status: 'draft', tax_percent: 0, notes: '', created: '', updated: ''
+	};
+	const estItems: EstimateItem[] = [
+		{ id: 'e1', estimate: 'est1', description: 'Design', quantity: 1, unit_price: 100, created: '', updated: '' }
+	];
+
+	it('prints the tax number on invoices and estimates', () => {
+		expect(buildInvoiceHtml(baseInvoice, baseItems, baseClient, { taxNumber: '123456789 RT0001' }))
+			.toContain('GST/HST No. 123456789 RT0001');
+		expect(buildEstimateHtml(estimate, estItems, baseClient, { taxNumber: '123456789 RT0001' }))
+			.toContain('GST/HST No. 123456789 RT0001');
+	});
+
+	it('omits the line when no tax number is set', () => {
+		expect(buildInvoiceHtml(baseInvoice, baseItems, baseClient)).not.toContain('GST/HST No.');
+		expect(buildInvoiceHtml(baseInvoice, baseItems, baseClient, { taxNumber: '' })).not.toContain('GST/HST No.');
+		expect(buildEstimateHtml(estimate, estItems, baseClient)).not.toContain('GST/HST No.');
+	});
+
+	it('escapes HTML in the tax number', () => {
+		const html = buildInvoiceHtml(baseInvoice, baseItems, baseClient, { taxNumber: '<b>1&2</b>' });
+		expect(html).toContain('GST/HST No. &lt;b&gt;1&amp;2&lt;/b&gt;');
 	});
 });
 

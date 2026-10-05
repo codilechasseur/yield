@@ -62,13 +62,14 @@ export const actions = {
 		const invoice_footer = fd.get('invoice_footer')?.toString() ?? '';
 		const company_name = fd.get('company_name')?.toString() ?? '';
 		const company_address = fd.get('company_address')?.toString() ?? '';
+		const tax_number = fd.get('tax_number')?.toString().trim() ?? '';
 
 		try {
 			const existing = await getSmtpSettings(pb);
 			if (existing?.id) {
-				await pb.collection('settings').update(existing.id, { invoice_default_notes, invoice_footer, company_name, company_address });
+				await pb.collection('settings').update(existing.id, { invoice_default_notes, invoice_footer, company_name, company_address, tax_number });
 			} else {
-				await pb.collection('settings').create({ invoice_default_notes, invoice_footer, company_name, company_address });
+				await pb.collection('settings').create({ invoice_default_notes, invoice_footer, company_name, company_address, tax_number });
 			}
 		} catch (e) {
 			return fail(500, { invoiceDefaultsError: 'Failed to save: ' + (e as Error).message });

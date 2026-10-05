@@ -603,6 +603,19 @@
       },
       {
         "hidden": false,
+        "id": "fld_set_taxnum",
+        "max": 60,
+        "min": 0,
+        "name": "tax_number",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
         "id": "fld_set_bhu",
         "max": 360,
         "min": 0,

@@ -34,6 +34,8 @@ export interface SmtpSettings {
 	invoice_footer?: string;
 	company_name?: string;
 	company_address?: string;
+	/** Sales-tax registration number (GST/HST), printed in the invoice/estimate PDF header. */
+	tax_number?: string;
 	brand_hue?: number;
 	brand_theme?: string;
 	/** Brand preset id from src/lib/presets.ts (empty = default Yield look). */
@@ -219,11 +221,26 @@ function statusBadgeStyle(status: string, c: ReturnType<typeof palette>): string
 	return `background:${colors.bg};color:${colors.fg};padding:4px 14px;border-radius:9999px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;`;
 }
 
+/** Sales-tax registration line for the PDF header, under the company address. */
+function taxNumberLine(taxNumber: string, c: ReturnType<typeof palette>): string {
+	return taxNumber
+		? `<p style="font-size:11px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">GST/HST No. ${escapeHtml(taxNumber)}</p>`
+		: '';
+}
+
+/**
+ * A document being emailed is issued, not a draft — the draft → sent advance only
+ * happens after the send succeeds, so render the attached PDF as already sent.
+ */
+export function asIssued<T extends { status: string }>(doc: T): T {
+	return doc.status === 'draft' ? { ...doc, status: 'sent' } : doc;
+}
+
 export function buildInvoiceHtml(
 	invoice: Invoice & { expand?: { client?: Client } },
 	items: InvoiceItem[],
 	client: Client | null,
-	opts?: { invoiceFooter?: string; companyName?: string; companyAddress?: string; defaultNotes?: string; brandHue?: number; accentColor?: string; logoUrl?: string; hideCompanyName?: boolean }
+	opts?: { invoiceFooter?: string; companyName?: string; companyAddress?: string; taxNumber?: string; defaultNotes?: string; brandHue?: number; accentColor?: string; logoUrl?: string; hideCompanyName?: boolean }
 ): string {
 	const hue = opts?.brandHue || 250;
 	const c = palette(hue);
@@ -231,6 +248,7 @@ export function buildInvoiceHtml(
 	const currency = client?.currency || 'USD';
 	const companyName = opts?.companyName || 'Invoice';
 	const companyAddress = opts?.companyAddress || '';
+	const taxNumber = opts?.taxNumber || '';
 	const logoUrl = opts?.logoUrl || '';
 	const hideCompanyName = opts?.hideCompanyName ?? false;
 	const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
@@ -319,6 +337,7 @@ export function buildInvoiceHtml(
       ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)} logo" style="max-height:56px;max-width:180px;width:auto;height:auto;display:block;object-fit:contain;${hideCompanyName ? '' : 'margin-bottom:8px;'}" />` : ''}
       ${hideCompanyName ? '' : `<p style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;line-height:1.1;">${escapeHtml(companyName)}</p>`}
       ${companyAddress ? `<div style="font-size:11px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${renderMultilineText(companyAddress)}</div>` : ''}
+      ${taxNumberLine(taxNumber, c)}
     </div>
     <!-- Invoice label + number + issue date -->
     <div style="text-align:right;">
@@ -426,7 +445,7 @@ export function buildEstimateHtml(
 	estimate: Estimate & { expand?: { client?: Client } },
 	items: EstimateItem[],
 	client: Client | null,
-	opts?: { estimateFooter?: string; companyName?: string; companyAddress?: string; defaultNotes?: string; brandHue?: number; accentColor?: string; logoUrl?: string; hideCompanyName?: boolean }
+	opts?: { estimateFooter?: string; companyName?: string; companyAddress?: string; taxNumber?: string; defaultNotes?: string; brandHue?: number; accentColor?: string; logoUrl?: string; hideCompanyName?: boolean }
 ): string {
 	const hue = opts?.brandHue || 250;
 	const c = palette(hue);
@@ -434,6 +453,7 @@ export function buildEstimateHtml(
 	const currency = client?.currency || 'USD';
 	const companyName = opts?.companyName || 'Estimate';
 	const companyAddress = opts?.companyAddress || '';
+	const taxNumber = opts?.taxNumber || '';
 	const logoUrl = opts?.logoUrl || '';
 	const hideCompanyName = opts?.hideCompanyName ?? false;
 	const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
@@ -503,6 +523,7 @@ export function buildEstimateHtml(
       ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)} logo" style="max-height:56px;max-width:180px;width:auto;height:auto;display:block;object-fit:contain;${hideCompanyName ? '' : 'margin-bottom:8px;'}" />` : ''}
       ${hideCompanyName ? '' : `<p style="font-size:20px;font-weight:700;color:${c.fg};letter-spacing:-0.3px;line-height:1.1;">${escapeHtml(companyName)}</p>`}
       ${companyAddress ? `<div style="font-size:11px;color:${c.mutedFg};margin-top:5px;line-height:1.6;">${renderMultilineText(companyAddress)}</div>` : ''}
+      ${taxNumberLine(taxNumber, c)}
     </div>
     <div style="text-align:right;">
       <p style="font-size:10px;font-weight:600;color:${c.subtleFg};letter-spacing:0.14em;text-transform:uppercase;margin-bottom:4px;">Estimate</p>
@@ -610,6 +631,7 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 			invoice_footer: r.invoice_footer ?? '',
 			company_name: r.company_name ?? '',
 			company_address: r.company_address ?? '',
+			tax_number: r.tax_number ?? '',
 			brand_hue: r.brand_hue || 250,
 			brand_theme: r.brand_theme ?? '',
 			brand_preset: r.brand_preset ?? '',
@@ -726,10 +748,11 @@ export async function sendInvoiceEmail({
 
 	// 3. Generate PDF
 	const logoUrl = buildLogoUrl(pbUrl(), smtp.id ?? '', smtp.logo);
-	const html = buildInvoiceHtml(invoice, items, client, {
+	const html = buildInvoiceHtml(asIssued(invoice), items, client, {
 		invoiceFooter: smtp.invoice_footer,
 		companyName: smtp.company_name || smtp.smtp_from_name || undefined,
 		companyAddress: smtp.company_address || undefined,
+		taxNumber: smtp.tax_number || undefined,
 		defaultNotes: smtp.invoice_default_notes || undefined,
 		brandHue: smtp.brand_hue || 250,
 		accentColor: getPreset(smtp.brand_preset).pdfAccent,
@@ -833,10 +856,11 @@ export async function sendEstimateEmail({
 	const client = estimate.expand?.client ?? null;
 
 	const logoUrl = buildLogoUrl(pbUrl(), smtp.id ?? '', smtp.logo);
-	const html = buildEstimateHtml(estimate, items, client, {
+	const html = buildEstimateHtml(asIssued(estimate), items, client, {
 		estimateFooter: smtp.invoice_footer,
 		companyName: smtp.company_name || smtp.smtp_from_name || undefined,
 		companyAddress: smtp.company_address || undefined,
+		taxNumber: smtp.tax_number || undefined,
 		defaultNotes: smtp.invoice_default_notes || undefined,
 		brandHue: smtp.brand_hue || 250,
 		accentColor: getPreset(smtp.brand_preset).pdfAccent,

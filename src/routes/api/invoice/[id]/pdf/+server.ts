@@ -34,6 +34,7 @@ export async function GET({ params }) {
 		invoiceFooter: settings?.invoice_footer,
 		companyName: settings?.company_name || settings?.smtp_from_name || undefined,
 		companyAddress: settings?.company_address || undefined,
+		taxNumber: settings?.tax_number || undefined,
 		defaultNotes: settings?.invoice_default_notes || undefined,
 		brandHue: settings?.brand_hue || 250,
 		accentColor: getPreset(settings?.brand_preset).pdfAccent,
