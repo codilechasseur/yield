@@ -442,7 +442,7 @@ export const actions = {
 
 		// Business data only — settings (SMTP config, Harvest credentials, logo,
 		// app password, etc.) are intentionally preserved.
-		for (const col of ['invoice_items', 'invoice_logs', 'invoices', 'estimate_items', 'estimate_logs', 'estimates', 'contacts', 'clients', 'tax_payments', 'expenses']) {
+		for (const col of ['invoice_items', 'invoice_logs', 'invoices', 'estimate_items', 'estimate_logs', 'estimates', 'contacts', 'clients', 'tax_payments', 'expenses', 'recurring_expenses']) {
 			try {
 				await deleteAll(col);
 			} catch {

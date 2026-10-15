@@ -72,6 +72,25 @@ export interface InvoiceLog {
 	created: string;
 }
 
+/** Expense categories, keyed to CRA form T2125 lines — see EXPENSE_CATEGORIES in $lib/expenses.ts. */
+export type ExpenseCategory =
+	| 'advertising'
+	| 'meals'
+	| 'insurance'
+	| 'interest'
+	| 'fees'
+	| 'office'
+	| 'supplies'
+	| 'professional'
+	| 'rent'
+	| 'repairs'
+	| 'travel'
+	| 'telephone'
+	| 'vehicle'
+	| 'software'
+	| 'home_office'
+	| 'other';
+
 export interface Expense {
 	id: string;
 	description: string;
@@ -81,6 +100,36 @@ export interface Expense {
 	gst_paid: number;
 	expense_date: string;
 	notes: string;
+	/** Empty on expenses logged before categories existed — treated as 'other'. */
+	category: ExpenseCategory | '';
+	/** Share of the expense used for the business, 1–100. 0/unset means 100 (older records). */
+	business_use_percent: number;
+	/** Filename of the attached receipt (empty = none). Served via /api/expenses/[id]/receipt. */
+	receipt: string;
+	/** The recurring_expenses schedule that generated this expense (empty = entered by hand). */
+	recurring: string;
+	created: string;
+	updated: string;
+}
+
+export type RecurrenceFrequency = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+
+/** A schedule that materialises a normal Expense record each time a charge comes due. */
+export interface RecurringExpense {
+	id: string;
+	description: string;
+	amount: number;
+	gst_paid: number;
+	category: ExpenseCategory | '';
+	business_use_percent: number;
+	notes: string;
+	frequency: RecurrenceFrequency;
+	/** First charge date; later charges keep its day of month (clamped to short months). */
+	start_date: string;
+	/** Last charge date, inclusive (empty = runs indefinitely). */
+	end_date: string;
+	/** Date of the most recent charge created. Charges up to here are never recreated, so deleting one sticks. */
+	last_generated: string;
 	created: string;
 	updated: string;
 }
@@ -93,9 +142,16 @@ export interface TaxPayment {
 	amount: number;
 	payment_date: string;
 	notes: string;
+	/**
+	 * The period this payment is for — "2026" (income tax / annual GST), "2026-Q3" or "2026-07".
+	 * Empty on older records; those count toward the year of payment_date.
+	 */
+	period: string;
 	created: string;
 	updated: string;
 }
+
+export type GstFilingFrequency = 'monthly' | 'quarterly' | 'annual';
 
 export interface ChartPeriod {
 	period: string; // e.g. "2024"

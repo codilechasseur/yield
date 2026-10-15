@@ -9,6 +9,7 @@ import { getSmtpSettings, fromAddress } from './mail.server.js';
 import { pushServerError } from './server-error-log.server.js';
 import type { Client, Invoice, InvoiceItem, InvoiceLog } from './types.js';
 import { getPb } from '$lib/pb.server.js';
+import { generateRecurringExpenses } from './recurring.server.js';
 
 const SWEEP_INTERVAL_MS = 12 * 60 * 60 * 1000; // twice a day
 const INITIAL_DELAY_MS = 30_000; // let PocketBase come up first on boot
@@ -143,6 +144,16 @@ async function safeSweep() {
 	} catch (e) {
 		const err = e as Error;
 		pushServerError('Reminder sweep failed: ' + err.message, err.stack, '(reminder scheduler)');
+	}
+
+	// Log recurring expense charges that have come due (pages also do this on load).
+	try {
+		const r = await generateRecurringExpenses(await getPb());
+		if (r.created) console.log(`[yield:recurring] logged ${r.created} recurring expense charge(s)`);
+		if (r.errors.length) pushServerError('Recurring expenses: ' + r.errors.join('; '), undefined, '(reminder scheduler)');
+	} catch (e) {
+		const err = e as Error;
+		pushServerError('Recurring expense sweep failed: ' + err.message, err.stack, '(reminder scheduler)');
 	}
 }
 

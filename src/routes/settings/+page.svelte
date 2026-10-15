@@ -1149,7 +1149,7 @@
 						/>
 					</div>
 					<div id="income-tax-rate" class="flex flex-col gap-1 scroll-mt-6">
-						<label for="income-tax-rate-input" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Income Tax Rate (%) <Tip tip="Your personal rate used in Tax Reports. Not applied to invoice totals." /></label>
+						<label for="income-tax-rate-input" class="text-xs font-medium inline-flex items-center" style="color: var(--color-muted-foreground)">Income Tax Rate (%) <Tip tip="Flat rate for income tax estimates, used only when no province is set in Tax setup on the Taxes page. Not applied to invoice totals." /></label>
 						<input
 							id="income-tax-rate-input"
 							name="income_tax_rate"

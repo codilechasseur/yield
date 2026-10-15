@@ -5,7 +5,7 @@
  */
 import nodemailer from 'nodemailer';
 import type PocketBase from 'pocketbase';
-import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem } from './types.js';
+import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem, GstFilingFrequency } from './types.js';
 import { getPreset } from './presets.js';
 import { renderRichText, renderMultilineText, escapeHtmlAttr, isRichText, sanitizeRichText, richTextToPlainText } from './rich-text.js';
 import { pbUrl } from '$lib/pb.server.js';
@@ -29,7 +29,14 @@ export interface SmtpSettings {
 	smtp_bcc: string;
 	smtp_secure: boolean;
 	default_tax_percent?: number;
+	/** Flat income tax rate (%) — used for estimates only when tax_province is empty. */
 	income_tax_rate?: number;
+	/** Two-letter province/territory code; enables bracket-based income tax + CPP/QPP estimates. */
+	tax_province?: string;
+	/** How often GST/HST returns are filed (empty = annual). */
+	gst_filing_frequency?: GstFilingFrequency | '';
+	/** Average exchange rates to CAD by year, for foreign revenue: {"2026": {"USD": 1.37}}. */
+	fx_rates?: Record<string, Record<string, number>> | null;
 	invoice_default_notes?: string;
 	invoice_footer?: string;
 	company_name?: string;
@@ -627,6 +634,9 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 			smtp_secure: r.smtp_secure ?? false,
 			default_tax_percent: r.default_tax_percent ?? 5,
 			income_tax_rate: r.income_tax_rate ?? 0,
+			tax_province: r.tax_province ?? '',
+			gst_filing_frequency: r.gst_filing_frequency ?? '',
+			fx_rates: r.fx_rates && typeof r.fx_rates === 'object' ? r.fx_rates : null,
 			invoice_default_notes: r.invoice_default_notes ?? '',
 			invoice_footer: r.invoice_footer ?? '',
 			company_name: r.company_name ?? '',

@@ -303,6 +303,18 @@ describe('getSmtpSettings', () => {
 		expect((await getSmtpSettings(makePb([{ id: 's1', tax_number: '123456789 RT0001' }])))?.tax_number).toBe('123456789 RT0001');
 		expect((await getSmtpSettings(makePb([{ id: 's1' }])))?.tax_number).toBe('');
 	});
+
+	it('returns the tax estimate settings', async () => {
+		const result = await getSmtpSettings(
+			makePb([{ id: 's1', tax_province: 'ON', gst_filing_frequency: 'quarterly', fx_rates: { '2026': { USD: 1.37 } } }])
+		);
+		expect(result).toMatchObject({ tax_province: 'ON', gst_filing_frequency: 'quarterly', fx_rates: { '2026': { USD: 1.37 } } });
+	});
+
+	it('defaults the tax estimate settings when absent or malformed', async () => {
+		expect(await getSmtpSettings(makePb([{ id: 's1' }]))).toMatchObject({ tax_province: '', gst_filing_frequency: '', fx_rates: null });
+		expect((await getSmtpSettings(makePb([{ id: 's1', fx_rates: 'oops' }])))?.fx_rates).toBeNull();
+	});
 });
 
 // ── sendInvoiceEmail – recipient addressing ───────────────────────────────────
