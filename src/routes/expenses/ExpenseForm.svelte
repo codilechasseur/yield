@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import type { ExpenseCategory, RecurrenceFrequency } from '$lib/types.js';
+	import type { ExpenseCategory, HomeCostType, RecurrenceFrequency } from '$lib/types.js';
 
 	/** Values shared by expenses and recurring schedules. */
 	export interface ExpenseFormValues {
@@ -9,6 +9,7 @@
 		gst_paid: number | null;
 		category: ExpenseCategory | '';
 		business_use_percent: number;
+		home_cost_type?: HomeCostType | '';
 		notes: string;
 		/** expense_date for expenses, start_date for schedules */
 		date: string;
@@ -27,6 +28,7 @@
 	import Tip from '$lib/components/Tip.svelte';
 	import { EXPENSE_CATEGORIES, categoryInfo, claimableItc, deductibleAmount } from '$lib/expenses.js';
 	import { FREQUENCIES, toIsoDate } from '$lib/recurring.js';
+	import { HOME_COST_TYPES } from '$lib/home-office.js';
 
 
 	interface Props {
@@ -34,12 +36,14 @@
 		mode: 'create' | 'edit' | 'recurring';
 		values: ExpenseFormValues;
 		defaultTaxPercent: number;
+		/** Business share of home costs by year, for years with a home office set up. */
+		homeShares: Record<string, number>;
 		error?: string | null;
 		onCancel: () => void;
 		onSaved: (result: Record<string, unknown> | undefined) => void;
 	}
 
-	let { mode, values, defaultTaxPercent, error, onCancel, onSaved }: Props = $props();
+	let { mode, values, defaultTaxPercent, homeShares, error, onCancel, onSaved }: Props = $props();
 
 	const initial = untrack(() => values);
 	const p = $derived(`exp-${mode}`); // id prefix — keeps label/for pairs unique per form
@@ -48,6 +52,8 @@
 	let gstPaid = $state<number | null>(initial.gst_paid);
 	let category = $state<ExpenseCategory | ''>(initial.category || '');
 	let businessUse = $state<number>(initial.business_use_percent || 100);
+	let homeCostType = $state<HomeCostType | ''>(initial.home_cost_type || '');
+	let date = $state(toIsoDate(initial.date));
 	let repeat = $state(untrack(() => mode) === 'recurring');
 	let frequency = $state<RecurrenceFrequency>(initial.frequency ?? 'monthly');
 	let saving = $state(false);
@@ -58,10 +64,15 @@
 		category,
 		business_use_percent: businessUse
 	});
-	const deductible = $derived(deductibleAmount(preview));
-	const itc = $derived(claimableItc(preview));
+	const isHome = $derived(category === 'home_office');
+	const homeYear = $derived(date.slice(0, 4));
+	/** The year's home office share — replaces the business-use % for home costs once set up. */
+	const homeShare = $derived(isHome ? (homeShares[homeYear] ?? null) : null);
+	const deductible = $derived(deductibleAmount(preview, { homeShare }));
+	const itc = $derived(claimableItc(preview, { homeShare }));
 	const catInfo = $derived(categoryInfo(category));
-	const showClaimNote = $derived(catInfo.deductibleShare < 1 || (businessUse > 0 && businessUse < 100));
+	const homeHint = $derived(HOME_COST_TYPES.find((t) => t.value === homeCostType)?.hint ?? 'Which line of the home office form this goes on');
+	const showClaimNote = $derived(homeShare !== null || catInfo.deductibleShare < 1 || (businessUse > 0 && businessUse < 100));
 
 	const action = $derived(mode === 'create' ? '?/create' : mode === 'edit' ? '?/update' : '?/updateRecurring');
 	const submitLabel = $derived(mode === 'create' ? 'Save Expense' : mode === 'edit' ? 'Save Changes' : 'Save Recurring Expense');
@@ -132,11 +143,11 @@
 			<label for="{p}-date" class="block text-sm font-medium mb-1" style="color: var(--color-foreground)">
 				{mode === 'recurring' || repeat ? 'First charge date' : 'Date'}
 			</label>
-			<input id="{p}-date" name="expense_date" type="date" required value={toIsoDate(initial.date)} class={inputClass} style={inputStyle} />
+			<input id="{p}-date" name="expense_date" type="date" required bind:value={date} class={inputClass} style={inputStyle} />
 		</div>
 		<div>
 			<label for="{p}-amount" class="block text-sm font-medium mb-1" style="color: var(--color-foreground)">
-				Amount <span style="color: var(--color-muted-foreground)">(before tax)</span>
+				Amount <span style="color: var(--color-muted-foreground)">{isHome ? '(full bill, before tax)' : '(before tax)'}</span>
 			</label>
 			<input id="{p}-amount" name="amount" type="number" min="0.01" step="0.01" required placeholder="0.00"
 				bind:value={amount} class="{inputClass} font-mono" style={inputStyle} />
@@ -160,15 +171,32 @@
 	</div>
 
 	<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-		<div>
-			<label for="{p}-business" class="flex items-center text-sm font-medium mb-1" style="color: var(--color-foreground)">
-				Business use (%)
-				<Tip tip="If you also use this personally (a phone plan, internet, your car), only the business share is deductible. Use 100 for business-only costs." />
-			</label>
-			<input id="{p}-business" name="business_use_percent" type="number" min="1" max="100" step="1" required
-				bind:value={businessUse} class="{inputClass} font-mono" style={inputStyle} />
-		</div>
-		<div class="sm:col-span-2">
+		{#if isHome}
+			<div>
+				<label for="{p}-home-cost" class="block text-sm font-medium mb-1" style="color: var(--color-foreground)">Home cost</label>
+				<select id="{p}-home-cost" name="home_cost_type" bind:value={homeCostType} required aria-describedby="{p}-home-cost-hint" class={inputClass} style={inputStyle}>
+					<option value="" disabled>Choose…</option>
+					{#each HOME_COST_TYPES as t}
+						<option value={t.value}>{t.label}</option>
+					{/each}
+				</select>
+				<p id="{p}-home-cost-hint" class="text-xs mt-1" style="color: var(--color-muted-foreground)">{homeHint}</p>
+			</div>
+		{/if}
+		{#if homeShare !== null}
+			<!-- Home costs use the year's home office share instead of a per-expense percentage -->
+			<input type="hidden" name="business_use_percent" value={businessUse} />
+		{:else}
+			<div>
+				<label for="{p}-business" class="flex items-center text-sm font-medium mb-1" style="color: var(--color-foreground)">
+					Business use (%)
+					<Tip tip="If you also use this personally (a phone plan, internet, your car), only the business share is deductible. Use 100 for business-only costs." />
+				</label>
+				<input id="{p}-business" name="business_use_percent" type="number" min="1" max="100" step="1" required
+					bind:value={businessUse} class="{inputClass} font-mono" style={inputStyle} />
+			</div>
+		{/if}
+		<div class={isHome && homeShare === null ? '' : 'sm:col-span-2'}>
 			<label for="{p}-notes" class="block text-sm font-medium mb-1" style="color: var(--color-foreground)">
 				Notes <span style="color: var(--color-muted-foreground)">(optional)</span>
 			</label>
@@ -182,8 +210,17 @@
 		· GST/HST you can claim back: <strong class="font-mono" style="color: var(--color-foreground)">{fmt(itc)}</strong>
 		{#if showClaimNote}
 			<span class="block mt-0.5">
-				{#if catInfo.deductibleShare < 1}Meals and entertainment are only 50% deductible.{/if}
-				{#if businessUse < 100}Only the {businessUse}% business share counts.{/if}
+				{#if homeShare !== null}
+					Uses your {homeYear} home office share of {(Math.round(homeShare * 10000) / 100).toLocaleString('en-CA')}%
+					(<a href="/taxes?year={homeYear}#home-office" class="underline" style="color: var(--color-primary)">change</a>).
+				{:else if catInfo.deductibleShare < 1}Meals and entertainment are only 50% deductible.
+				{:else if businessUse < 100}Only the {businessUse}% business share counts.{/if}
+			</span>
+		{/if}
+		{#if isHome && homeShare === null}
+			<span class="block mt-0.5">
+				Tip: <a href="/taxes?year={homeYear}#home-office" class="underline" style="color: var(--color-primary)">set up your home office</a>
+				for {homeYear} and Yield applies your workspace's share of the home automatically.
 			</span>
 		{/if}
 	</p>

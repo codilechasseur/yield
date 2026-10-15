@@ -311,8 +311,13 @@ describe('getSmtpSettings', () => {
 		expect(result).toMatchObject({ tax_province: 'ON', gst_filing_frequency: 'quarterly', fx_rates: { '2026': { USD: 1.37 } } });
 	});
 
+	it('returns the home office setup by year', async () => {
+		const home_office = { '2025': { home_area: 1475, workspace_area: 306, business_time_percent: 100, carryforward: 0 } };
+		expect((await getSmtpSettings(makePb([{ id: 's1', home_office }])))?.home_office).toEqual(home_office);
+	});
+
 	it('defaults the tax estimate settings when absent or malformed', async () => {
-		expect(await getSmtpSettings(makePb([{ id: 's1' }]))).toMatchObject({ tax_province: '', gst_filing_frequency: '', fx_rates: null });
+		expect(await getSmtpSettings(makePb([{ id: 's1' }]))).toMatchObject({ tax_province: '', gst_filing_frequency: '', fx_rates: null, home_office: null });
 		expect((await getSmtpSettings(makePb([{ id: 's1', fx_rates: 'oops' }])))?.fx_rates).toBeNull();
 	});
 });

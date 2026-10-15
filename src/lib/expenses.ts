@@ -27,7 +27,7 @@ export const EXPENSE_CATEGORIES: readonly ExpenseCategoryInfo[] = [
 	{ value: 'meals', label: 'Meals & entertainment', t2125Line: '8523', deductibleShare: 0.5, hint: 'Only 50% is deductible — applied automatically' },
 	{ value: 'travel', label: 'Travel', t2125Line: '9200', deductibleShare: 1, hint: 'Transit, flights, hotels for business trips' },
 	{ value: 'vehicle', label: 'Vehicle', t2125Line: '9281', deductibleShare: 1, hint: 'Fuel, insurance, repairs — set business use %' },
-	{ value: 'home_office', label: 'Business use of home', t2125Line: '9945', deductibleShare: 1, hint: 'Share of rent, utilities — set business use %' },
+	{ value: 'home_office', label: 'Business use of home', t2125Line: '9945', deductibleShare: 1, hint: 'Heat, hydro, mortgage interest, property tax — enter the full bill' },
 	{ value: 'rent', label: 'Rent (business premises)', t2125Line: '8910', deductibleShare: 1, hint: 'Office or co-working space' },
 	{ value: 'insurance', label: 'Insurance', t2125Line: '8690', deductibleShare: 1, hint: 'Liability and business insurance' },
 	{ value: 'interest', label: 'Interest & bank charges', t2125Line: '8710', deductibleShare: 1, hint: 'Business account fees, card fees, loan interest' },
@@ -54,19 +54,31 @@ export function businessUseFraction(percent: number | null | undefined): number 
 	return Math.min(percent, 100) / 100;
 }
 
+export interface ClaimContext {
+	/**
+	 * Business share of home costs for the year (see $lib/home-office.ts). When set, it replaces the
+	 * per-expense business-use % for 'home_office' expenses, which are entered at their full amount.
+	 */
+	homeShare?: number | null;
+}
+
 /** Fraction of the expense (and of its GST) that can be claimed. */
-export function claimableFraction(e: Pick<ExpenseLike, 'category' | 'business_use_percent'>): number {
+export function claimableFraction(e: Pick<ExpenseLike, 'category' | 'business_use_percent'>, ctx: ClaimContext = {}): number {
+	if (e.category === 'home_office' && typeof ctx.homeShare === 'number') return ctx.homeShare;
 	return businessUseFraction(e.business_use_percent) * categoryInfo(e.category).deductibleShare;
 }
 
-/** The part of the pre-tax amount that reduces taxable income. */
-export function deductibleAmount(e: ExpenseLike): number {
-	return round2((e.amount ?? 0) * claimableFraction(e));
+/**
+ * The part of the pre-tax amount that reduces taxable income. For home costs this is before the
+ * business-use-of-home loss limit, which needs the year's income (see summarizeHomeOffice).
+ */
+export function deductibleAmount(e: ExpenseLike, ctx: ClaimContext = {}): number {
+	return round2((e.amount ?? 0) * claimableFraction(e, ctx));
 }
 
 /** The part of the GST/HST paid that can be claimed back as an input tax credit. */
-export function claimableItc(e: ExpenseLike): number {
-	return round2((e.gst_paid ?? 0) * claimableFraction(e));
+export function claimableItc(e: ExpenseLike, ctx: ClaimContext = {}): number {
+	return round2((e.gst_paid ?? 0) * claimableFraction(e, ctx));
 }
 
 export interface CategoryTotal {
@@ -92,14 +104,14 @@ export interface ExpenseTotals {
 	byCategory: CategoryTotal[];
 }
 
-export function summarizeExpenses(expenses: readonly ExpenseLike[]): ExpenseTotals {
+export function summarizeExpenses(expenses: readonly ExpenseLike[], ctx: ClaimContext = {}): ExpenseTotals {
 	const byCat = new Map<ExpenseCategory, CategoryTotal>();
 	const totals: ExpenseTotals = { count: 0, spent: 0, deductible: 0, gstPaid: 0, itc: 0, byCategory: [] };
 
 	for (const e of expenses) {
 		const info = categoryInfo(e.category);
-		const deductible = deductibleAmount(e);
-		const itc = claimableItc(e);
+		const deductible = deductibleAmount(e, ctx);
+		const itc = claimableItc(e, ctx);
 		totals.count++;
 		totals.spent += e.amount ?? 0;
 		totals.deductible += deductible;

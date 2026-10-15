@@ -900,6 +900,16 @@
       },
       {
         "hidden": false,
+        "id": "fld_set_homeoff",
+        "maxSize": 0,
+        "name": "home_office",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "json"
+      },
+      {
+        "hidden": false,
         "id": "autodate2990389176",
         "name": "created",
         "onCreate": true,
@@ -1368,6 +1378,26 @@
       },
       {
         "hidden": false,
+        "id": "fld_rex_home",
+        "maxSelect": 1,
+        "name": "home_cost_type",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "select",
+        "values": [
+          "heat",
+          "electricity",
+          "insurance",
+          "maintenance",
+          "mortgage_interest",
+          "property_taxes",
+          "rent",
+          "other"
+        ]
+      },
+      {
+        "hidden": false,
         "id": "fld_rex_created",
         "name": "created",
         "onCreate": true,
@@ -1532,6 +1562,26 @@
         "required": false,
         "system": false,
         "type": "relation"
+      },
+      {
+        "hidden": false,
+        "id": "fld_exp_home",
+        "maxSelect": 1,
+        "name": "home_cost_type",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "select",
+        "values": [
+          "heat",
+          "electricity",
+          "insurance",
+          "maintenance",
+          "mortgage_interest",
+          "property_taxes",
+          "rent",
+          "other"
+        ]
       },
       {
         "hidden": false,

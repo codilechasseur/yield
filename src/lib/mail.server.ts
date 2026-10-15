@@ -5,7 +5,7 @@
  */
 import nodemailer from 'nodemailer';
 import type PocketBase from 'pocketbase';
-import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem, GstFilingFrequency } from './types.js';
+import type { Invoice, InvoiceItem, Client, Estimate, EstimateItem, GstFilingFrequency, HomeOfficeConfig } from './types.js';
 import { getPreset } from './presets.js';
 import { renderRichText, renderMultilineText, escapeHtmlAttr, isRichText, sanitizeRichText, richTextToPlainText } from './rich-text.js';
 import { pbUrl } from '$lib/pb.server.js';
@@ -37,6 +37,8 @@ export interface SmtpSettings {
 	gst_filing_frequency?: GstFilingFrequency | '';
 	/** Average exchange rates to CAD by year, for foreign revenue: {"2026": {"USD": 1.37}}. */
 	fx_rates?: Record<string, Record<string, number>> | null;
+	/** Business-use-of-home setup by year: {"2026": {home_area, workspace_area, business_time_percent, carryforward}}. */
+	home_office?: Record<string, HomeOfficeConfig> | null;
 	invoice_default_notes?: string;
 	invoice_footer?: string;
 	company_name?: string;
@@ -637,6 +639,7 @@ export async function getSmtpSettings(pb: PocketBase): Promise<SmtpSettings | nu
 			tax_province: r.tax_province ?? '',
 			gst_filing_frequency: r.gst_filing_frequency ?? '',
 			fx_rates: r.fx_rates && typeof r.fx_rates === 'object' ? r.fx_rates : null,
+			home_office: r.home_office && typeof r.home_office === 'object' ? r.home_office : null,
 			invoice_default_notes: r.invoice_default_notes ?? '',
 			invoice_footer: r.invoice_footer ?? '',
 			company_name: r.company_name ?? '',

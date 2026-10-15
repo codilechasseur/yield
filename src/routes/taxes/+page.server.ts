@@ -1,4 +1,5 @@
 import { fail } from '@sveltejs/kit';
+import type PocketBase from 'pocketbase';
 import type { Client, Expense, Invoice, InvoiceItem, TaxPayment } from '$lib/types.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
 import { getPb } from '$lib/pb.server.js';
@@ -6,6 +7,8 @@ import { generateRecurringExpenses, todayIso } from '$lib/recurring.server.js';
 import { buildTaxSummary, type InvoiceForTax } from '$lib/tax-summary.js';
 import { isGstFrequency, isPeriodKey } from '$lib/gst-periods.js';
 import { isProvince } from '$lib/income-tax.js';
+import { homeConfigForYear, parseHomeOfficeConfig } from '$lib/home-office.js';
+import type { HomeOfficeConfig } from '$lib/types.js';
 
 export async function load({ url }) {
 	const pb = await getPb();
@@ -22,14 +25,19 @@ export async function load({ url }) {
 		province: settings?.tax_province ?? '',
 		flatRate: settings?.income_tax_rate ?? 0,
 		gstFrequency: settings?.gst_filing_frequency || 'annual',
-		fxRates: settings?.fx_rates?.[String(year)] ?? {}
+		fxRates: settings?.fx_rates?.[String(year)] ?? {},
+		homeOffice: homeConfigForYear(settings?.home_office, year)
 	};
+	// Pre-fill a new year's home office setup from last year (same home, nothing carried yet)
+	const lastYearHome = homeConfigForYear(settings?.home_office, year - 1);
+	const homePrefill: HomeOfficeConfig | null = taxSettings.homeOffice ?? (lastYearHome ? { ...lastYearHome, carryforward: 0 } : null);
 	const base = {
 		year,
 		availableYears,
 		today,
 		taxSettings,
 		defaultTaxPercent: settings?.default_tax_percent ?? 5,
+		homePrefill,
 		payments: [] as TaxPayment[]
 	};
 
@@ -54,7 +62,7 @@ export async function load({ url }) {
 				.collection('expenses')
 				.getFullList<Expense>({
 					filter: pb.filter('expense_date >= {:from} && expense_date <= {:to}', range),
-					fields: 'amount,gst_paid,category,business_use_percent,expense_date'
+					fields: 'amount,gst_paid,category,business_use_percent,expense_date,home_cost_type,description'
 				})
 				.catch(() => [] as Expense[]) // collection may not exist before migrations run
 		]);
@@ -86,7 +94,8 @@ export async function load({ url }) {
 			province: taxSettings.province,
 			flatRate: taxSettings.flatRate,
 			gstFrequency: taxSettings.gstFrequency,
-			fxRates: taxSettings.fxRates
+			fxRates: taxSettings.fxRates,
+			homeOffice: taxSettings.homeOffice
 		});
 
 		return { ...base, payments, summary, loadError: null as string | null };
@@ -219,5 +228,71 @@ export const actions = {
 			return fail(500, { fxError: 'Failed to save: ' + (e as Error).message });
 		}
 		return { fxSuccess: true };
+	},
+
+	/** Saves one year's business-use-of-home setup. Clearing both areas removes it. */
+	saveHomeOffice: async ({ request }) => {
+		const pb = await getPb();
+		const fd = await request.formData();
+		const year = fd.get('year')?.toString() ?? '';
+		if (!/^\d{4}$/.test(year)) return fail(400, { homeError: 'Missing year.' });
+
+		const raw = {
+			home_area: fd.get('home_area')?.toString().trim() ?? '',
+			workspace_area: fd.get('workspace_area')?.toString().trim() ?? '',
+			business_time_percent: fd.get('business_time_percent')?.toString().trim() ?? '',
+			carryforward: fd.get('carryforward')?.toString().trim() ?? ''
+		};
+		const clearing = raw.home_area === '' && raw.workspace_area === '';
+		const config = clearing ? null : parseHomeOfficeConfig(raw);
+		if (!clearing && !config) {
+			return fail(400, {
+				homeError: 'Enter both areas (the workspace can’t be bigger than the home) and a business-use time between 1 and 100%.'
+			});
+		}
+
+		try {
+			await updateHomeOffice(pb, (all) => {
+				if (config) all[year] = config;
+				else delete all[year];
+			});
+		} catch (e) {
+			return fail(500, { homeError: 'Failed to save: ' + (e as Error).message });
+		}
+		return { homeSuccess: true };
+	},
+
+	/** Moves this year's unused home office amount into next year's setup. */
+	carryHomeOfficeForward: async ({ request }) => {
+		const pb = await getPb();
+		const fd = await request.formData();
+		const year = parseInt(fd.get('year')?.toString() ?? '', 10);
+		const amount = parseFloat(fd.get('amount')?.toString() ?? '');
+		if (!year) return fail(400, { homeError: 'Missing year.' });
+		if (!Number.isFinite(amount) || amount < 0) return fail(400, { homeError: 'Invalid amount.' });
+
+		try {
+			await updateHomeOffice(pb, (all) => {
+				const current = parseHomeOfficeConfig(all[String(year)]);
+				const next = parseHomeOfficeConfig(all[String(year + 1)]) ?? current;
+				if (!next) throw new Error(`Set up your home office for ${year} first.`);
+				all[String(year + 1)] = { ...next, carryforward: Math.round(amount * 100) / 100 };
+			});
+		} catch (e) {
+			return fail(500, { homeError: 'Failed to carry forward: ' + (e as Error).message });
+		}
+		return { homeCarried: true };
 	}
 };
+
+/** Read-modify-write of settings.home_office (upserting the single settings record). */
+async function updateHomeOffice(pb: PocketBase, change: (all: Record<string, unknown>) => void) {
+	const existing = await getSmtpSettings(pb);
+	const all: Record<string, unknown> = { ...(existing?.home_office ?? {}) };
+	change(all);
+	if (existing?.id) {
+		await pb.collection('settings').update(existing.id, { home_office: all });
+	} else {
+		await pb.collection('settings').create({ home_office: all });
+	}
+}

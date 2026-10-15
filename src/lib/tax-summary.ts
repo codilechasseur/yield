@@ -1,5 +1,6 @@
-import type { Expense, GstFilingFrequency, TaxPayment } from './types.js';
+import type { Expense, GstFilingFrequency, HomeOfficeConfig, TaxPayment } from './types.js';
 import { claimableItc, deductibleAmount, summarizeExpenses, type ExpenseTotals } from './expenses.js';
+import { homeOfficeShare, summarizeHomeOffice, type HomeOfficeSummary } from './home-office.js';
 import { estimateIncomeTax, type IncomeTaxEstimate } from './income-tax.js';
 import { gstPeriods, periodYear, type GstPeriod } from './gst-periods.js';
 
@@ -11,6 +12,10 @@ import { gstPeriods, periodYear, type GstPeriod } from './gst-periods.js';
  * GST/HST is reported. Foreign-currency invoices count toward income tax once
  * converted at the year's exchange rate, but never toward GST/HST collected —
  * exports to non-residents are zero-rated.
+ *
+ * Business-use-of-home costs are deducted last and capped at the income left
+ * after every other expense (they can't create a loss); the excess carries
+ * forward to next year.
  */
 
 export interface InvoiceForTax {
@@ -64,8 +69,17 @@ export interface TaxSummary {
 	foreignRevenue: ForeignRevenue[];
 	/** Foreign currencies with revenue but no exchange rate — left out of the income figures. */
 	missingRates: string[];
+	/** All expenses. For home costs, `deductible` is the business part before the loss limit. */
 	expenses: ExpenseTotals;
-	/** revenue − deductible expenses (can be negative). */
+	/** Deductible expenses other than business use of home. */
+	otherDeductible: number;
+	/** T2125 Part 7, including the loss limit and carryforward. */
+	homeOffice: HomeOfficeSummary;
+	/** otherDeductible + homeOffice.deductible. */
+	totalDeductible: number;
+	/** Phone/internet appears both as a home cost and as a "Phone & internet" expense. */
+	phoneDoubleCountRisk: boolean;
+	/** revenue − total deductible expenses (can be negative). */
 	netIncome: number;
 	incomeTax: IncomeTaxEstimate;
 	incomeTaxPaid: number;
@@ -108,13 +122,16 @@ export function buildTaxSummary(input: {
 	year: number;
 	today: string;
 	invoices: readonly InvoiceForTax[];
-	expenses: readonly Pick<Expense, 'amount' | 'gst_paid' | 'category' | 'business_use_percent' | 'expense_date'>[];
+	expenses: readonly (Pick<Expense, 'amount' | 'gst_paid' | 'category' | 'business_use_percent' | 'expense_date'> &
+		Partial<Pick<Expense, 'home_cost_type' | 'description'>>)[];
 	payments: readonly Pick<TaxPayment, 'type' | 'amount' | 'payment_date' | 'period'>[];
 	province?: string | null;
 	flatRate?: number | null;
 	gstFrequency?: GstFilingFrequency | '' | null;
 	/** CAD per unit of each foreign currency for this year. */
 	fxRates?: Record<string, number> | null;
+	/** This year's business-use-of-home setup. */
+	homeOffice?: HomeOfficeConfig | null;
 }): TaxSummary {
 	const { year, today } = input;
 	const frequency: GstFilingFrequency = input.gstFrequency || 'annual';
@@ -159,14 +176,36 @@ export function buildTaxSummary(input: {
 	}
 	const revenue = monthRevenue.reduce((s, v) => s + v, 0);
 
+	const ctx = { homeShare: homeOfficeShare(input.homeOffice) };
+	const monthHome = new Array<number>(13).fill(0);
+	let otherDeductible = 0;
 	for (const e of input.expenses) {
 		const m = monthOf(e.expense_date);
-		monthExpenses[m] += deductibleAmount(e);
-		monthItc[m] += claimableItc(e);
+		const deductible = deductibleAmount(e, ctx);
+		if (e.category === 'home_office') {
+			monthHome[m] += deductible;
+		} else {
+			monthExpenses[m] += deductible;
+			otherDeductible += deductible;
+		}
+		monthItc[m] += claimableItc(e, ctx);
 	}
-	const expenses = summarizeExpenses(input.expenses);
+	const expenses = summarizeExpenses(input.expenses, ctx);
 
-	const netIncome = revenue - expenses.deductible;
+	const homeExpenses = input.expenses
+		.filter((e) => e.category === 'home_office')
+		.map((e) => ({ ...e, home_cost_type: e.home_cost_type ?? '', description: e.description ?? '' }));
+	const homeOffice = summarizeHomeOffice({
+		expenses: homeExpenses,
+		config: input.homeOffice ?? null,
+		incomeBeforeHome: revenue - otherDeductible
+	});
+	// Spread the (possibly limited) home deduction over the months the costs were incurred.
+	const homeScale = homeOffice.available > 0 ? homeOffice.deductible / homeOffice.available : 0;
+	for (let m = 1; m <= 12; m++) monthExpenses[m] += monthHome[m] * homeScale;
+
+	const totalDeductible = otherDeductible + homeOffice.deductible;
+	const netIncome = revenue - totalDeductible;
 	const incomeTax = estimateIncomeTax({ netIncome, year, province: input.province, flatRate: input.flatRate });
 
 	const applicable = input.payments.filter((p) => paymentAppliesToYear(p, year));
@@ -226,6 +265,10 @@ export function buildTaxSummary(input: {
 		foreignRevenue,
 		missingRates,
 		expenses,
+		otherDeductible: round2(otherDeductible),
+		homeOffice,
+		totalDeductible: round2(totalDeductible),
+		phoneDoubleCountRisk: homeOffice.phoneOrInternetInOther && input.expenses.some((e) => e.category === 'telephone'),
 		netIncome: round2(netIncome),
 		incomeTax,
 		incomeTaxPaid: round2(incomeTaxPaid),

@@ -1,9 +1,10 @@
 import { fail } from '@sveltejs/kit';
 import type PocketBase from 'pocketbase';
-import type { Expense, ExpenseCategory, RecurringExpense } from '$lib/types.js';
+import type { Expense, ExpenseCategory, HomeCostType, RecurringExpense } from '$lib/types.js';
 import { getPb } from '$lib/pb.server.js';
 import { getSmtpSettings } from '$lib/mail.server.js';
 import { isExpenseCategory, parseBusinessUse, summarizeExpenses } from '$lib/expenses.js';
+import { homeConfigForYear, homeOfficeShare, isHomeCostType } from '$lib/home-office.js';
 import { annualCost, isFrequency, nextOccurrence, toIsoDate } from '$lib/recurring.js';
 import { generateForRecurringExpense, generateRecurringExpenses, isUniqueViolation, todayIso } from '$lib/recurring.server.js';
 
@@ -34,6 +35,13 @@ export async function load({ url }) {
 
 	const settings = await getSmtpSettings(pb).catch(() => null);
 	const defaultTaxPercent = settings?.default_tax_percent ?? 5;
+	// Business share of home costs per year that has a home office set up (Taxes → Business use of home)
+	const homeShares: Record<string, number> = {};
+	for (const y of Object.keys(settings?.home_office ?? {})) {
+		const share = homeOfficeShare(homeConfigForYear(settings?.home_office, Number(y)));
+		if (share !== null) homeShares[y] = share;
+	}
+	const ctx = { homeShare: homeShares[String(year)] ?? null };
 
 	// Create any recurring charges that have come due before reading totals.
 	const generated = await generateRecurringExpenses(pb, today).catch((e) => ({
@@ -79,13 +87,14 @@ export async function load({ url }) {
 			totalItems: list.totalItems,
 			filters,
 			hasFilters,
-			yearTotals: summarizeExpenses(yearRows),
-			filteredTotals: filteredRows ? summarizeExpenses(filteredRows) : null,
+			yearTotals: summarizeExpenses(yearRows, ctx),
+			filteredTotals: filteredRows ? summarizeExpenses(filteredRows, ctx) : null,
 			recurring,
 			recurringAnnual: recurring.filter((r) => r.nextDate).reduce((s, r) => s + r.annualCost, 0),
 			year,
 			availableYears,
 			defaultTaxPercent,
+			homeShares,
 			today,
 			loadError: generated.errors.length ? 'Some recurring expenses could not be created: ' + generated.errors.join('; ') : (null as string | null)
 		};
@@ -104,6 +113,7 @@ export async function load({ url }) {
 			year,
 			availableYears,
 			defaultTaxPercent,
+			homeShares,
 			today,
 			loadError: 'Could not load expenses: ' + (e as Error).message
 		};
@@ -132,6 +142,8 @@ interface ExpenseFields {
 	gst_paid: number;
 	category: ExpenseCategory;
 	business_use_percent: number;
+	/** Part 7 line for home costs; '' for every other category. */
+	home_cost_type: HomeCostType | '';
 	notes: string;
 }
 
@@ -143,6 +155,7 @@ function parseExpenseFields(fd: FormData): ExpenseFields | string {
 	const gst_paid = gstRaw === '' ? 0 : parseFloat(gstRaw);
 	const categoryRaw = fd.get('category')?.toString() ?? '';
 	const business_use_percent = parseBusinessUse(fd.get('business_use_percent')?.toString());
+	const homeCostRaw = fd.get('home_cost_type')?.toString() ?? '';
 	const notes = fd.get('notes')?.toString().trim() ?? '';
 
 	if (!description) return 'Enter a description.';
@@ -150,13 +163,16 @@ function parseExpenseFields(fd: FormData): ExpenseFields | string {
 	if (!Number.isFinite(gst_paid) || gst_paid < 0) return 'GST/HST paid must be zero or more.';
 	if (categoryRaw && !isExpenseCategory(categoryRaw)) return 'Choose a category from the list.';
 	if (business_use_percent === null) return 'Business use must be between 1 and 100%.';
+	const category: ExpenseCategory = isExpenseCategory(categoryRaw) ? categoryRaw : 'other';
+	if (category === 'home_office' && homeCostRaw && !isHomeCostType(homeCostRaw)) return 'Choose which home cost this is.';
 
 	return {
 		description,
 		amount: round2(amount),
 		gst_paid: round2(gst_paid),
-		category: isExpenseCategory(categoryRaw) ? categoryRaw : 'other',
+		category,
 		business_use_percent,
+		home_cost_type: category === 'home_office' ? (isHomeCostType(homeCostRaw) ? homeCostRaw : 'other') : '',
 		notes
 	};
 }

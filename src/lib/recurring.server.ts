@@ -41,6 +41,7 @@ async function generateForSchedule(pb: PocketBase, s: RecurringExpense, today: s
 					gst_paid: s.gst_paid ?? 0,
 					category: s.category || 'other',
 					business_use_percent: s.business_use_percent || 100,
+					home_cost_type: s.home_cost_type ?? '',
 					notes: s.notes ?? '',
 					expense_date,
 					recurring: s.id

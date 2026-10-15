@@ -91,6 +91,29 @@ export type ExpenseCategory =
 	| 'home_office'
 	| 'other';
 
+/** Which T2125 Part 7 (business-use-of-home) line a home cost belongs on — see HOME_COST_TYPES in $lib/home-office.ts. */
+export type HomeCostType =
+	| 'heat'
+	| 'electricity'
+	| 'insurance'
+	| 'maintenance'
+	| 'mortgage_interest'
+	| 'property_taxes'
+	| 'rent'
+	| 'other';
+
+/** One year's business-use-of-home setup, stored in settings.home_office keyed by year. */
+export interface HomeOfficeConfig {
+	/** Total area (or number of rooms) of the home. */
+	home_area: number;
+	/** Area (or rooms) of the workspace. */
+	workspace_area: number;
+	/** Share of time the workspace is used for business, 0–100. */
+	business_time_percent: number;
+	/** Home office costs carried forward from the previous year (couldn't be deducted then). */
+	carryforward: number;
+}
+
 export interface Expense {
 	id: string;
 	description: string;
@@ -108,6 +131,8 @@ export interface Expense {
 	receipt: string;
 	/** The recurring_expenses schedule that generated this expense (empty = entered by hand). */
 	recurring: string;
+	/** For 'home_office' expenses: which Part 7 line it goes on (empty on older records = 'other'). */
+	home_cost_type: HomeCostType | '';
 	created: string;
 	updated: string;
 }
@@ -122,6 +147,7 @@ export interface RecurringExpense {
 	gst_paid: number;
 	category: ExpenseCategory | '';
 	business_use_percent: number;
+	home_cost_type: HomeCostType | '';
 	notes: string;
 	frequency: RecurrenceFrequency;
 	/** First charge date; later charges keep its day of month (clamped to short months). */

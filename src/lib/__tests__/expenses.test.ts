@@ -83,6 +83,16 @@ describe('deductibleAmount / claimableItc', () => {
 		expect(deductibleAmount(exp(100, 0, 'meals', 50))).toBe(25);
 	});
 
+	it('uses the home office share for home costs when given', () => {
+		const home = exp(1000, 50, 'home_office', 30);
+		expect(deductibleAmount(home)).toBe(300); // no setup → business-use %
+		expect(deductibleAmount(home, { homeShare: 0.2 })).toBe(200);
+		expect(claimableItc(home, { homeShare: 0.2 })).toBe(10);
+		expect(deductibleAmount(home, { homeShare: null })).toBe(300);
+		// Other categories ignore the home share
+		expect(deductibleAmount(exp(100, 0, 'software'), { homeShare: 0.2 })).toBe(100);
+	});
+
 	it('handles missing GST', () => {
 		expect(claimableItc({ amount: 50, gst_paid: undefined as unknown as number, category: 'office', business_use_percent: 100 })).toBe(0);
 	});
@@ -110,6 +120,12 @@ describe('summarizeExpenses', () => {
 			['software', 2, 50],
 			['other', 1, 10]
 		]);
+	});
+
+	it('applies the home share in totals', () => {
+		const t = summarizeExpenses([exp(1000, 0, 'home_office'), exp(100, 0, 'office')], { homeShare: 0.25 });
+		expect(t.deductible).toBe(350);
+		expect(t.byCategory.find((c) => c.category === 'home_office')?.deductible).toBe(250);
 	});
 
 	it('avoids floating-point noise', () => {

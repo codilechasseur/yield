@@ -11,6 +11,7 @@
 	import ExpenseForm, { type ExpenseFormValues } from './ExpenseForm.svelte';
 	import { EXPENSE_CATEGORIES, categoryInfo, deductibleAmount } from '$lib/expenses.js';
 	import { frequencyLabel } from '$lib/recurring.js';
+	import { homeCostLabel } from '$lib/home-office.js';
 	import type { Expense } from '$lib/types.js';
 	import type { PageData, ActionData } from './$types.js';
 	import type { RecurringRow } from './+page.server.js';
@@ -62,7 +63,7 @@
 			mode: 'edit',
 			values: {
 				id: e.id, description: e.description, amount: e.amount, gst_paid: e.gst_paid || null, category: e.category,
-				business_use_percent: e.business_use_percent || 100, notes: e.notes, date: e.expense_date,
+				business_use_percent: e.business_use_percent || 100, home_cost_type: e.home_cost_type, notes: e.notes, date: e.expense_date,
 				receipt: e.receipt, recurring: e.recurring
 			}
 		});
@@ -73,7 +74,7 @@
 			mode: 'recurring',
 			values: {
 				id: r.id, description: r.description, amount: r.amount, gst_paid: r.gst_paid || null, category: r.category,
-				business_use_percent: r.business_use_percent || 100, notes: r.notes, date: r.start_date,
+				business_use_percent: r.business_use_percent || 100, home_cost_type: r.home_cost_type, notes: r.notes, date: r.start_date,
 				frequency: r.frequency, end_date: r.end_date
 			}
 		});
@@ -105,6 +106,16 @@
 	function categoryUrl(category: string) {
 		const params = new URLSearchParams({ year: String(data.year), category });
 		return `?${params}`;
+	}
+
+	/** Category label, plus the Part 7 line for home costs. */
+	function categoryText(e: { category: Expense['category']; home_cost_type?: Expense['home_cost_type'] }): string {
+		const label = categoryInfo(e.category).label;
+		return e.category === 'home_office' ? `${label} · ${homeCostLabel(e.home_cost_type)}` : label;
+	}
+
+	function homeShareFor(date: string): number | null {
+		return data.homeShares[date.slice(0, 4)] ?? null;
 	}
 
 	const activeSchedules = $derived(data.recurring.filter((r) => r.nextDate));
@@ -198,6 +209,7 @@
 					mode={formState.mode}
 					values={formState.values}
 					defaultTaxPercent={data.defaultTaxPercent}
+					homeShares={data.homeShares}
 					error={formError}
 					onCancel={() => (formState = null)}
 					{onSaved}
@@ -260,7 +272,7 @@
 								<td class="px-4 py-2.5" style="color: var(--color-foreground)">
 									<span class="font-medium">{r.description}</span>
 									<span class="block text-xs" style="color: var(--color-muted-foreground)">
-										{categoryInfo(r.category).label} · since {fmtDate(r.start_date)} · {r.chargeCount} {r.chargeCount === 1 ? 'charge' : 'charges'} logged
+										{categoryText(r)} · since {fmtDate(r.start_date)} · {r.chargeCount} {r.chargeCount === 1 ? 'charge' : 'charges'} logged
 									</span>
 								</td>
 								<td class="px-4 py-2.5 text-right font-mono whitespace-nowrap" style="color: var(--color-foreground)">
@@ -384,17 +396,20 @@
 					</thead>
 					<tbody>
 						{#each data.expenses as expense, i (expense.id)}
-							{@const deductible = deductibleAmount(expense)}
+							{@const homeShare = expense.category === 'home_office' ? homeShareFor(expense.expense_date) : null}
+							{@const deductible = deductibleAmount(expense, { homeShare })}
 							<tr class="border-t" style="border-color: var(--color-border); background-color: {i % 2 === 1 ? 'var(--color-accent)' : 'var(--color-card)'}">
 								<td class="px-4 py-3 font-medium whitespace-nowrap align-top" style="color: var(--color-foreground)">{fmtDate(expense.expense_date)}</td>
 								<td class="px-4 py-3 align-top" style="color: var(--color-foreground)">
 									<span>{expense.description}</span>
 									<span class="mt-1 flex flex-wrap items-center gap-1.5 text-xs" style="color: var(--color-muted-foreground)">
-										<span class="inline-flex items-center px-2 py-0.5 rounded-full" style="background-color: var(--color-muted)">{categoryInfo(expense.category).label}</span>
+										<span class="inline-flex items-center px-2 py-0.5 rounded-full" style="background-color: var(--color-muted)">{categoryText(expense)}</span>
 										{#if expense.recurring}
 											<span class="inline-flex items-center gap-1"><Repeat size={11} aria-hidden="true" />Recurring</span>
 										{/if}
-										{#if expense.business_use_percent && expense.business_use_percent < 100}
+										{#if homeShare !== null}
+											<span>{Math.round(homeShare * 1000) / 10}% home office share</span>
+										{:else if expense.business_use_percent && expense.business_use_percent < 100}
 											<span>{expense.business_use_percent}% business</span>
 										{/if}
 										{#if expense.receipt}

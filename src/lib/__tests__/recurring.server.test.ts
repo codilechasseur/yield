@@ -21,6 +21,7 @@ function schedule(overrides: Partial<RecurringExpense> = {}): RecurringExpense {
 		gst_paid: 2.6,
 		category: 'software',
 		business_use_percent: 100,
+		home_cost_type: '',
 		notes: '',
 		frequency: 'monthly',
 		start_date: '2026-08-15 00:00:00.000Z',
@@ -125,6 +126,12 @@ describe('generateRecurringExpenses', () => {
 		expect(await generateRecurringExpenses(pb, '2026-10-20')).toEqual({ created: 0, errors: [] });
 		expect(created).toEqual([]);
 		expect(updates).toEqual([]);
+	});
+
+	it('copies the home cost line onto each charge', async () => {
+		const { pb, created } = fakePb([schedule({ category: 'home_office', home_cost_type: 'electricity', start_date: '2026-10-15' })]);
+		await generateRecurringExpenses(pb, '2026-10-15');
+		expect(created[0]).toMatchObject({ category: 'home_office', home_cost_type: 'electricity' });
 	});
 
 	it('defaults a missing category and business use on older schedules', async () => {

@@ -161,4 +161,71 @@ describe('buildTaxSummary', () => {
 		]);
 		expect(s.months.reduce((t, m) => t + m.estIncomeTax, 0)).toBeCloseTo(s.incomeTax.total);
 	});
+
+	describe('business use of home', () => {
+		const homeOffice = { home_area: 1475, workspace_area: 306, business_time_percent: 100, carryforward: 0 };
+		const home = (expense_date: string, amount: number, home_cost_type: string, gst_paid = 0, description = '') => ({
+			...exp(expense_date, amount, gst_paid, 'home_office'),
+			home_cost_type: home_cost_type as never,
+			description
+		});
+		const homeCosts = [
+			home('2026-01-31', 468, 'heat'),
+			home('2026-02-28', 1668, 'electricity', 216.84),
+			home('2026-03-31', 600, 'insurance'),
+			home('2026-12-31', 30761.2, 'mortgage_interest'),
+			home('2026-07-01', 2463.17, 'property_taxes'),
+			home('2026-06-30', 1915, 'other', 0, 'Internet/Phone')
+		];
+
+		it('deducts the workspace share after other expenses', () => {
+			const s = buildTaxSummary({
+				...base,
+				invoices: [inv('2026-01-10', 100_000)],
+				expenses: [...homeCosts, exp('2026-01-20', 1_000, 0)],
+				homeOffice,
+				flatRate: 20
+			});
+			expect(s.otherDeductible).toBe(1_000);
+			expect(s.homeOffice.deductible).toBe(7857.53);
+			expect(s.totalDeductible).toBe(8857.53);
+			expect(s.netIncome).toBe(91142.47);
+			expect(s.incomeTax.total).toBeCloseTo(91142.47 * 0.2, 2);
+			// GST on home costs is claimed at the same share
+			expect(s.gst.itc).toBeCloseTo(216.84 * (306 / 1475), 2);
+			// Months carry the home share of each bill
+			expect(s.months.find((m) => m.month === 12)?.expenses).toBeCloseTo(30761.2 * (306 / 1475), 2);
+		});
+
+		it('limits the deduction to income left after other expenses', () => {
+			const s = buildTaxSummary({
+				...base,
+				invoices: [inv('2026-01-10', 5_000)],
+				expenses: [...homeCosts, exp('2026-01-20', 1_000, 0)],
+				homeOffice
+			});
+			expect(s.homeOffice.deductible).toBe(4_000);
+			expect(s.homeOffice.carriedForward).toBe(3857.53);
+			expect(s.netIncome).toBe(0);
+			expect(s.months.reduce((t, m) => t + m.expenses, 0)).toBeCloseTo(5_000, 1);
+		});
+
+		it('warns when phone/internet is both a home cost and a phone expense', () => {
+			const without = buildTaxSummary({ ...base, expenses: homeCosts, homeOffice });
+			expect(without.phoneDoubleCountRisk).toBe(false);
+			const withPhone = buildTaxSummary({ ...base, expenses: [...homeCosts, exp('2026-03-01', 80, 0, 'telephone')], homeOffice });
+			expect(withPhone.phoneDoubleCountRisk).toBe(true);
+		});
+
+		it('works without a setup using each expense’s business-use %', () => {
+			const s = buildTaxSummary({
+				...base,
+				invoices: [inv('2026-01-10', 10_000)],
+				expenses: [{ ...exp('2026-02-01', 1_000, 0, 'home_office', 25) }]
+			});
+			expect(s.homeOffice.share).toBeNull();
+			expect(s.homeOffice.deductible).toBe(250);
+			expect(s.homeOffice.lines.find((l) => l.type === 'other')?.amount).toBe(1_000);
+		});
+	});
 });

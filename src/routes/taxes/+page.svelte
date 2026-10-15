@@ -3,7 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { tick } from 'svelte';
 	import {
-		Landmark, Trash2, Plus, Receipt, Calculator, AlertTriangle, CalendarDays, Pencil, PiggyBank, Settings2, Globe, CalendarClock, Info
+		Landmark, Trash2, Plus, Receipt, Calculator, AlertTriangle, CalendarDays, Pencil, PiggyBank, Settings2, Globe, CalendarClock, Info, House
 	} from 'lucide-svelte';
 	import { addToast } from '$lib/toasts.svelte.js';
 	import FormAlert from '$lib/components/FormAlert.svelte';
@@ -72,6 +72,15 @@
 	$effect.pre(() => {
 		settingsProvince = ts.province;
 	});
+
+	// ── Business use of home ───────────────────────────────────
+	let homeEditing = $state(false);
+	let homeSaving = $state(false);
+	const homeConfig = $derived(s?.homeOffice.config ?? null);
+	const showHomeForm = $derived(homeEditing || (!homeConfig && (s?.homeOffice.count ?? 0) > 0));
+	function num(n: number): string {
+		return n.toLocaleString('en-CA', { maximumFractionDigits: 2 });
+	}
 
 	// ── Set-aside calculator ───────────────────────────────────
 	let received = $state<number | null>(null);
@@ -339,7 +348,10 @@
 			</div>
 			<div>
 				{@render line('Revenue', fmt(s.revenue), `Invoiced in ${data.year}, before GST/HST${s.revenue !== s.cadRevenue ? ` — includes ${fmt(s.revenue - s.cadRevenue)} converted from other currencies` : ''}`)}
-				{@render line('Deductible expenses', minus(s.expenses.deductible), 'Business-use share, meals at 50%')}
+				{@render line('Deductible expenses', minus(s.otherDeductible), 'Business-use share, meals at 50%')}
+				{#if s.homeOffice.count > 0 || s.homeOffice.carryforwardIn > 0}
+					{@render line('Business use of home', minus(s.homeOffice.deductible), s.homeOffice.carriedForward > 0 ? `Limited to your income — ${fmt(s.homeOffice.carriedForward)} carries forward` : 'Workspace share of home costs — see below')}
+				{/if}
 				{@render line('Net business income', fmt(s.netIncome), 'What you pay tax on (your profit)')}
 				{#if s.incomeTax.method === 'brackets'}
 					{@render line(`${s.incomeTax.pensionPlan} contributions`, fmt(s.incomeTax.pension), `Self-employed pay both the employee and employer share`)}
@@ -381,6 +393,165 @@
 			</div>
 		</section>
 	</div>
+
+	<!-- Business use of home (T2125 Part 7) -->
+	<section id="home-office" class="rounded-xl border overflow-hidden mb-6 scroll-mt-6" style={cardStyle} aria-labelledby="home-title">
+		<div class="px-5 py-3 border-b flex items-center gap-2" style="border-color: var(--color-border)">
+			<House size={15} style="color: var(--color-primary)" aria-hidden="true" />
+			<h3 id="home-title" class="font-semibold text-sm" style="color: var(--color-foreground)">Business use of home — {data.year}</h3>
+			{#if homeConfig && !homeEditing}
+				<button type="button" onclick={() => (homeEditing = true)} class="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
+					style="border-color: var(--color-border); color: var(--color-foreground)">
+					<Pencil size={12} aria-hidden="true" /> Edit workspace
+				</button>
+			{:else}
+				<span class="text-xs ml-auto" style="color: var(--color-muted-foreground)">T2125 Part 7, line 9945</span>
+			{/if}
+		</div>
+
+		{#if showHomeForm}
+			<div class="px-5 py-4 border-b" style="border-color: var(--color-border)">
+				<p class="text-sm mb-3" style="color: var(--color-muted-foreground)">
+					If you work from home, part of your home's costs is deductible: your workspace's share of the home, times how much of the time it's used for business.
+					It qualifies if it's your main place of business, or you use it only for work and regularly meet clients there.
+				</p>
+				<FormAlert message={form?.homeError} class="mb-3" />
+				<form method="POST" action="?/saveHomeOffice" class="flex flex-col gap-4"
+					use:enhance={() => { homeSaving = true; return async ({ update, result }) => { homeSaving = false; await update({ reset: false }); if (result.type === 'success') { homeEditing = false; addToast('Home office saved'); } }; }}>
+					<input type="hidden" name="year" value={data.year} />
+					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+						<div>
+							<label for="home-area" class="flex items-center text-sm font-medium mb-1" style="color: var(--color-foreground)">
+								Area of the home <Tip tip="Total area or number of rooms in the home. Use the same unit (sq ft, m² or rooms) for both areas." />
+							</label>
+							<input id="home-area" name="home_area" type="number" min="0.01" step="any" value={data.homePrefill?.home_area ?? ''} placeholder="e.g. 1475" class="{inputClass} font-mono" style={inputStyle} />
+						</div>
+						<div>
+							<label for="workspace-area" class="block text-sm font-medium mb-1" style="color: var(--color-foreground)">Area of the workspace</label>
+							<input id="workspace-area" name="workspace_area" type="number" min="0.01" step="any" value={data.homePrefill?.workspace_area ?? ''} placeholder="e.g. 306" class="{inputClass} font-mono" style={inputStyle} />
+						</div>
+						<div>
+							<label for="business-time" class="flex items-center text-sm font-medium mb-1" style="color: var(--color-foreground)">
+								Business use of workspace (%) <Tip tip="If the space is also used personally (a guest room, the kitchen table), the share of time it's used for business. 100 if it's only for work." />
+							</label>
+							<input id="business-time" name="business_time_percent" type="number" min="1" max="100" step="any" value={data.homePrefill?.business_time_percent ?? 100} class="{inputClass} font-mono" style={inputStyle} />
+						</div>
+						<div>
+							<label for="home-carry" class="flex items-center text-sm font-medium mb-1" style="color: var(--color-foreground)">
+								Carried from {data.year - 1} ($) <Tip tip="Home office costs you couldn't deduct last year because they would have created a loss. Usually 0 — it's on last year's form as the amount carried forward." />
+							</label>
+							<input id="home-carry" name="carryforward" type="number" min="0" step="0.01" value={data.homePrefill?.carryforward || ''} placeholder="0.00" class="{inputClass} font-mono" style={inputStyle} />
+						</div>
+					</div>
+					{#if !homeConfig && data.homePrefill}
+						<p class="text-xs" style="color: var(--color-muted-foreground)">Filled in from {data.year - 1} — save to use it for {data.year}.</p>
+					{/if}
+					<div class="flex justify-end gap-3">
+						{#if homeEditing}
+							<button type="button" onclick={() => (homeEditing = false)} class="px-4 py-2 rounded-lg text-sm font-medium border"
+								style="border-color: var(--color-border); color: var(--color-muted-foreground)">Cancel</button>
+						{/if}
+						<button type="submit" disabled={homeSaving} class="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+							style="background-color: var(--color-primary); color: var(--color-primary-foreground)">{homeSaving ? 'Saving…' : 'Save workspace'}</button>
+					</div>
+				</form>
+			</div>
+		{:else if !homeConfig}
+			<div class="px-5 py-4 flex flex-wrap items-center gap-3 text-sm" style="color: var(--color-muted-foreground)">
+				<p class="grow">Work from home? Part of your heat, hydro, home insurance, mortgage interest and property tax is deductible.</p>
+				<button type="button" onclick={() => (homeEditing = true)} class="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+					style="border-color: var(--color-border); color: var(--color-foreground)">Set up home office</button>
+			</div>
+		{/if}
+
+		{#if homeConfig && !homeEditing}
+			<p class="px-5 py-3 text-sm border-b" style="border-color: var(--color-border); color: var(--color-muted-foreground)">
+				Workspace share: {num(homeConfig.workspace_area)} of {num(homeConfig.home_area)}{homeConfig.business_time_percent < 100 ? `, used ${num(homeConfig.business_time_percent)}% for business` : ''}
+				= <strong style="color: var(--color-foreground)">{num(Math.round((s.homeOffice.share ?? 0) * 10000) / 100)}%</strong> of home costs.
+			</p>
+		{/if}
+
+		{#if s.phoneDoubleCountRisk}
+			<p class="px-5 py-3 text-sm flex items-start gap-2 border-b" style="border-color: var(--color-border); color: var(--color-foreground)">
+				<AlertTriangle size={15} class="mt-0.5 shrink-0" style="color: var(--color-warning)" aria-hidden="true" />
+				<span>Phone or internet appears both here and under "Phone & internet" expenses. Make sure the same bill isn't counted twice.</span>
+			</p>
+		{/if}
+
+		{#if s.homeOffice.count > 0 || s.homeOffice.carryforwardIn > 0}
+			<div class="relative overflow-x-auto">
+				<table class="w-full text-sm min-w-120">
+					<caption class="sr-only">Business-use-of-home expenses for {data.year}</caption>
+					<tbody>
+						{#each s.homeOffice.lines as l (l.type)}
+							<tr class="border-t first:border-t-0" style="border-color: var(--color-border)">
+								<th scope="row" class="text-left px-5 py-2 font-normal" style="color: var(--color-foreground)">
+									{l.label}
+									{#if l.type === 'other' && l.descriptions.length}<span class="block text-xs" style="color: var(--color-muted-foreground)">{l.descriptions.join(', ')}</span>{/if}
+								</th>
+								<td class="px-5 py-2 text-right font-mono" style="color: {l.amount ? 'var(--color-foreground)' : 'var(--color-muted-foreground)'}">{l.amount ? fmt(l.amount) : '—'}</td>
+							</tr>
+						{/each}
+						<tr class="border-t font-medium" style="border-color: var(--color-border); background-color: var(--color-accent)">
+							<th scope="row" class="text-left px-5 py-2" style="color: var(--color-foreground)">Subtotal</th>
+							<td class="px-5 py-2 text-right font-mono" style="color: var(--color-foreground)">{fmt(s.homeOffice.subtotal)}</td>
+						</tr>
+						<tr class="border-t" style="border-color: var(--color-border)">
+							<th scope="row" class="text-left px-5 py-2 font-normal" style="color: var(--color-foreground)">Less: personal use part</th>
+							<td class="px-5 py-2 text-right font-mono" style="color: var(--color-muted-foreground)">{minus(s.homeOffice.personalPart)}</td>
+						</tr>
+						<tr class="border-t font-medium" style="border-color: var(--color-border)">
+							<th scope="row" class="text-left px-5 py-2" style="color: var(--color-foreground)">
+								Business part
+								{#if !homeConfig}<span class="block text-xs font-normal" style="color: var(--color-muted-foreground)">Using each expense's business-use % until the workspace is set up</span>{/if}
+							</th>
+							<td class="px-5 py-2 text-right font-mono" style="color: var(--color-foreground)">{fmt(s.homeOffice.businessPart)}</td>
+						</tr>
+						{#if s.homeOffice.carryforwardIn > 0}
+							<tr class="border-t" style="border-color: var(--color-border)">
+								<th scope="row" class="text-left px-5 py-2 font-normal" style="color: var(--color-foreground)">Plus: carried forward from {data.year - 1}</th>
+								<td class="px-5 py-2 text-right font-mono" style="color: var(--color-foreground)">{fmt(s.homeOffice.carryforwardIn)}</td>
+							</tr>
+						{/if}
+						{#if s.homeOffice.carriedForward > 0}
+							<tr class="border-t" style="border-color: var(--color-border)">
+								<th scope="row" class="text-left px-5 py-2 font-normal" style="color: var(--color-foreground)">
+									Limited to net income
+									<span class="block text-xs" style="color: var(--color-muted-foreground)">Home office costs can't create or increase a business loss</span>
+								</th>
+								<td class="px-5 py-2 text-right font-mono" style="color: var(--color-foreground)">{fmt(s.homeOffice.limit)}</td>
+							</tr>
+						{/if}
+						<tr class="border-t font-semibold" style="border-color: var(--color-border); background-color: var(--color-accent)">
+							<th scope="row" class="text-left px-5 py-2.5" style="color: var(--color-foreground)">Deductible this year <span class="font-normal text-xs" style="color: var(--color-muted-foreground)">(line 9945)</span></th>
+							<td class="px-5 py-2.5 text-right font-mono" style="color: var(--color-foreground)">{fmt(s.homeOffice.deductible)}</td>
+						</tr>
+						{#if s.homeOffice.carriedForward > 0}
+							<tr class="border-t" style="border-color: var(--color-border)">
+								<th scope="row" class="text-left px-5 py-2.5 font-normal" style="color: var(--color-foreground)">Carried forward to {data.year + 1}</th>
+								<td class="px-5 py-2.5 text-right">
+									<form method="POST" action="?/carryHomeOfficeForward" class="inline-flex items-center gap-3"
+										use:enhance={() => async ({ update, result }) => { await update({ reset: false }); if (result.type === 'success') addToast(`Carried into ${data.year + 1}`); }}>
+										<input type="hidden" name="year" value={data.year} />
+										<input type="hidden" name="amount" value={s.homeOffice.carriedForward} />
+										<span class="font-mono" style="color: var(--color-foreground)">{fmt(s.homeOffice.carriedForward)}</span>
+										{#if homeConfig}
+											<button type="submit" class="px-2.5 py-1 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
+												style="border-color: var(--color-border); color: var(--color-foreground)">Carry into {data.year + 1}</button>
+										{/if}
+									</form>
+								</td>
+							</tr>
+						{/if}
+					</tbody>
+				</table>
+			</div>
+		{:else if homeConfig}
+			<p class="px-5 py-4 text-sm" style="color: var(--color-muted-foreground)">
+				No home costs logged for {data.year} yet. Add them on <a href="/expenses" class="underline" style="color: var(--color-primary)">Expenses</a> under "Business use of home" at their full amount — Yield applies your share.
+			</p>
+		{/if}
+	</section>
 
 	<!-- GST/HST filing periods -->
 	<section class="rounded-xl border overflow-hidden mb-6" style={cardStyle} aria-labelledby="periods-title">
@@ -567,6 +738,7 @@
 		<div class="px-5 pb-4 text-sm space-y-2" style="color: var(--color-muted-foreground)">
 			<p><strong style="color: var(--color-foreground)">Revenue</strong> is every non-draft invoice issued in {data.year}, before GST/HST, counted on its issue date whether or not it's been paid. That's how GST/HST is reported and how most sole proprietors report income.</p>
 			<p><strong style="color: var(--color-foreground)">Deductible expenses</strong> are the business-use share of each <a href="/expenses?year={data.year}" class="underline" style="color: var(--color-primary)">expense</a>, with meals and entertainment at 50%.</p>
+			<p><strong style="color: var(--color-foreground)">Business use of home</strong> takes the full cost of heat, electricity, home insurance, maintenance, mortgage interest, property taxes and rent, and deducts your workspace's share. It's applied after your other expenses and can't take you below zero; anything left over carries forward to next year.</p>
 			<p><strong style="color: var(--color-foreground)">Income tax</strong>, with a province set, applies {data.year}'s federal and provincial brackets to your profit after the CPP/QPP deduction, minus the basic personal amount. It assumes this business is your only income and leaves out other credits, RRSP contributions, and some provincial surtaxes and health premiums, so treat it as a planning number. With a flat rate, it's simply profit × that rate.</p>
 			<p><strong style="color: var(--color-foreground)">CPP</strong>: self-employed people pay both halves (11.9% on most income, more above the first earnings ceiling). Half of it is deductible.</p>
 			<p><strong style="color: var(--color-foreground)">Instalments</strong>: if you owe more than $3,000 (Quebec: $1,800) when you file, the CRA may ask you to prepay next year in instalments due {itDates.instalments.map((d) => fmtDate(d).replace(/,? \d{4}$/, '')).join(', ')}. Record them here as income tax payments for that year.</p>
