@@ -4,7 +4,9 @@ import {
 	todayIso,
 	isUniqueViolation,
 	generateRecurringExpenses,
-	generateForRecurringExpense
+	generateForRecurringExpense,
+	timingChanged,
+	rescheduleRecurringExpense
 } from '../recurring.server.js';
 import type { RecurringExpense } from '../types.js';
 
@@ -189,3 +191,88 @@ describe('generateForRecurringExpense', () => {
 		expect(created.map((c) => c.recurring)).toEqual(['rec2']);
 	});
 });
+
+describe('timingChanged', () => {
+	const t = { start_date: '2026-01-15 00:00:00.000Z', frequency: 'monthly' as const, end_date: '' };
+
+	it('ignores formatting differences', () => {
+		expect(timingChanged(t, { ...t, start_date: '2026-01-15' })).toBe(false);
+	});
+
+	it('detects a new start date, frequency or end date', () => {
+		expect(timingChanged(t, { ...t, start_date: '2026-01-01' })).toBe(true);
+		expect(timingChanged(t, { ...t, frequency: 'yearly' })).toBe(true);
+		expect(timingChanged(t, { ...t, end_date: '2026-12-31' })).toBe(true);
+	});
+});
+
+describe('rescheduleRecurringExpense', () => {
+	type Charge = { id: string; expense_date: string; receipt: string; created: string; updated: string; recurring: string };
+
+	/** Fake PocketBase holding one schedule and its charges, enforcing the (recurring, date) unique index. */
+	function store(s: RecurringExpense, charges: Partial<Charge>[]) {
+		let n = 0;
+		const rows: Charge[] = charges.map((c) => ({
+			id: `c${n++}`, receipt: '', created: 't0', updated: 't0', recurring: s.id, expense_date: '', ...c
+		}));
+		const pb = {
+			filter: (q: string) => q,
+			collection: (name: string) =>
+				name === 'recurring_expenses'
+					? {
+							getOne: async () => s,
+							update: async (_id: string, data: Partial<RecurringExpense>) => Object.assign(s, data)
+						}
+					: {
+							getFullList: async () => rows.map((r) => ({ ...r })),
+							delete: async (id: string) => {
+								rows.splice(rows.findIndex((r) => r.id === id), 1);
+							},
+							create: async (data: { expense_date: string; recurring: string }) => {
+								if (rows.some((r) => r.recurring === data.recurring && r.expense_date.slice(0, 10) === data.expense_date)) throw uniqueError();
+								rows.push({ id: `c${n++}`, receipt: '', created: 'new', updated: 'new', ...data });
+							}
+						}
+		} as unknown as PocketBase;
+		const dates = () => rows.map((r) => r.expense_date.slice(0, 10)).sort();
+		return { pb, rows, dates };
+	}
+
+	it('fills in the months before an earlier start date', async () => {
+		// Created starting Oct 15, then corrected to Jul 15
+		const s = schedule({ start_date: '2026-07-15', last_generated: '2026-10-15' });
+		const { pb, dates } = store(s, [{ expense_date: '2026-10-15 00:00:00.000Z' }]);
+		const result = await rescheduleRecurringExpense(pb, s.id, '2026-10-20');
+		expect(result).toEqual({ created: 3, errors: [], removed: 0, keptOffSchedule: 0 });
+		expect(dates()).toEqual(['2026-07-15', '2026-08-15', '2026-09-15', '2026-10-15']);
+		expect(s.last_generated).toBe('2026-10-15');
+	});
+
+	it('moves untouched charges when the day of month changes', async () => {
+		const s = schedule({ start_date: '2026-09-01' });
+		const { pb, dates } = store(s, [{ expense_date: '2026-10-15' }]);
+		const result = await rescheduleRecurringExpense(pb, s.id, '2026-10-20');
+		expect(result).toMatchObject({ created: 2, removed: 1, keptOffSchedule: 0 });
+		expect(dates()).toEqual(['2026-09-01', '2026-10-01']);
+	});
+
+	it('keeps charges that were edited or have a receipt', async () => {
+		const s = schedule({ start_date: '2026-10-01' });
+		const { pb, dates } = store(s, [
+			{ expense_date: '2026-09-15', updated: 't1' },
+			{ expense_date: '2026-10-15', receipt: 'bill.pdf' }
+		]);
+		const result = await rescheduleRecurringExpense(pb, s.id, '2026-10-20');
+		expect(result).toMatchObject({ created: 1, removed: 0, keptOffSchedule: 2 });
+		expect(dates()).toEqual(['2026-09-15', '2026-10-01', '2026-10-15']);
+	});
+
+	it('removes untouched charges past a new end date', async () => {
+		const s = schedule({ start_date: '2026-08-15', end_date: '2026-09-30' });
+		const { pb, dates } = store(s, [{ expense_date: '2026-08-15' }, { expense_date: '2026-09-15' }, { expense_date: '2026-10-15' }]);
+		const result = await rescheduleRecurringExpense(pb, s.id, '2026-10-20');
+		expect(result).toMatchObject({ created: 0, removed: 1 });
+		expect(dates()).toEqual(['2026-08-15', '2026-09-15']);
+	});
+});
+

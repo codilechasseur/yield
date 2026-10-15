@@ -171,3 +171,27 @@ test.describe('Recurring expenses', () => {
 		await expect(page.getByRole('row', { name: new RegExp(description) })).toHaveCount(0);
 	});
 });
+
+test.describe('Recurring expense start date correction', () => {
+	test('moving the start date earlier fills in the missed months', async ({ page }) => {
+		const description = `Late start ${RUN}`;
+		const form = await openAddForm(page);
+		await form.getByLabel('Description').fill(description);
+		await form.getByLabel('Category').selectOption('software');
+		await form.getByLabel(/^Amount/).fill('15');
+		await form.getByLabel(/This repeats/).check();
+		await form.getByLabel('First charge date').fill(firstOfMonth(0));
+		await form.getByRole('button', { name: 'Save Expense' }).click();
+
+		const row = page.getByRole('region', { name: 'Recurring expenses' }).getByRole('row', { name: new RegExp(description) });
+		await expect(row).toContainText('1 charge logged');
+
+		await page.getByRole('button', { name: `Edit recurring expense ${description}` }).click();
+		const editForm = page.getByRole('region', { name: 'Edit Recurring Expense' });
+		await editForm.getByLabel('First charge date').fill(firstOfMonth(2));
+		await editForm.getByRole('button', { name: 'Save Recurring Expense' }).click();
+
+		await expect(page.getByText('Recurring expense updated — 2 charges added')).toBeVisible();
+		await expect(row).toContainText('3 charges logged');
+	});
+});

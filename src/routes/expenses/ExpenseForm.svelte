@@ -114,7 +114,9 @@
 	{/if}
 	{#if mode === 'recurring'}
 		<p class="text-xs" style="color: var(--color-muted-foreground)">
-			Changes apply to charges created from now on — charges already logged keep their amounts. Edit those individually.
+			New amounts and details apply to charges from now on — charges already logged keep theirs.
+			Changing the first charge date, frequency or last charge re-syncs the logged charges: missing ones are added
+			and ones that no longer fit are removed, unless you've edited them or attached a receipt.
 		</p>
 	{/if}
 

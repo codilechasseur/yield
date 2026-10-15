@@ -6,7 +6,14 @@ import { getSmtpSettings } from '$lib/mail.server.js';
 import { isExpenseCategory, parseBusinessUse, summarizeExpenses } from '$lib/expenses.js';
 import { homeConfigForYear, homeOfficeShare, isHomeCostType } from '$lib/home-office.js';
 import { annualCost, isFrequency, nextOccurrence, toIsoDate } from '$lib/recurring.js';
-import { generateForRecurringExpense, generateRecurringExpenses, isUniqueViolation, todayIso } from '$lib/recurring.server.js';
+import {
+	generateForRecurringExpense,
+	generateRecurringExpenses,
+	isUniqueViolation,
+	rescheduleRecurringExpense,
+	timingChanged,
+	todayIso
+} from '$lib/recurring.server.js';
 
 const PER_PAGE = 20;
 const MAX_RECEIPT_BYTES = 10 * 1024 * 1024;
@@ -234,14 +241,13 @@ export const actions = {
 			});
 			const result = await generateForRecurringExpense(pb, schedule.id);
 			if (result.errors.length) throw new Error(result.errors.join('; '));
-			if (receipt) {
-				const first = await pb
-					.collection('expenses')
-					.getFirstListItem<Expense>(pb.filter('recurring = {:id}', { id: schedule.id }), { sort: 'expense_date' })
-					.catch(() => null);
-				if (first) await pb.collection('expenses').update(first.id, { receipt });
-			}
-			return { createSuccess: true, chargesCreated: result.created };
+			// Count what exists rather than what this call inserted: a page load running the
+			// background generator at the same moment may have logged some of these charges.
+			const charges = await pb
+				.collection('expenses')
+				.getList<Expense>(1, 1, { filter: pb.filter('recurring = {:id}', { id: schedule.id }), sort: 'expense_date' });
+			if (receipt && charges.items[0]) await pb.collection('expenses').update(charges.items[0].id, { receipt });
+			return { createSuccess: true, chargesCreated: charges.totalItems };
 		} catch (e) {
 			return fail(500, { createError: 'Failed to save: ' + (e as Error).message });
 		}
@@ -310,13 +316,23 @@ export const actions = {
 		}
 
 		try {
-			await pb.collection('recurring_expenses').update(id, { ...fields, frequency, start_date, end_date });
-			const result = await generateForRecurringExpense(pb, id);
+			const before = await pb.collection('recurring_expenses').getOne<RecurringExpense>(id);
+			const after = { ...fields, frequency, start_date, end_date };
+			await pb.collection('recurring_expenses').update(id, after);
+			// A new start date, frequency or end date re-syncs the logged charges; other edits only affect future ones.
+			const result = timingChanged(before, after)
+				? await rescheduleRecurringExpense(pb, id)
+				: { ...(await generateForRecurringExpense(pb, id)), removed: 0, keptOffSchedule: 0 };
 			if (result.errors.length) throw new Error(result.errors.join('; '));
+			return {
+				recurringSuccess: true,
+				chargesCreated: result.created,
+				chargesRemoved: result.removed,
+				chargesKept: result.keptOffSchedule
+			};
 		} catch (e) {
 			return fail(500, { recurringError: 'Failed to save: ' + (e as Error).message });
 		}
-		return { recurringSuccess: true };
 	},
 
 	/** Ends a schedule today: charges already created stay, nothing new is created. */

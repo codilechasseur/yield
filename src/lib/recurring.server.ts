@@ -8,8 +8,8 @@
  * expenses (recurring, expense_date) rejects a second copy if two runs race.
  */
 import type PocketBase from 'pocketbase';
-import type { RecurringExpense } from './types.js';
-import { dueOccurrences } from './recurring.js';
+import type { Expense, RecurringExpense } from './types.js';
+import { dueOccurrences, toIsoDate } from './recurring.js';
 
 export interface GenerateResult {
 	created: number;
@@ -27,7 +27,7 @@ export function isUniqueViolation(e: unknown): boolean {
 	return Object.values(data).some((v) => v?.code === 'validation_not_unique');
 }
 
-async function generateForSchedule(pb: PocketBase, s: RecurringExpense, today: string, result: GenerateResult) {
+async function generateForSchedule(pb: PocketBase, s: RecurringExpense, today: string, result: GenerateResult): Promise<void> {
 	const dates = dueOccurrences(s, today);
 	if (dates.length === 0) return;
 
@@ -86,3 +86,54 @@ export async function generateForRecurringExpense(pb: PocketBase, id: string, to
 	await generateForSchedule(pb, s, today, result);
 	return result;
 }
+
+type Timing = Pick<RecurringExpense, 'start_date' | 'frequency' | 'end_date'>;
+
+/** Whether an edit changed when charges fall (start date, frequency or end date). */
+export function timingChanged(before: Timing, after: Timing): boolean {
+	return (
+		toIsoDate(before.start_date) !== toIsoDate(after.start_date) ||
+		before.frequency !== after.frequency ||
+		toIsoDate(before.end_date) !== toIsoDate(after.end_date)
+	);
+}
+
+export interface RescheduleResult extends GenerateResult {
+	/** Untouched charges deleted because they no longer fall on the schedule. */
+	removed: number;
+	/** Off-schedule charges kept because they were edited or have a receipt. */
+	keptOffSchedule: number;
+}
+
+/**
+ * Re-syncs a schedule's charges after its timing changed. Every charge the new
+ * timing calls for (start → today/end date) is created if missing — including
+ * ones before the old start date, which normal generation skips. Charges that
+ * no longer fit are deleted only if untouched (never edited, no receipt);
+ * edited ones are kept so no manual work is lost.
+ */
+export async function rescheduleRecurringExpense(pb: PocketBase, id: string, today = todayIso()): Promise<RescheduleResult> {
+	const result: RescheduleResult = { created: 0, errors: [], removed: 0, keptOffSchedule: 0 };
+	const s = await pb.collection('recurring_expenses').getOne<RecurringExpense>(id);
+	const wanted = new Set(dueOccurrences({ ...s, last_generated: '' }, today));
+
+	const charges = await pb.collection('expenses').getFullList<Pick<Expense, 'id' | 'expense_date' | 'receipt' | 'created' | 'updated'>>({
+		filter: pb.filter('recurring = {:id}', { id }),
+		fields: 'id,expense_date,receipt,created,updated'
+	});
+	for (const c of charges) {
+		if (wanted.has(toIsoDate(c.expense_date))) continue;
+		const untouched = !c.receipt && c.created === c.updated;
+		if (untouched) {
+			await pb.collection('expenses').delete(c.id);
+			result.removed++;
+		} else {
+			result.keptOffSchedule++;
+		}
+	}
+
+	// Regenerate from the start; existing charges are skipped by the unique index.
+	await generateForSchedule(pb, { ...s, last_generated: '' }, today, result);
+	return result;
+}
+

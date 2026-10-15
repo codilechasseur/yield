@@ -89,7 +89,15 @@
 		} else if (mode === 'edit') {
 			addToast('Expense updated');
 		} else {
-			addToast('Recurring expense updated');
+			const added = Number(result?.chargesCreated ?? 0);
+			const removed = Number(result?.chargesRemoved ?? 0);
+			const kept = Number(result?.chargesKept ?? 0);
+			const parts = [
+				added && `${added} ${added === 1 ? 'charge' : 'charges'} added`,
+				removed && `${removed} removed`,
+				kept && `${kept} edited ${kept === 1 ? 'charge' : 'charges'} kept on ${kept === 1 ? 'its' : 'their'} old date`
+			].filter(Boolean);
+			addToast(parts.length ? `Recurring expense updated — ${parts.join(', ')}` : 'Recurring expense updated');
 		}
 	}
 
