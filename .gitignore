@@ -38,3 +38,5 @@ vite.config.ts.timestamp-*
 
 # Playwright auth state
 tests/e2e/.auth/
+/test-results
+/playwright-report
