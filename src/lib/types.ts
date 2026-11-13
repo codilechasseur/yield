@@ -61,6 +61,17 @@ export interface InvoiceWithItems extends Invoice {
 	client_data?: Client;
 }
 
+/** A compact view of a past invoice, shown on the new-invoice form for reference. */
+export interface RecentInvoice {
+	id: string;
+	number: string;
+	subject: string;
+	issue_date: string;
+	status: InvoiceStatus;
+	total: number;
+	items: Pick<InvoiceItem, 'description' | 'quantity' | 'unit_price'>[];
+}
+
 export type InvoiceLogAction = 'status_changed' | 'note' | 'edited' | 'email_sent' | 'invoice_created' | 'payment_recorded';
 
 export interface InvoiceLog {

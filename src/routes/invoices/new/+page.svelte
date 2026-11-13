@@ -6,7 +6,10 @@
 	import DatePicker from '$lib/components/DatePicker.svelte';
 	import RichTextarea from '$lib/components/RichTextarea.svelte';
 	import QuickAddClient from '$lib/components/QuickAddClient.svelte';
+	import RecentInvoices from '$lib/components/RecentInvoices.svelte';
 	import { addToast } from '$lib/toasts.svelte.js';
+	import { hasOnlyBlankItems } from '$lib/recent-invoices.js';
+	import type { RecentInvoice } from '$lib/types.js';
 	import type { PageData, ActionData } from './$types.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -67,6 +70,13 @@
 	function addItem() {
 		const defaultRate = selectedClient?.default_hourly_rate ?? 0;
 		items = [...items, { id: nextId++, description: '', quantity: 1, unit_price: defaultRate }];
+	}
+
+	function copyItemsFrom(invoice: RecentInvoice) {
+		const copied = invoice.items.map(({ description, quantity, unit_price }) => ({ id: nextId++, description, quantity, unit_price }));
+		if (copied.length === 0) return;
+		items = hasOnlyBlankItems(items) ? copied : [...items, ...copied];
+		addToast(`Copied ${copied.length} line ${copied.length === 1 ? 'item' : 'items'} from ${invoice.number}`);
 	}
 
 	function removeItem(id: number) {
@@ -212,6 +222,13 @@
 				{/if}
 			</div>
 		</div>
+
+		<RecentInvoices
+			clientId={selectedClientId}
+			clientName={selectedClient?.name ?? ''}
+			currency={selectedClient?.currency}
+			onCopyItems={copyItemsFrom}
+		/>
 
 		<!-- Line items -->
 		<div class="rounded-xl border overflow-hidden" style="background: var(--color-card); border-color: var(--color-border)">
