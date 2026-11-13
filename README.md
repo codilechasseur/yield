@@ -1,7 +1,7 @@
 # Yield
 
 [![CI](https://github.com/codilechasseur/yield/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/codilechasseur/yield/actions/workflows/ci.yml)
-[![Release](https://github.com/codilechasseur/yield/actions/workflows/release.yml/badge.svg)](https://github.com/codilechasseur/yield/actions/workflows/release.yml)
+[![Publish](https://github.com/codilechasseur/yield/actions/workflows/publish.yml/badge.svg)](https://github.com/codilechasseur/yield/actions/workflows/publish.yml)
 [![Latest Release](https://img.shields.io/github/v/release/codilechasseur/yield?label=version)](https://github.com/codilechasseur/yield/releases/latest)
 
 A clean, self-hosted invoicing app for freelancers and small agencies. No subscriptions, no third-party servers — fully yours.
@@ -197,4 +197,4 @@ docker-compose.yml
 
 ## License
 
-MIT
+[AGPL-3.0](LICENSE)
